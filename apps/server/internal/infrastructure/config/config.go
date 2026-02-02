@@ -339,6 +339,55 @@ func (c *Config) Validate() error {
 				Message: "is required when webhooks are enabled",
 			})
 		}
+		// Validate event types if specified
+		validEvents := map[string]bool{
+			"message.received":     true,
+			"message.sent":         true,
+			"message.delivered":    true,
+			"message.read":         true,
+			"message.reaction":     true,
+			"presence.update":      true,
+			"session.connected":    true,
+			"session.disconnected": true,
+		}
+		for _, event := range c.Webhook.Events {
+			if !validEvents[event] {
+				errs = append(errs, ValidationError{
+					Field:   "webhook.events",
+					Message: fmt.Sprintf("invalid event type: %s", event),
+				})
+			}
+		}
+	}
+
+	// Validate API Key config
+	if c.APIKey.Enabled {
+		if len(c.APIKey.Keys) == 0 && len(c.APIKey.KeysMap) == 0 {
+			errs = append(errs, ValidationError{
+				Field:   "apikey.keys",
+				Message: "at least one API key must be configured when API key authentication is enabled",
+			})
+		}
+		// Validate roles in KeysMap
+		validRoles := map[Role]bool{
+			RoleRead:  true,
+			RoleWrite: true,
+			RoleAdmin: true,
+		}
+		for i, keyInfo := range c.APIKey.KeysMap {
+			if keyInfo.Key == "" {
+				errs = append(errs, ValidationError{
+					Field:   fmt.Sprintf("apikey.keys_map[%d].key", i),
+					Message: "is required",
+				})
+			}
+			if keyInfo.Role != "" && !validRoles[keyInfo.Role] {
+				errs = append(errs, ValidationError{
+					Field:   fmt.Sprintf("apikey.keys_map[%d].role", i),
+					Message: fmt.Sprintf("invalid role: %s (must be read, write, or admin)", keyInfo.Role),
+				})
+			}
+		}
 	}
 
 	if len(errs) > 0 {
@@ -544,4 +593,36 @@ func MustLoad() *Config {
 		panic(fmt.Sprintf("failed to load configuration: %v", err))
 	}
 	return cfg
+}
+
+// Reload reloads configuration from environment variables
+// This allows configuration changes without restarting the service
+func (c *Config) Reload() error {
+	v := viper.New()
+
+	// Set default values
+	setDefaults(v)
+
+	// Enable reading from environment variables
+	v.SetEnvPrefix("WHATSAPP")
+	v.SetEnvKeyReplacer(strings.NewReplacer(".", "_"))
+	v.AutomaticEnv()
+
+	// Bind environment variables explicitly
+	bindEnvVars(v)
+
+	var newCfg Config
+	if err := v.Unmarshal(&newCfg); err != nil {
+		return fmt.Errorf("failed to unmarshal config: %w", err)
+	}
+
+	// Validate new configuration before applying
+	if err := newCfg.Validate(); err != nil {
+		return fmt.Errorf("invalid configuration: %w", err)
+	}
+
+	// Apply new configuration
+	*c = newCfg
+
+	return nil
 }
