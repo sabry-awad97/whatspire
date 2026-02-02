@@ -61,6 +61,7 @@ type WhatsmeowClient struct {
 	circuitBreaker *CircuitBreaker
 	mediaUploader  *WhatsmeowMediaUploader
 	messageParser  *MessageParser
+	messageHandler *MessageHandler
 
 	// History sync configuration per session
 	historySyncConfig map[string]HistorySyncConfig
@@ -622,6 +623,13 @@ func (c *WhatsmeowClient) SetMediaUploader(uploader *WhatsmeowMediaUploader) {
 	c.mediaUploader = uploader
 }
 
+// SetMessageHandler sets the message handler for processing incoming messages
+func (c *WhatsmeowClient) SetMessageHandler(handler *MessageHandler) {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	c.messageHandler = handler
+}
+
 // getOrCreateDevice gets or creates a device store for the session
 func (c *WhatsmeowClient) getOrCreateDevice(ctx context.Context, sessionID string) (*store.Device, error) {
 	// Try to get existing device
@@ -662,6 +670,10 @@ func (c *WhatsmeowClient) handleEvent(sessionID string, client *whatsmeow.Client
 	case *events.Message:
 		event, err = c.handleMessageEvent(sessionID, client, v)
 	case *events.Connected:
+		// Notify message handler of connection
+		if c.messageHandler != nil {
+			c.messageHandler.SetSessionConnected(sessionID, true)
+		}
 		event, err = entity.NewEventWithPayload(
 			generateEventID(),
 			entity.EventTypeConnected,
@@ -669,6 +681,10 @@ func (c *WhatsmeowClient) handleEvent(sessionID string, client *whatsmeow.Client
 			map[string]string{"status": "connected"},
 		)
 	case *events.Disconnected:
+		// Notify message handler of disconnection
+		if c.messageHandler != nil {
+			c.messageHandler.SetSessionConnected(sessionID, false)
+		}
 		event, err = entity.NewEventWithPayload(
 			generateEventID(),
 			entity.EventTypeDisconnected,
@@ -715,6 +731,26 @@ func (c *WhatsmeowClient) handleEvent(sessionID string, client *whatsmeow.Client
 // handleMessageEvent converts a WhatsApp message event to a domain event
 // Also saves the sender's pushname to the contact store for future lookups
 func (c *WhatsmeowClient) handleMessageEvent(sessionID string, client *whatsmeow.Client, msg *events.Message) (*entity.Event, error) {
+	// Use the message handler if available (supports media download and queueing)
+	if c.messageHandler != nil {
+		ctx := context.Background()
+		event, err := c.messageHandler.HandleIncomingMessage(ctx, sessionID, client, msg)
+		if err != nil {
+			c.logger.Warnf("Message handler failed: %v", err)
+			return nil, err
+		}
+
+		// Check if session is connected, queue event if not
+		if !c.messageHandler.IsSessionConnected(sessionID) {
+			c.logger.Infof("Session %s disconnected, queueing event", sessionID)
+			c.messageHandler.QueueEvent(event)
+			return nil, nil // Don't emit event yet
+		}
+
+		return event, nil
+	}
+
+	// Fallback to legacy handling if message handler not set
 	// Save pushname to contact store if available
 	if msg.Info.PushName != "" && client != nil && client.Store != nil && client.Store.Contacts != nil {
 		// Update contact with pushname (use background context since this is async)

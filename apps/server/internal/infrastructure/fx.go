@@ -11,9 +11,11 @@ import (
 	"whatspire/internal/infrastructure/config"
 	"whatspire/internal/infrastructure/health"
 	"whatspire/internal/infrastructure/persistence"
+	"whatspire/internal/infrastructure/storage"
 	"whatspire/internal/infrastructure/websocket"
 	"whatspire/internal/infrastructure/whatsapp"
 
+	waLog "go.mau.fi/whatsmeow/util/log"
 	"go.uber.org/fx"
 )
 
@@ -34,9 +36,14 @@ var Module = fx.Module("infrastructure",
 		NewEventHub,
 		NewHealthCheckers,
 		NewMediaUploader,
+		NewReactionRepository,
+		NewReceiptRepository,
+		NewPresenceRepository,
+		NewLocalMediaStorage,
 	),
 	// Wire EventHub to WhatsApp client events
 	fx.Invoke(WireEventHubToWhatsAppClient),
+	fx.Invoke(WireMessageHandler),
 )
 
 // NewInMemorySessionRepository creates a new in-memory session repository
@@ -220,4 +227,64 @@ func NewEventHub(lc fx.Lifecycle, cfg *config.Config) *websocket.EventHub {
 	})
 
 	return hub
+}
+
+// NewReactionRepository creates a new reaction repository
+func NewReactionRepository() repository.ReactionRepository {
+	return persistence.NewInMemoryReactionRepository()
+}
+
+// NewReceiptRepository creates a new receipt repository
+func NewReceiptRepository() repository.ReceiptRepository {
+	return persistence.NewInMemoryReceiptRepository()
+}
+
+// NewPresenceRepository creates a new presence repository
+func NewPresenceRepository() repository.PresenceRepository {
+	return persistence.NewInMemoryPresenceRepository()
+}
+
+// NewLocalMediaStorage creates a new local media storage
+func NewLocalMediaStorage(cfg *config.Config) (repository.MediaStorage, error) {
+	storageConfig := repository.MediaStorageConfig{
+		BasePath:    cfg.Media.BasePath,
+		BaseURL:     cfg.Media.BaseURL,
+		MaxFileSize: cfg.Media.MaxFileSize,
+	}
+
+	storage, err := storage.NewLocalMediaStorage(storageConfig)
+	if err != nil {
+		return nil, err
+	}
+
+	return storage, nil
+}
+
+// WireMessageHandler creates and wires the message handler to the WhatsApp client
+func WireMessageHandler(
+	waClient *whatsapp.WhatsmeowClient,
+	cfg *config.Config,
+	mediaStorage repository.MediaStorage,
+) {
+	// Create media download helper
+	mediaDownloadHelper := whatsapp.NewMediaDownloadHelper(mediaStorage)
+
+	// Create message parser
+	messageParser := whatsapp.NewMessageParser()
+
+	// Create logger
+	logger := waLog.Stdout("MessageHandler", "INFO", true)
+
+	// Create message handler
+	messageHandler := whatsapp.NewMessageHandler(
+		messageParser,
+		mediaDownloadHelper,
+		mediaStorage,
+		logger,
+	)
+
+	// Wire it to the client
+	waClient.SetMessageHandler(messageHandler)
+
+	log.Println("✅ Message handler wired to WhatsApp client")
 }
