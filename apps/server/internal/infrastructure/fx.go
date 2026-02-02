@@ -10,8 +10,10 @@ import (
 	"whatspire/internal/domain/valueobject"
 	"whatspire/internal/infrastructure/config"
 	"whatspire/internal/infrastructure/health"
+	"whatspire/internal/infrastructure/logger"
 	"whatspire/internal/infrastructure/persistence"
 	"whatspire/internal/infrastructure/storage"
+	"whatspire/internal/infrastructure/webhook"
 	"whatspire/internal/infrastructure/websocket"
 	"whatspire/internal/infrastructure/whatsapp"
 
@@ -33,6 +35,8 @@ var Module = fx.Module("infrastructure",
 			fx.As(new(repository.GroupFetcher)),
 		),
 		NewGorillaEventPublisher,
+		NewWebhookPublisher,
+		NewCompositeEventPublisher,
 		NewEventHub,
 		NewHealthCheckers,
 		NewMediaUploader,
@@ -131,6 +135,47 @@ func NewGorillaEventPublisher(lc fx.Lifecycle, cfg *config.Config) repository.Ev
 	return publisher
 }
 
+// NewWebhookPublisher creates a new webhook publisher (optional, based on config)
+func NewWebhookPublisher(cfg *config.Config) *webhook.WebhookPublisher {
+	// Return nil if webhooks are not enabled
+	if !cfg.Webhook.Enabled {
+		return nil
+	}
+
+	webhookConfig := webhook.WebhookConfig{
+		URL:    cfg.Webhook.URL,
+		Secret: cfg.Webhook.Secret,
+		Events: cfg.Webhook.Events,
+	}
+
+	// Create logger for webhook publisher
+	logger := logger.NewStructuredLogger(logger.Config{
+		Level:  cfg.Log.Level,
+		Format: cfg.Log.Format,
+	})
+
+	publisher := webhook.NewWebhookPublisher(webhookConfig, logger)
+
+	log.Printf("✅ Webhook publisher created (URL: %s, Events: %v)", cfg.Webhook.URL, cfg.Webhook.Events)
+
+	return publisher
+}
+
+// NewCompositeEventPublisher creates a composite event publisher that publishes to both WebSocket and Webhook
+func NewCompositeEventPublisher(
+	websocketPublisher repository.EventPublisher,
+	webhookPublisher *webhook.WebhookPublisher,
+	cfg *config.Config,
+) repository.EventPublisher {
+	// Create logger for composite publisher
+	logger := logger.NewStructuredLogger(logger.Config{
+		Level:  cfg.Log.Level,
+		Format: cfg.Log.Format,
+	})
+
+	return webhook.NewCompositeEventPublisher(websocketPublisher, webhookPublisher, logger)
+}
+
 // HealthCheckers holds all health checker instances
 type HealthCheckers struct {
 	WhatsAppClient *health.WhatsAppClientHealthChecker
@@ -168,12 +213,12 @@ func NewMediaUploader(waClient *whatsapp.WhatsmeowClient, cfg *config.Config) re
 	return mediaUploader
 }
 
-// WireEventHubToWhatsAppClient connects the EventHub and EventPublisher to receive events from the WhatsApp client
-// This enables real-time event broadcasting to connected WebSocket clients AND the API server
+// WireEventHubToWhatsAppClient connects the EventHub and CompositeEventPublisher to receive events from the WhatsApp client
+// This enables real-time event broadcasting to connected WebSocket clients AND external webhooks
 func WireEventHubToWhatsAppClient(
 	waClient *whatsapp.WhatsmeowClient,
 	hub *websocket.EventHub,
-	publisher repository.EventPublisher,
+	publisher repository.EventPublisher, // This is now the CompositeEventPublisher
 ) {
 	// Register an event handler that broadcasts events to the EventHub (for frontend WebSocket clients)
 	waClient.RegisterEventHandler(func(event *entity.Event) {
@@ -181,9 +226,10 @@ func WireEventHubToWhatsAppClient(
 		hub.Broadcast(event)
 	})
 
-	// Register an event handler that publishes events to the API server via WebSocket
+	// Register an event handler that publishes events via the CompositeEventPublisher
+	// This will publish to both WebSocket (API server) and Webhook (if configured)
 	waClient.RegisterEventHandler(func(event *entity.Event) {
-		// Publish the event to the API server (non-blocking)
+		// Publish the event (non-blocking)
 		go func() {
 			ctx := context.Background()
 			if err := publisher.Publish(ctx, event); err != nil {

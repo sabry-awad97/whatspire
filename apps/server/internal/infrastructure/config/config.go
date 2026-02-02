@@ -39,6 +39,9 @@ type Config struct {
 
 	// Media storage configuration
 	Media MediaConfig `mapstructure:"media"`
+
+	// Webhook configuration
+	Webhook WebhookConfig `mapstructure:"webhook"`
 }
 
 // CircuitBreakerConfig holds circuit breaker configuration
@@ -56,6 +59,14 @@ type MediaConfig struct {
 	BasePath    string `mapstructure:"base_path"`     // Local directory for storing media files
 	BaseURL     string `mapstructure:"base_url"`      // Public URL prefix for accessing media
 	MaxFileSize int64  `mapstructure:"max_file_size"` // Maximum file size in bytes (default: 16MB)
+}
+
+// WebhookConfig holds webhook delivery configuration
+type WebhookConfig struct {
+	Enabled bool     `mapstructure:"enabled"` // Enable webhook delivery
+	URL     string   `mapstructure:"url"`     // Webhook endpoint URL
+	Secret  string   `mapstructure:"secret"`  // Secret for HMAC signing (optional)
+	Events  []string `mapstructure:"events"`  // Event types to deliver (empty = all events)
 }
 
 // MetricsConfig holds Prometheus metrics configuration
@@ -274,6 +285,16 @@ func (c *Config) Validate() error {
 		})
 	}
 
+	// Validate Webhook config
+	if c.Webhook.Enabled {
+		if c.Webhook.URL == "" {
+			errs = append(errs, ValidationError{
+				Field:   "webhook.url",
+				Message: "is required when webhooks are enabled",
+			})
+		}
+	}
+
 	if len(errs) > 0 {
 		return errs
 	}
@@ -388,6 +409,12 @@ func setDefaults(v *viper.Viper) {
 	v.SetDefault("media.base_path", "/data/media")
 	v.SetDefault("media.base_url", "http://localhost:8080/media")
 	v.SetDefault("media.max_file_size", 16*1024*1024) // 16MB
+
+	// Webhook defaults
+	v.SetDefault("webhook.enabled", false)
+	v.SetDefault("webhook.url", "")
+	v.SetDefault("webhook.secret", "")
+	v.SetDefault("webhook.events", []string{}) // Empty = all events
 }
 
 func bindEnvVars(v *viper.Viper) {
@@ -454,6 +481,12 @@ func bindEnvVars(v *viper.Viper) {
 	_ = v.BindEnv("media.base_path", "WHATSAPP_MEDIA_BASE_PATH")
 	_ = v.BindEnv("media.base_url", "WHATSAPP_MEDIA_BASE_URL")
 	_ = v.BindEnv("media.max_file_size", "WHATSAPP_MEDIA_MAX_FILE_SIZE")
+
+	// Webhook
+	_ = v.BindEnv("webhook.enabled", "WHATSAPP_WEBHOOK_ENABLED")
+	_ = v.BindEnv("webhook.url", "WHATSAPP_WEBHOOK_URL")
+	_ = v.BindEnv("webhook.secret", "WHATSAPP_WEBHOOK_SECRET")
+	_ = v.BindEnv("webhook.events", "WHATSAPP_WEBHOOK_EVENTS")
 }
 
 // MustLoad loads configuration and panics on error (for use in main)
