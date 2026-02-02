@@ -77,6 +77,9 @@ type WhatsAppClient interface {
 	// SendMessage sends a message through WhatsApp
 	SendMessage(ctx context.Context, msg *entity.Message) error
 
+	// SendReaction sends a reaction to a message
+	SendReaction(ctx context.Context, sessionID, chatJID, messageID, emoji string) error
+
 	// GetQRChannel returns a channel that receives QR code events for authentication
 	GetQRChannel(ctx context.Context, sessionID string) (<-chan QREvent, error)
 

@@ -120,6 +120,8 @@ func registerRoutes(router *gin.Engine, handler *Handler, routerConfig RouterCon
 	// Message routes
 	messages := api.Group("/messages")
 	messages.POST("", handler.SendMessage)
+	messages.POST("/:messageId/reactions", handler.SendReaction)
+	messages.DELETE("/:messageId/reactions", handler.RemoveReaction)
 }
 
 // NewRouter creates a new Gin router with a pre-configured handler

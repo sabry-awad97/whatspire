@@ -116,3 +116,12 @@ func (m *WhatsAppClientMock) GetHistorySyncConfig(sessionID string) (enabled, fu
 	}
 	return config.enabled, config.fullSync, config.since
 }
+
+func (m *WhatsAppClientMock) SendReaction(ctx context.Context, sessionID, chatJID, messageID, emoji string) error {
+	m.mu.RLock()
+	defer m.mu.RUnlock()
+	if !m.Connected[sessionID] {
+		return errors.ErrDisconnected
+	}
+	return nil
+}

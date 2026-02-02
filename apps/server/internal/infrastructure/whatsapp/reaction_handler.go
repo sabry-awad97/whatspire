@@ -1,0 +1,90 @@
+package whatsapp
+
+import (
+	"context"
+
+	"whatspire/internal/domain/entity"
+	"whatspire/internal/domain/repository"
+
+	"github.com/google/uuid"
+	waLog "go.mau.fi/whatsmeow/util/log"
+)
+
+// ReactionHandler handles incoming WhatsApp reaction events
+type ReactionHandler struct {
+	reactionRepo   repository.ReactionRepository
+	eventPublisher repository.EventPublisher
+	logger         waLog.Logger
+}
+
+// NewReactionHandler creates a new reaction handler
+func NewReactionHandler(
+	reactionRepo repository.ReactionRepository,
+	eventPublisher repository.EventPublisher,
+	logger waLog.Logger,
+) *ReactionHandler {
+	return &ReactionHandler{
+		reactionRepo:   reactionRepo,
+		eventPublisher: eventPublisher,
+		logger:         logger,
+	}
+}
+
+// HandleIncomingReaction processes an incoming WhatsApp reaction from a parsed message
+func (h *ReactionHandler) HandleIncomingReaction(
+	ctx context.Context,
+	sessionID string,
+	parsedMsg *ParsedMessage,
+) error {
+	// Validate this is a reaction message
+	if parsedMsg.MessageType != ParsedMessageTypeReaction {
+		return nil
+	}
+
+	// Extract reaction data
+	if parsedMsg.ReactionMessageID == nil || parsedMsg.ReactionEmoji == nil {
+		h.logger.Warnf("Reaction message missing required fields")
+		return nil
+	}
+
+	// Create reaction entity
+	reaction := entity.NewReaction(
+		uuid.New().String(),
+		*parsedMsg.ReactionMessageID,
+		sessionID,
+		parsedMsg.SenderJID,
+		parsedMsg.ChatJID,
+		*parsedMsg.ReactionEmoji,
+	)
+
+	// Validate reaction
+	if !reaction.IsValid() {
+		h.logger.Warnf("Invalid reaction received: %+v", reaction)
+		return nil // Don't fail, just skip invalid reactions
+	}
+
+	// Save reaction to repository
+	if h.reactionRepo != nil {
+		if err := h.reactionRepo.Save(ctx, reaction); err != nil {
+			h.logger.Warnf("Failed to save reaction: %v", err)
+			// Continue to publish event even if save fails
+		}
+	}
+
+	// Publish reaction event
+	if h.eventPublisher != nil && h.eventPublisher.IsConnected() {
+		event, err := entity.NewEventWithPayload(
+			uuid.New().String(),
+			entity.EventTypeMessageReaction,
+			sessionID,
+			reaction,
+		)
+		if err == nil {
+			if err := h.eventPublisher.Publish(ctx, event); err != nil {
+				h.logger.Warnf("Failed to publish reaction event: %v", err)
+			}
+		}
+	}
+
+	return nil
+}

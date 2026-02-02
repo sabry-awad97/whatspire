@@ -44,6 +44,7 @@ var Module = fx.Module("infrastructure",
 	// Wire EventHub to WhatsApp client events
 	fx.Invoke(WireEventHubToWhatsAppClient),
 	fx.Invoke(WireMessageHandler),
+	fx.Invoke(WireReactionHandler),
 )
 
 // NewInMemorySessionRepository creates a new in-memory session repository
@@ -265,6 +266,8 @@ func WireMessageHandler(
 	waClient *whatsapp.WhatsmeowClient,
 	cfg *config.Config,
 	mediaStorage repository.MediaStorage,
+	reactionRepo repository.ReactionRepository,
+	publisher repository.EventPublisher,
 ) {
 	// Create media download helper
 	mediaDownloadHelper := whatsapp.NewMediaDownloadHelper(mediaStorage)
@@ -283,8 +286,29 @@ func WireMessageHandler(
 		logger,
 	)
 
-	// Wire it to the client
+	// Create reaction handler
+	reactionLogger := waLog.Stdout("ReactionHandler", "INFO", true)
+	reactionHandler := whatsapp.NewReactionHandler(
+		reactionRepo,
+		publisher,
+		reactionLogger,
+	)
+
+	// Wire reaction handler to message handler
+	messageHandler.SetReactionHandler(reactionHandler)
+
+	// Wire message handler to the client
 	waClient.SetMessageHandler(messageHandler)
 
-	log.Println("✅ Message handler wired to WhatsApp client")
+	log.Println("✅ Message handler and reaction handler wired to WhatsApp client")
+}
+
+// WireReactionHandler is deprecated - reaction handler is now wired in WireMessageHandler
+func WireReactionHandler(
+	waClient *whatsapp.WhatsmeowClient,
+	reactionRepo repository.ReactionRepository,
+	publisher repository.EventPublisher,
+) {
+	// This function is kept for backward compatibility but does nothing
+	// The reaction handler is now wired in WireMessageHandler
 }

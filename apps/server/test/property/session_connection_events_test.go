@@ -125,6 +125,15 @@ func (m *WhatsAppClientMock) GetHistorySyncConfig(sessionID string) (enabled, fu
 	return config.enabled, config.fullSync, config.since
 }
 
+func (m *WhatsAppClientMock) SendReaction(ctx context.Context, sessionID, chatJID, messageID, emoji string) error {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	if !m.Connected[sessionID] {
+		return errors.ErrDisconnected
+	}
+	return nil
+}
+
 // EventPublisherMock is a mock implementation of EventPublisher
 type EventPublisherMock struct {
 	mu             sync.Mutex

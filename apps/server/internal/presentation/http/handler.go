@@ -14,19 +14,21 @@ import (
 
 // Handler defines HTTP handlers for the WhatsApp service
 type Handler struct {
-	sessionUC *usecase.SessionUseCase
-	messageUC *usecase.MessageUseCase
-	healthUC  *usecase.HealthUseCase
-	groupsUC  *usecase.GroupsUseCase
+	sessionUC  *usecase.SessionUseCase
+	messageUC  *usecase.MessageUseCase
+	healthUC   *usecase.HealthUseCase
+	groupsUC   *usecase.GroupsUseCase
+	reactionUC *usecase.ReactionUseCase
 }
 
 // NewHandler creates a new Handler with all use cases
-func NewHandler(sessionUC *usecase.SessionUseCase, messageUC *usecase.MessageUseCase, healthUC *usecase.HealthUseCase, groupsUC *usecase.GroupsUseCase) *Handler {
+func NewHandler(sessionUC *usecase.SessionUseCase, messageUC *usecase.MessageUseCase, healthUC *usecase.HealthUseCase, groupsUC *usecase.GroupsUseCase, reactionUC *usecase.ReactionUseCase) *Handler {
 	return &Handler{
-		sessionUC: sessionUC,
-		messageUC: messageUC,
-		healthUC:  healthUC,
-		groupsUC:  groupsUC,
+		sessionUC:  sessionUC,
+		messageUC:  messageUC,
+		healthUC:   healthUC,
+		groupsUC:   groupsUC,
+		reactionUC: reactionUC,
 	}
 }
 
@@ -82,6 +84,80 @@ func (h *Handler) SendMessage(c *gin.Context) {
 		"message_id": msg.ID,
 		"status":     msg.GetStatus().String(),
 	})
+}
+
+// SendReaction handles POST /api/messages/:messageId/reactions
+func (h *Handler) SendReaction(c *gin.Context) {
+	messageID := c.Param("messageId")
+	if messageID == "" {
+		respondWithError(c, http.StatusBadRequest, "INVALID_ID", "Message ID is required", nil)
+		return
+	}
+
+	var req dto.SendReactionRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		respondWithError(c, http.StatusBadRequest, "INVALID_JSON", "Invalid request body", nil)
+		return
+	}
+
+	// Set message ID from URL parameter
+	req.MessageID = messageID
+
+	if err := validator.Validate(req); err != nil {
+		details := validator.ValidationErrors(err)
+		respondWithError(c, http.StatusBadRequest, "VALIDATION_FAILED", "Validation failed", details)
+		return
+	}
+
+	if h.reactionUC == nil {
+		respondWithError(c, http.StatusInternalServerError, "INTERNAL_ERROR", "Reaction use case not configured", nil)
+		return
+	}
+
+	reaction, err := h.reactionUC.SendReaction(c.Request.Context(), req)
+	if err != nil {
+		handleDomainError(c, err)
+		return
+	}
+
+	respondWithSuccess(c, http.StatusOK, dto.NewReactionResponse(reaction))
+}
+
+// RemoveReaction handles DELETE /api/messages/:messageId/reactions
+func (h *Handler) RemoveReaction(c *gin.Context) {
+	messageID := c.Param("messageId")
+	if messageID == "" {
+		respondWithError(c, http.StatusBadRequest, "INVALID_ID", "Message ID is required", nil)
+		return
+	}
+
+	var req dto.RemoveReactionRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		respondWithError(c, http.StatusBadRequest, "INVALID_JSON", "Invalid request body", nil)
+		return
+	}
+
+	// Set message ID from URL parameter
+	req.MessageID = messageID
+
+	if err := validator.Validate(req); err != nil {
+		details := validator.ValidationErrors(err)
+		respondWithError(c, http.StatusBadRequest, "VALIDATION_FAILED", "Validation failed", details)
+		return
+	}
+
+	if h.reactionUC == nil {
+		respondWithError(c, http.StatusInternalServerError, "INTERNAL_ERROR", "Reaction use case not configured", nil)
+		return
+	}
+
+	err := h.reactionUC.RemoveReaction(c.Request.Context(), req)
+	if err != nil {
+		handleDomainError(c, err)
+		return
+	}
+
+	respondWithSuccess(c, http.StatusOK, map[string]string{"message": "Reaction removed successfully"})
 }
 
 // RegisterSession handles POST /api/internal/sessions/register

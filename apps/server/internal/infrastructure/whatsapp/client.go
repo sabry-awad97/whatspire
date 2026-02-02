@@ -12,6 +12,7 @@ import (
 	"whatspire/internal/domain/repository"
 
 	"go.mau.fi/whatsmeow"
+	"go.mau.fi/whatsmeow/proto/waCommon"
 	waCompanionReg "go.mau.fi/whatsmeow/proto/waCompanionReg"
 	waE2E "go.mau.fi/whatsmeow/proto/waE2E"
 	"go.mau.fi/whatsmeow/store"
@@ -51,17 +52,18 @@ func DefaultClientConfig() ClientConfig {
 
 // WhatsmeowClient implements WhatsAppClient using whatsmeow
 type WhatsmeowClient struct {
-	config         ClientConfig
-	container      *sqlstore.Container
-	clients        map[string]*whatsmeow.Client
-	sessionToJID   map[string]string // Maps session UUID to WhatsApp JID user part
-	mu             sync.RWMutex
-	handlers       []repository.EventHandler
-	logger         waLog.Logger
-	circuitBreaker *CircuitBreaker
-	mediaUploader  *WhatsmeowMediaUploader
-	messageParser  *MessageParser
-	messageHandler *MessageHandler
+	config          ClientConfig
+	container       *sqlstore.Container
+	clients         map[string]*whatsmeow.Client
+	sessionToJID    map[string]string // Maps session UUID to WhatsApp JID user part
+	mu              sync.RWMutex
+	handlers        []repository.EventHandler
+	logger          waLog.Logger
+	circuitBreaker  *CircuitBreaker
+	mediaUploader   *WhatsmeowMediaUploader
+	messageParser   *MessageParser
+	messageHandler  *MessageHandler
+	reactionHandler *ReactionHandler
 
 	// History sync configuration per session
 	historySyncConfig map[string]HistorySyncConfig
@@ -211,6 +213,62 @@ func (c *WhatsmeowClient) SendMessage(ctx context.Context, msg *entity.Message) 
 		return err
 	}
 	return c.sendMessageInternal(ctx, msg)
+}
+
+// SendReaction sends a reaction to a message
+func (c *WhatsmeowClient) SendReaction(ctx context.Context, sessionID, chatJID, messageID, emoji string) error {
+	// Use circuit breaker if enabled
+	if c.circuitBreaker != nil {
+		_, err := c.circuitBreaker.Execute(ctx, func() (any, error) {
+			return nil, c.sendReactionInternal(ctx, sessionID, chatJID, messageID, emoji)
+		})
+		return err
+	}
+	return c.sendReactionInternal(ctx, sessionID, chatJID, messageID, emoji)
+}
+
+// sendReactionInternal performs the actual reaction sending logic
+func (c *WhatsmeowClient) sendReactionInternal(ctx context.Context, sessionID, chatJID, messageID, emoji string) error {
+	c.mu.RLock()
+	client, exists := c.clients[sessionID]
+	c.mu.RUnlock()
+
+	if !exists {
+		return errors.ErrSessionNotFound
+	}
+
+	if !client.IsConnected() {
+		return errors.ErrDisconnected
+	}
+
+	// Parse chat JID
+	jid, err := types.ParseJID(chatJID)
+	if err != nil {
+		return errors.ErrInvalidInput.WithMessage("invalid chat JID").WithCause(err)
+	}
+
+	// Build reaction message
+	reactionMsg := &waE2E.ReactionMessage{
+		Key: &waCommon.MessageKey{
+			RemoteJID: proto.String(chatJID),
+			FromMe:    proto.Bool(false),
+			ID:        proto.String(messageID),
+		},
+		Text:              proto.String(emoji),
+		SenderTimestampMS: proto.Int64(time.Now().UnixMilli()),
+	}
+
+	waMsg := &waE2E.Message{
+		ReactionMessage: reactionMsg,
+	}
+
+	// Send reaction with retry
+	_, err = c.sendWithRetry(ctx, client, jid, waMsg)
+	if err != nil {
+		return errors.ErrMessageSendFailed.WithCause(err)
+	}
+
+	return nil
 }
 
 // sendMessageInternal performs the actual message sending logic
@@ -628,6 +686,13 @@ func (c *WhatsmeowClient) SetMessageHandler(handler *MessageHandler) {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 	c.messageHandler = handler
+}
+
+// SetReactionHandler sets the reaction handler for processing incoming reactions
+func (c *WhatsmeowClient) SetReactionHandler(handler *ReactionHandler) {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	c.reactionHandler = handler
 }
 
 // getOrCreateDevice gets or creates a device store for the session

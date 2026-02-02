@@ -17,6 +17,7 @@ type MessageHandler struct {
 	messageParser      *MessageParser
 	mediaDownloader    *MediaDownloadHelper
 	mediaStorage       repository.MediaStorage
+	reactionHandler    *ReactionHandler
 	logger             waLog.Logger
 	eventQueue         *EventQueue
 	sessionConnections map[string]bool // Track session connection status
@@ -37,6 +38,11 @@ func NewMessageHandler(
 		eventQueue:         NewEventQueue(),
 		sessionConnections: make(map[string]bool),
 	}
+}
+
+// SetReactionHandler sets the reaction handler for processing reactions
+func (h *MessageHandler) SetReactionHandler(handler *ReactionHandler) {
+	h.reactionHandler = handler
 }
 
 // HandleIncomingMessage processes an incoming WhatsApp message
@@ -77,6 +83,16 @@ func (h *MessageHandler) HandleIncomingMessage(
 			h.logger.Warnf("Failed to download media for message %s: %v", parsedMsg.MessageID, err)
 			// Continue processing - we still want to emit the event even if media download fails
 		}
+	}
+
+	// Handle reactions separately if reaction handler is available
+	if parsedMsg.MessageType == ParsedMessageTypeReaction && h.reactionHandler != nil {
+		if err := h.reactionHandler.HandleIncomingReaction(ctx, sessionID, parsedMsg); err != nil {
+			h.logger.Warnf("Failed to handle reaction: %v", err)
+		}
+		// Don't return a message.received event for reactions
+		// The reaction handler publishes message.reaction events
+		return nil, nil
 	}
 
 	// Create the event

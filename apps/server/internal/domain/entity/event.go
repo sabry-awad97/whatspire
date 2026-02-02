@@ -15,6 +15,7 @@ const (
 	EventTypeMessageDelivered EventType = "message.delivered"
 	EventTypeMessageRead      EventType = "message.read"
 	EventTypeMessageFailed    EventType = "message.failed"
+	EventTypeMessageReaction  EventType = "message.reaction"
 )
 
 // Connection events
@@ -47,10 +48,11 @@ const (
 func (et EventType) IsValid() bool {
 	switch et {
 	case EventTypeMessageReceived, EventTypeMessageSent, EventTypeMessageDelivered,
-		EventTypeMessageRead, EventTypeMessageFailed, EventTypeConnectionConnecting,
-		EventTypeConnected, EventTypeDisconnected, EventTypeLoggedOut,
-		EventTypeConnectionFailed, EventTypeQRScanned, EventTypeAuthenticated,
-		EventTypeSessionExpired, EventTypeQRCode, EventTypeSyncProgress:
+		EventTypeMessageRead, EventTypeMessageFailed, EventTypeMessageReaction,
+		EventTypeConnectionConnecting, EventTypeConnected, EventTypeDisconnected,
+		EventTypeLoggedOut, EventTypeConnectionFailed, EventTypeQRScanned,
+		EventTypeAuthenticated, EventTypeSessionExpired, EventTypeQRCode,
+		EventTypeSyncProgress:
 		return true
 	}
 	return false
@@ -65,7 +67,7 @@ func (et EventType) String() string {
 func (et EventType) IsMessageEvent() bool {
 	switch et {
 	case EventTypeMessageReceived, EventTypeMessageSent, EventTypeMessageDelivered,
-		EventTypeMessageRead, EventTypeMessageFailed:
+		EventTypeMessageRead, EventTypeMessageFailed, EventTypeMessageReaction:
 		return true
 	}
 	return false

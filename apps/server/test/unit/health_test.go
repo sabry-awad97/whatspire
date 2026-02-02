@@ -67,6 +67,9 @@ func (m *MockWhatsAppClient) SetHistorySyncConfig(sessionID string, enabled, ful
 func (m *MockWhatsAppClient) GetHistorySyncConfig(sessionID string) (enabled, fullSync bool, since string) {
 	return false, false, ""
 }
+func (m *MockWhatsAppClient) SendReaction(ctx context.Context, sessionID, chatJID, messageID, emoji string) error {
+	return nil
+}
 
 func TestWhatsAppClientHealthChecker_Healthy(t *testing.T) {
 	client := &MockWhatsAppClient{connected: true}
