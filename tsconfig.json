@@ -1,0 +1,3 @@
+{
+  "extends": "@whatspire/config/tsconfig.base.json"
+}
