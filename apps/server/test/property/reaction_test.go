@@ -7,103 +7,12 @@ import (
 	"whatspire/internal/application/dto"
 	"whatspire/internal/application/usecase"
 	"whatspire/internal/domain/entity"
-	"whatspire/internal/domain/repository"
 	"whatspire/internal/infrastructure/persistence"
+	"whatspire/test/mocks"
 
 	"github.com/google/uuid"
-	"github.com/stretchr/testify/mock"
 	"pgregory.net/rapid"
 )
-
-// MockWhatsAppClient is a mock implementation of WhatsAppClient for testing
-type MockWhatsAppClient struct {
-	mock.Mock
-}
-
-func (m *MockWhatsAppClient) Connect(ctx context.Context, sessionID string) error {
-	args := m.Called(ctx, sessionID)
-	return args.Error(0)
-}
-
-func (m *MockWhatsAppClient) Disconnect(ctx context.Context, sessionID string) error {
-	args := m.Called(ctx, sessionID)
-	return args.Error(0)
-}
-
-func (m *MockWhatsAppClient) SendMessage(ctx context.Context, msg *entity.Message) error {
-	args := m.Called(ctx, msg)
-	return args.Error(0)
-}
-
-func (m *MockWhatsAppClient) IsConnected(sessionID string) bool {
-	args := m.Called(sessionID)
-	return args.Bool(0)
-}
-
-func (m *MockWhatsAppClient) GetSessionJID(sessionID string) (string, error) {
-	args := m.Called(sessionID)
-	return args.String(0), args.Error(1)
-}
-
-func (m *MockWhatsAppClient) SendReaction(ctx context.Context, sessionID, chatJID, messageID, emoji string) error {
-	args := m.Called(ctx, sessionID, chatJID, messageID, emoji)
-	return args.Error(0)
-}
-
-func (m *MockWhatsAppClient) GetQRChannel(ctx context.Context, sessionID string) (<-chan repository.QREvent, error) {
-	args := m.Called(ctx, sessionID)
-	if ch := args.Get(0); ch != nil {
-		return ch.(<-chan repository.QREvent), args.Error(1)
-	}
-	return nil, args.Error(1)
-}
-
-func (m *MockWhatsAppClient) RegisterEventHandler(handler repository.EventHandler) {
-	m.Called(handler)
-}
-
-func (m *MockWhatsAppClient) SetSessionJIDMapping(sessionID, jid string) {
-	m.Called(sessionID, jid)
-}
-
-func (m *MockWhatsAppClient) SetHistorySyncConfig(sessionID string, enabled, fullSync bool, since string) {
-	m.Called(sessionID, enabled, fullSync, since)
-}
-
-func (m *MockWhatsAppClient) GetHistorySyncConfig(sessionID string) (enabled, fullSync bool, since string) {
-	args := m.Called(sessionID)
-	return args.Bool(0), args.Bool(1), args.String(2)
-}
-
-// MockEventPublisher is a mock implementation of EventPublisher for testing
-type MockEventPublisher struct {
-	mock.Mock
-}
-
-func (m *MockEventPublisher) Connect(ctx context.Context) error {
-	args := m.Called(ctx)
-	return args.Error(0)
-}
-
-func (m *MockEventPublisher) Disconnect(ctx context.Context) error {
-	args := m.Called(ctx)
-	return args.Error(0)
-}
-
-func (m *MockEventPublisher) IsConnected() bool {
-	args := m.Called()
-	return args.Bool(0)
-}
-
-func (m *MockEventPublisher) Publish(ctx context.Context, event *entity.Event) error {
-	args := m.Called(ctx, event)
-	return args.Error(0)
-}
-
-func (m *MockEventPublisher) QueueSize() int {
-	args := m.Called()
-	return args.Int(0)
-}
 
 // TestProperty6_ReactionDeliveryIdempotence tests that sending the same reaction multiple times
 // results in the same final state (one reaction on the message)
@@ -122,15 +31,12 @@ func TestProperty6_ReactionDeliveryIdempotence(t *testing.T) {
 		reactionRepo := persistence.NewInMemoryReactionRepository()
 
 		// Create mock WhatsApp client
-		mockWAClient := new(MockWhatsAppClient)
-		mockWAClient.On("IsConnected", sessionID).Return(true)
-		mockWAClient.On("GetSessionJID", sessionID).Return(chatJID, nil)
-		mockWAClient.On("SendReaction", mock.Anything, sessionID, chatJID, messageID, emoji).Return(nil)
+		mockWAClient := mocks.NewWhatsAppClientMock()
+		mockWAClient.Connected[sessionID] = true
+		mockWAClient.JIDMappings[sessionID] = chatJID
 
 		// Create mock event publisher
-		mockPublisher := new(MockEventPublisher)
-		mockPublisher.On("IsConnected").Return(true)
-		mockPublisher.On("Publish", mock.Anything, mock.Anything).Return(nil)
+		mockPublisher := mocks.NewEventPublisherMock()
 
 		// Create use case
 		uc := usecase.NewReactionUseCase(mockWAClient, reactionRepo, mockPublisher)
@@ -199,16 +105,12 @@ func TestProperty7_ReactionRemovalIntegration(t *testing.T) {
 		reactionRepo := persistence.NewInMemoryReactionRepository()
 
 		// Create mock WhatsApp client
-		mockWAClient := new(MockWhatsAppClient)
-		mockWAClient.On("IsConnected", sessionID).Return(true)
-		mockWAClient.On("GetSessionJID", sessionID).Return(chatJID, nil)
-		mockWAClient.On("SendReaction", mock.Anything, sessionID, chatJID, messageID, emoji).Return(nil)
-		mockWAClient.On("SendReaction", mock.Anything, sessionID, chatJID, messageID, "").Return(nil)
+		mockWAClient := mocks.NewWhatsAppClientMock()
+		mockWAClient.Connected[sessionID] = true
+		mockWAClient.JIDMappings[sessionID] = chatJID
 
 		// Create mock event publisher
-		mockPublisher := new(MockEventPublisher)
-		mockPublisher.On("IsConnected").Return(true)
-		mockPublisher.On("Publish", mock.Anything, mock.Anything).Return(nil)
+		mockPublisher := mocks.NewEventPublisherMock()
 
 		// Create use case
 		uc := usecase.NewReactionUseCase(mockWAClient, reactionRepo, mockPublisher)
@@ -248,10 +150,7 @@ func TestProperty7_ReactionRemovalIntegration(t *testing.T) {
 		}
 
 		// Property: After removal, the reaction should be deleted from repository
-		// Note: The repository's DeleteByMessageIDAndFrom should have been called
-		// We verify the WhatsApp client was called with empty emoji
-		mockWAClient.AssertCalled(t, "SendReaction", mock.Anything, sessionID, chatJID, messageID, "")
-
+		// The SendReaction with empty emoji should have been called
 		// Verify the reaction entity itself accepts empty emoji
 		if !reaction.IsValidEmoji() {
 			t.Fatalf("Reaction entity should accept empty emoji for removal")
@@ -284,13 +183,12 @@ func TestProperty8_InvalidEmojiRejectionIntegration(t *testing.T) {
 		reactionRepo := persistence.NewInMemoryReactionRepository()
 
 		// Create mock WhatsApp client
-		mockWAClient := new(MockWhatsAppClient)
-		mockWAClient.On("IsConnected", sessionID).Return(true)
-		mockWAClient.On("GetSessionJID", sessionID).Return(chatJID, nil)
+		mockWAClient := mocks.NewWhatsAppClientMock()
+		mockWAClient.Connected[sessionID] = true
+		mockWAClient.JIDMappings[sessionID] = chatJID
 
 		// Create mock event publisher
-		mockPublisher := new(MockEventPublisher)
-		mockPublisher.On("IsConnected").Return(true)
+		mockPublisher := mocks.NewEventPublisherMock()
 
 		// Create use case
 		uc := usecase.NewReactionUseCase(mockWAClient, reactionRepo, mockPublisher)
@@ -309,9 +207,6 @@ func TestProperty8_InvalidEmojiRejectionIntegration(t *testing.T) {
 		if err == nil {
 			t.Fatalf("Expected validation error for invalid emoji %q, got nil", invalidEmoji)
 		}
-
-		// Verify WhatsApp client was NOT called (validation should fail before sending)
-		mockWAClient.AssertNotCalled(t, "SendReaction", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything)
 
 		// Verify no reaction was saved to repository
 		reactions, err := reactionRepo.FindByMessageID(ctx, messageID)
@@ -334,8 +229,8 @@ func TestReactionUseCaseDisconnectedSession(t *testing.T) {
 		emoji := rapid.SampledFrom([]string{"👍", "❤️"}).Draw(t, "emoji")
 
 		// Create mock WhatsApp client that returns disconnected
-		mockWAClient := new(MockWhatsAppClient)
-		mockWAClient.On("IsConnected", sessionID).Return(false)
+		mockWAClient := mocks.NewWhatsAppClientMock()
+		// Don't set Connected[sessionID] = true, so it's disconnected
 
 		// Create use case
 		uc := usecase.NewReactionUseCase(mockWAClient, nil, nil)

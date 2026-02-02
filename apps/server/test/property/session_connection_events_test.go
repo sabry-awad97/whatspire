@@ -2,202 +2,28 @@ package property
 
 import (
 	"context"
-	"sync"
 	"testing"
 
 	"whatspire/internal/application/usecase"
 	"whatspire/internal/domain/entity"
 	"whatspire/internal/domain/errors"
-	"whatspire/internal/domain/repository"
 	"whatspire/internal/infrastructure/persistence"
+	"whatspire/test/mocks"
 
 	"github.com/leanovate/gopter"
 	"github.com/leanovate/gopter/gen"
 	"github.com/leanovate/gopter/prop"
 )
 
-// ==================== Mock Types for Session Connection Tests ====================
+// ==================== Use Shared Mocks ====================
 
-// WhatsAppClientMock is a mock implementation of WhatsAppClient
-type WhatsAppClientMock struct {
-	mu                sync.Mutex
-	Connected         map[string]bool
-	ConnectFn         func(ctx context.Context, sessionID string) error
-	DisconnectFn      func(ctx context.Context, sessionID string) error
-	SendFn            func(ctx context.Context, msg *entity.Message) error
-	QRChan            chan repository.QREvent
-	JIDMappings       map[string]string
-	historySyncConfig map[string]struct {
-		enabled, fullSync bool
-		since             string
-	}
-}
+type WhatsAppClientMock = mocks.WhatsAppClientMock
+type EventPublisherMock = mocks.EventPublisherMock
 
-func NewWhatsAppClientMock() *WhatsAppClientMock {
-	return &WhatsAppClientMock{
-		Connected:   make(map[string]bool),
-		QRChan:      make(chan repository.QREvent, 10),
-		JIDMappings: make(map[string]string),
-		historySyncConfig: make(map[string]struct {
-			enabled, fullSync bool
-			since             string
-		}),
-	}
-}
-
-func (m *WhatsAppClientMock) Connect(ctx context.Context, sessionID string) error {
-	m.mu.Lock()
-	defer m.mu.Unlock()
-	if m.ConnectFn != nil {
-		return m.ConnectFn(ctx, sessionID)
-	}
-	m.Connected[sessionID] = true
-	return nil
-}
-
-func (m *WhatsAppClientMock) Disconnect(ctx context.Context, sessionID string) error {
-	m.mu.Lock()
-	defer m.mu.Unlock()
-	if m.DisconnectFn != nil {
-		return m.DisconnectFn(ctx, sessionID)
-	}
-	delete(m.Connected, sessionID)
-	return nil
-}
-
-func (m *WhatsAppClientMock) SendMessage(ctx context.Context, msg *entity.Message) error {
-	if m.SendFn != nil {
-		return m.SendFn(ctx, msg)
-	}
-	return nil
-}
-
-func (m *WhatsAppClientMock) GetQRChannel(ctx context.Context, sessionID string) (<-chan repository.QREvent, error) {
-	return m.QRChan, nil
-}
-
-func (m *WhatsAppClientMock) RegisterEventHandler(handler repository.EventHandler) {}
-
-func (m *WhatsAppClientMock) IsConnected(sessionID string) bool {
-	m.mu.Lock()
-	defer m.mu.Unlock()
-	return m.Connected[sessionID]
-}
-
-func (m *WhatsAppClientMock) GetSessionJID(sessionID string) (string, error) {
-	m.mu.Lock()
-	defer m.mu.Unlock()
-	if m.Connected[sessionID] {
-		if jid, ok := m.JIDMappings[sessionID]; ok {
-			return jid, nil
-		}
-		return sessionID + "@s.whatsapp.net", nil
-	}
-	return "", errors.ErrSessionNotFound
-}
-
-func (m *WhatsAppClientMock) SetSessionJIDMapping(sessionID, jid string) {
-	m.mu.Lock()
-	defer m.mu.Unlock()
-	m.JIDMappings[sessionID] = jid
-}
-
-func (m *WhatsAppClientMock) SetHistorySyncConfig(sessionID string, enabled, fullSync bool, since string) {
-	m.mu.Lock()
-	defer m.mu.Unlock()
-	m.historySyncConfig[sessionID] = struct {
-		enabled, fullSync bool
-		since             string
-	}{
-		enabled:  enabled,
-		fullSync: fullSync,
-		since:    since,
-	}
-}
-
-func (m *WhatsAppClientMock) GetHistorySyncConfig(sessionID string) (enabled, fullSync bool, since string) {
-	m.mu.Lock()
-	defer m.mu.Unlock()
-	config, exists := m.historySyncConfig[sessionID]
-	if !exists {
-		return false, false, ""
-	}
-	return config.enabled, config.fullSync, config.since
-}
-
-func (m *WhatsAppClientMock) SendReaction(ctx context.Context, sessionID, chatJID, messageID, emoji string) error {
-	m.mu.Lock()
-	defer m.mu.Unlock()
-	if !m.Connected[sessionID] {
-		return errors.ErrDisconnected
-	}
-	return nil
-}
-
-// EventPublisherMock is a mock implementation of EventPublisher
-type EventPublisherMock struct {
-	mu             sync.Mutex
-	IsConnectedVal bool
-	Events         []*entity.Event
-	PublishFn      func(ctx context.Context, event *entity.Event) error
-}
-
-func NewEventPublisherMock() *EventPublisherMock {
-	return &EventPublisherMock{
-		IsConnectedVal: true,
-		Events:         make([]*entity.Event, 0),
-	}
-}
-
-func (m *EventPublisherMock) Publish(ctx context.Context, event *entity.Event) error {
-	m.mu.Lock()
-	defer m.mu.Unlock()
-	if m.PublishFn != nil {
-		return m.PublishFn(ctx, event)
-	}
-	m.Events = append(m.Events, event)
-	return nil
-}
-
-func (m *EventPublisherMock) Connect(ctx context.Context) error {
-	m.mu.Lock()
-	defer m.mu.Unlock()
-	m.IsConnectedVal = true
-	return nil
-}
-
-func (m *EventPublisherMock) Disconnect(ctx context.Context) error {
-	m.mu.Lock()
-	defer m.mu.Unlock()
-	m.IsConnectedVal = false
-	return nil
-}
-
-func (m *EventPublisherMock) IsConnected() bool {
-	m.mu.Lock()
-	defer m.mu.Unlock()
-	return m.IsConnectedVal
-}
-
-func (m *EventPublisherMock) QueueSize() int {
-	m.mu.Lock()
-	defer m.mu.Unlock()
-	return len(m.Events)
-}
-
-func (m *EventPublisherMock) GetEvents() []*entity.Event {
-	m.mu.Lock()
-	defer m.mu.Unlock()
-	result := make([]*entity.Event, len(m.Events))
-	copy(result, m.Events)
-	return result
-}
-
-func (m *EventPublisherMock) Clear() {
-	m.mu.Lock()
-	defer m.mu.Unlock()
-	m.Events = make([]*entity.Event, 0)
-}
+var (
+	NewWhatsAppClientMock = mocks.NewWhatsAppClientMock
+	NewEventPublisherMock = mocks.NewEventPublisherMock
+)
 
 // Feature: session-connection-flow, Property 3: Go Service Publishes Connecting Event on Connection Start
 // *For any* session reconnection attempt in the Go service, a 'connection.connecting' event

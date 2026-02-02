@@ -271,6 +271,54 @@ func (c *WhatsmeowClient) sendReactionInternal(ctx context.Context, sessionID, c
 	return nil
 }
 
+// SendReadReceipt sends read receipts for multiple messages atomically
+func (c *WhatsmeowClient) SendReadReceipt(ctx context.Context, sessionID, chatJID string, messageIDs []string) error {
+	// Use circuit breaker if enabled
+	if c.circuitBreaker != nil {
+		_, err := c.circuitBreaker.Execute(ctx, func() (any, error) {
+			return nil, c.sendReadReceiptInternal(ctx, sessionID, chatJID, messageIDs)
+		})
+		return err
+	}
+	return c.sendReadReceiptInternal(ctx, sessionID, chatJID, messageIDs)
+}
+
+// sendReadReceiptInternal performs the actual read receipt sending logic
+func (c *WhatsmeowClient) sendReadReceiptInternal(ctx context.Context, sessionID, chatJID string, messageIDs []string) error {
+	c.mu.RLock()
+	client, exists := c.clients[sessionID]
+	c.mu.RUnlock()
+
+	if !exists {
+		return errors.ErrSessionNotFound
+	}
+
+	if !client.IsConnected() {
+		return errors.ErrDisconnected
+	}
+
+	// Parse chat JID
+	jid, err := types.ParseJID(chatJID)
+	if err != nil {
+		return errors.ErrInvalidInput.WithMessage("invalid chat JID").WithCause(err)
+	}
+
+	// Convert string message IDs to types.MessageID
+	msgIDs := make([]types.MessageID, len(messageIDs))
+	for i, id := range messageIDs {
+		msgIDs[i] = types.MessageID(id)
+	}
+
+	// Send read receipts for all messages atomically
+	// Whatsmeow's MarkRead method handles multiple message IDs
+	err = client.MarkRead(ctx, msgIDs, time.Now(), jid, jid, types.ReceiptTypeRead)
+	if err != nil {
+		return errors.ErrMessageSendFailed.WithMessage("failed to send read receipts").WithCause(err)
+	}
+
+	return nil
+}
+
 // sendMessageInternal performs the actual message sending logic
 func (c *WhatsmeowClient) sendMessageInternal(ctx context.Context, msg *entity.Message) error {
 	c.mu.RLock()

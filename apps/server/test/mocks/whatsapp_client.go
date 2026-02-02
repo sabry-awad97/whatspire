@@ -9,6 +9,13 @@ import (
 	"whatspire/internal/domain/repository"
 )
 
+// ReadReceiptCall tracks a call to SendReadReceipt
+type ReadReceiptCall struct {
+	SessionID  string
+	ChatJID    string
+	MessageIDs []string
+}
+
 // WhatsAppClientMock is a shared mock implementation of WhatsAppClient
 type WhatsAppClientMock struct {
 	mu                sync.RWMutex
@@ -18,6 +25,7 @@ type WhatsAppClientMock struct {
 	SendFn            func(ctx context.Context, msg *entity.Message) error
 	QRChan            chan repository.QREvent
 	JIDMappings       map[string]string
+	SentReadReceipts  []ReadReceiptCall
 	historySyncConfig map[string]struct {
 		enabled, fullSync bool
 		since             string
@@ -27,9 +35,10 @@ type WhatsAppClientMock struct {
 // NewWhatsAppClientMock creates a new WhatsAppClientMock
 func NewWhatsAppClientMock() *WhatsAppClientMock {
 	return &WhatsAppClientMock{
-		Connected:   make(map[string]bool),
-		QRChan:      make(chan repository.QREvent, 10),
-		JIDMappings: make(map[string]string),
+		Connected:        make(map[string]bool),
+		QRChan:           make(chan repository.QREvent, 10),
+		JIDMappings:      make(map[string]string),
+		SentReadReceipts: make([]ReadReceiptCall, 0),
 		historySyncConfig: make(map[string]struct {
 			enabled, fullSync bool
 			since             string
@@ -123,5 +132,20 @@ func (m *WhatsAppClientMock) SendReaction(ctx context.Context, sessionID, chatJI
 	if !m.Connected[sessionID] {
 		return errors.ErrDisconnected
 	}
+	return nil
+}
+
+func (m *WhatsAppClientMock) SendReadReceipt(ctx context.Context, sessionID, chatJID string, messageIDs []string) error {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	if !m.Connected[sessionID] {
+		return errors.ErrDisconnected
+	}
+	// Track the call
+	m.SentReadReceipts = append(m.SentReadReceipts, ReadReceiptCall{
+		SessionID:  sessionID,
+		ChatJID:    chatJID,
+		MessageIDs: messageIDs,
+	})
 	return nil
 }

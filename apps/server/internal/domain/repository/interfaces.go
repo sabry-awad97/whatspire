@@ -80,6 +80,9 @@ type WhatsAppClient interface {
 	// SendReaction sends a reaction to a message
 	SendReaction(ctx context.Context, sessionID, chatJID, messageID, emoji string) error
 
+	// SendReadReceipt sends read receipts for multiple messages atomically
+	SendReadReceipt(ctx context.Context, sessionID, chatJID string, messageIDs []string) error
+
 	// GetQRChannel returns a channel that receives QR code events for authentication
 	GetQRChannel(ctx context.Context, sessionID string) (<-chan QREvent, error)
 

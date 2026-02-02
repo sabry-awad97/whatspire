@@ -2,6 +2,7 @@ package http
 
 import (
 	"net/http"
+	"time"
 
 	"whatspire/internal/application/dto"
 	"whatspire/internal/application/usecase"
@@ -19,16 +20,18 @@ type Handler struct {
 	healthUC   *usecase.HealthUseCase
 	groupsUC   *usecase.GroupsUseCase
 	reactionUC *usecase.ReactionUseCase
+	receiptUC  *usecase.ReceiptUseCase
 }
 
 // NewHandler creates a new Handler with all use cases
-func NewHandler(sessionUC *usecase.SessionUseCase, messageUC *usecase.MessageUseCase, healthUC *usecase.HealthUseCase, groupsUC *usecase.GroupsUseCase, reactionUC *usecase.ReactionUseCase) *Handler {
+func NewHandler(sessionUC *usecase.SessionUseCase, messageUC *usecase.MessageUseCase, healthUC *usecase.HealthUseCase, groupsUC *usecase.GroupsUseCase, reactionUC *usecase.ReactionUseCase, receiptUC *usecase.ReceiptUseCase) *Handler {
 	return &Handler{
 		sessionUC:  sessionUC,
 		messageUC:  messageUC,
 		healthUC:   healthUC,
 		groupsUC:   groupsUC,
 		reactionUC: reactionUC,
+		receiptUC:  receiptUC,
 	}
 }
 
@@ -158,6 +161,35 @@ func (h *Handler) RemoveReaction(c *gin.Context) {
 	}
 
 	respondWithSuccess(c, http.StatusOK, map[string]string{"message": "Reaction removed successfully"})
+}
+
+// SendReadReceipt handles POST /api/messages/receipts
+func (h *Handler) SendReadReceipt(c *gin.Context) {
+	var req dto.SendReceiptRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		respondWithError(c, http.StatusBadRequest, "INVALID_JSON", "Invalid request body", nil)
+		return
+	}
+
+	if err := validator.Validate(req); err != nil {
+		details := validator.ValidationErrors(err)
+		respondWithError(c, http.StatusBadRequest, "VALIDATION_FAILED", "Validation failed", details)
+		return
+	}
+
+	if h.receiptUC == nil {
+		respondWithError(c, http.StatusInternalServerError, "INTERNAL_ERROR", "Receipt use case not configured", nil)
+		return
+	}
+
+	err := h.receiptUC.SendReadReceipt(c.Request.Context(), req)
+	if err != nil {
+		handleDomainError(c, err)
+		return
+	}
+
+	response := dto.NewReceiptResponse(len(req.MessageIDs), time.Now().Format(time.RFC3339))
+	respondWithSuccess(c, http.StatusOK, response)
 }
 
 // RegisterSession handles POST /api/internal/sessions/register

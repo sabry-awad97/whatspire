@@ -67,3 +67,10 @@ func (m *EventPublisherMock) GetEvents() []*entity.Event {
 	copy(result, m.Events)
 	return result
 }
+
+// Clear removes all events (thread-safe)
+func (m *EventPublisherMock) Clear() {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	m.Events = make([]*entity.Event, 0)
+}
