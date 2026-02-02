@@ -30,8 +30,9 @@ func NewSessionUseCase(
 	repo repository.SessionRepository,
 	waClient repository.WhatsAppClient,
 	publisher repository.EventPublisher,
+	auditLogger repository.AuditLogger,
 ) *usecase.SessionUseCase {
-	return usecase.NewSessionUseCase(repo, waClient, publisher)
+	return usecase.NewSessionUseCase(repo, waClient, publisher, auditLogger)
 }
 
 // NewMessageUseCase creates a new message use case with lifecycle management
@@ -40,6 +41,7 @@ func NewMessageUseCase(
 	waClient repository.WhatsAppClient,
 	publisher repository.EventPublisher,
 	mediaUploader repository.MediaUploader,
+	auditLogger repository.AuditLogger,
 	cfg *config.Config,
 ) *usecase.MessageUseCase {
 	// Convert rate limit from per minute to per second
@@ -51,7 +53,7 @@ func NewMessageUseCase(
 		QueueSize:          1000,
 	}
 
-	uc := usecase.NewMessageUseCase(waClient, publisher, mediaUploader, msgConfig)
+	uc := usecase.NewMessageUseCase(waClient, publisher, mediaUploader, auditLogger, msgConfig)
 
 	lc.Append(fx.Hook{
 		OnStop: func(ctx context.Context) error {

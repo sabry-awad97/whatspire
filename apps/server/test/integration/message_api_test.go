@@ -32,7 +32,7 @@ func TestSendMessage_TextSuccess(t *testing.T) {
 	mediaUploader := NewMediaUploaderMock()
 
 	config := usecase.DefaultMessageUseCaseConfig()
-	messageUC := usecase.NewMessageUseCase(waClient, publisher, mediaUploader, config)
+	messageUC := usecase.NewMessageUseCase(waClient, publisher, mediaUploader, nil, config)
 	defer messageUC.Close()
 
 	router := setupMessageTestRouter(messageUC)
@@ -67,7 +67,7 @@ func TestSendMessage_TextSuccess(t *testing.T) {
 
 func TestSendMessage_InvalidJSON(t *testing.T) {
 	config := usecase.DefaultMessageUseCaseConfig()
-	messageUC := usecase.NewMessageUseCase(nil, nil, nil, config)
+	messageUC := usecase.NewMessageUseCase(nil, nil, nil, nil, config)
 	defer messageUC.Close()
 
 	router := setupMessageTestRouter(messageUC)
@@ -90,7 +90,7 @@ func TestSendMessage_InvalidJSON(t *testing.T) {
 
 func TestSendMessage_ValidationFailed_MissingSessionID(t *testing.T) {
 	config := usecase.DefaultMessageUseCaseConfig()
-	messageUC := usecase.NewMessageUseCase(nil, nil, nil, config)
+	messageUC := usecase.NewMessageUseCase(nil, nil, nil, nil, config)
 	defer messageUC.Close()
 
 	router := setupMessageTestRouter(messageUC)
@@ -127,7 +127,7 @@ func TestSendMessage_ValidationFailed_InvalidPhoneNumber(t *testing.T) {
 	publisher := NewEventPublisherMock()
 
 	config := usecase.DefaultMessageUseCaseConfig()
-	messageUC := usecase.NewMessageUseCase(waClient, publisher, nil, config)
+	messageUC := usecase.NewMessageUseCase(waClient, publisher, nil, nil, config)
 	defer messageUC.Close()
 
 	router := setupMessageTestRouter(messageUC)
@@ -163,7 +163,7 @@ func TestSendMessage_ValidationFailed_EmptyTextContent(t *testing.T) {
 	publisher := NewEventPublisherMock()
 
 	config := usecase.DefaultMessageUseCaseConfig()
-	messageUC := usecase.NewMessageUseCase(waClient, publisher, nil, config)
+	messageUC := usecase.NewMessageUseCase(waClient, publisher, nil, nil, config)
 	defer messageUC.Close()
 
 	router := setupMessageTestRouter(messageUC)
@@ -197,7 +197,7 @@ func TestSendMessage_ImageSuccess(t *testing.T) {
 	mediaUploader := NewMediaUploaderMock()
 
 	config := usecase.DefaultMessageUseCaseConfig()
-	messageUC := usecase.NewMessageUseCase(waClient, publisher, mediaUploader, config)
+	messageUC := usecase.NewMessageUseCase(waClient, publisher, mediaUploader, nil, config)
 	defer messageUC.Close()
 
 	router := setupMessageTestRouter(messageUC)
@@ -237,7 +237,7 @@ func TestSendMessage_ImageWithoutUploader(t *testing.T) {
 
 	config := usecase.DefaultMessageUseCaseConfig()
 	// No media uploader
-	messageUC := usecase.NewMessageUseCase(waClient, publisher, nil, config)
+	messageUC := usecase.NewMessageUseCase(waClient, publisher, nil, nil, config)
 	defer messageUC.Close()
 
 	router := setupMessageTestRouter(messageUC)
@@ -276,7 +276,7 @@ func TestSendMessage_DocumentSuccess(t *testing.T) {
 	mediaUploader := NewMediaUploaderMock()
 
 	config := usecase.DefaultMessageUseCaseConfig()
-	messageUC := usecase.NewMessageUseCase(waClient, publisher, mediaUploader, config)
+	messageUC := usecase.NewMessageUseCase(waClient, publisher, mediaUploader, nil, config)
 	defer messageUC.Close()
 
 	router := setupMessageTestRouter(messageUC)
@@ -316,7 +316,7 @@ func TestSendMessage_DocumentWithoutURL(t *testing.T) {
 	mediaUploader := NewMediaUploaderMock()
 
 	config := usecase.DefaultMessageUseCaseConfig()
-	messageUC := usecase.NewMessageUseCase(waClient, publisher, mediaUploader, config)
+	messageUC := usecase.NewMessageUseCase(waClient, publisher, mediaUploader, nil, config)
 	defer messageUC.Close()
 
 	router := setupMessageTestRouter(messageUC)

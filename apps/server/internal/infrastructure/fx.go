@@ -35,6 +35,8 @@ var Module = fx.Module("infrastructure",
 			fx.As(new(repository.GroupFetcher)),
 		),
 		NewGorillaEventPublisher,
+		NewAuditLogger,
+		NewAuditLogRepository,
 		NewWebhookPublisher,
 		NewCompositeEventPublisher,
 		NewEventHub,
@@ -135,8 +137,27 @@ func NewGorillaEventPublisher(lc fx.Lifecycle, cfg *config.Config) repository.Ev
 	return publisher
 }
 
+// NewAuditLogger creates a new audit logger
+func NewAuditLogger(cfg *config.Config) repository.AuditLogger {
+	// Create structured logger
+	structuredLogger := logger.NewStructuredLogger(logger.Config{
+		Level:  cfg.Log.Level,
+		Format: cfg.Log.Format,
+	})
+
+	// Create audit logger
+	auditLogger := logger.NewAuditLogger(structuredLogger)
+
+	return auditLogger
+}
+
+// NewAuditLogRepository creates a new audit log repository
+func NewAuditLogRepository() *persistence.InMemoryAuditLogRepository {
+	return persistence.NewInMemoryAuditLogRepository()
+}
+
 // NewWebhookPublisher creates a new webhook publisher (optional, based on config)
-func NewWebhookPublisher(cfg *config.Config) *webhook.WebhookPublisher {
+func NewWebhookPublisher(cfg *config.Config, auditLogger repository.AuditLogger) *webhook.WebhookPublisher {
 	// Return nil if webhooks are not enabled
 	if !cfg.Webhook.Enabled {
 		return nil
@@ -149,12 +170,12 @@ func NewWebhookPublisher(cfg *config.Config) *webhook.WebhookPublisher {
 	}
 
 	// Create logger for webhook publisher
-	logger := logger.NewStructuredLogger(logger.Config{
+	structuredLogger := logger.NewStructuredLogger(logger.Config{
 		Level:  cfg.Log.Level,
 		Format: cfg.Log.Format,
 	})
 
-	publisher := webhook.NewWebhookPublisher(webhookConfig, logger)
+	publisher := webhook.NewWebhookPublisher(webhookConfig, structuredLogger, auditLogger)
 
 	log.Printf("✅ Webhook publisher created (URL: %s, Events: %v)", cfg.Webhook.URL, cfg.Webhook.Events)
 

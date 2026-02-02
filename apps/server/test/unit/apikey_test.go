@@ -22,7 +22,7 @@ func TestAPIKeyMiddleware_ValidKey(t *testing.T) {
 	}
 
 	router := gin.New()
-	router.Use(httpPresentation.APIKeyMiddleware(apiKeyConfig))
+	router.Use(httpPresentation.APIKeyMiddleware(apiKeyConfig, nil))
 	router.GET("/test", func(c *gin.Context) {
 		c.String(http.StatusOK, "OK")
 	})
@@ -57,7 +57,7 @@ func TestAPIKeyMiddleware_InvalidKey(t *testing.T) {
 	}
 
 	router := gin.New()
-	router.Use(httpPresentation.APIKeyMiddleware(apiKeyConfig))
+	router.Use(httpPresentation.APIKeyMiddleware(apiKeyConfig, nil))
 	router.GET("/test", func(c *gin.Context) {
 		c.String(http.StatusOK, "OK")
 	})
@@ -81,7 +81,7 @@ func TestAPIKeyMiddleware_MissingKey(t *testing.T) {
 	}
 
 	router := gin.New()
-	router.Use(httpPresentation.APIKeyMiddleware(apiKeyConfig))
+	router.Use(httpPresentation.APIKeyMiddleware(apiKeyConfig, nil))
 	router.GET("/test", func(c *gin.Context) {
 		c.String(http.StatusOK, "OK")
 	})
@@ -105,7 +105,7 @@ func TestAPIKeyMiddleware_Disabled(t *testing.T) {
 	}
 
 	router := gin.New()
-	router.Use(httpPresentation.APIKeyMiddleware(apiKeyConfig))
+	router.Use(httpPresentation.APIKeyMiddleware(apiKeyConfig, nil))
 	router.GET("/test", func(c *gin.Context) {
 		c.String(http.StatusOK, "OK")
 	})
@@ -128,7 +128,7 @@ func TestAPIKeyMiddleware_CustomHeader(t *testing.T) {
 	}
 
 	router := gin.New()
-	router.Use(httpPresentation.APIKeyMiddleware(apiKeyConfig))
+	router.Use(httpPresentation.APIKeyMiddleware(apiKeyConfig, nil))
 	router.GET("/test", func(c *gin.Context) {
 		c.String(http.StatusOK, "OK")
 	})
@@ -160,7 +160,7 @@ func TestAPIKeyMiddleware_DefaultHeader(t *testing.T) {
 	}
 
 	router := gin.New()
-	router.Use(httpPresentation.APIKeyMiddleware(apiKeyConfig))
+	router.Use(httpPresentation.APIKeyMiddleware(apiKeyConfig, nil))
 	router.GET("/test", func(c *gin.Context) {
 		c.String(http.StatusOK, "OK")
 	})
@@ -185,7 +185,7 @@ func TestAPIKeyMiddleware_StoresKeyInContext(t *testing.T) {
 	var capturedKey string
 
 	router := gin.New()
-	router.Use(httpPresentation.APIKeyMiddleware(apiKeyConfig))
+	router.Use(httpPresentation.APIKeyMiddleware(apiKeyConfig, nil))
 	router.GET("/test", func(c *gin.Context) {
 		capturedKey = httpPresentation.GetAPIKey(c)
 		c.String(http.StatusOK, "OK")

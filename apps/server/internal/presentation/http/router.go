@@ -1,6 +1,7 @@
 package http
 
 import (
+	"whatspire/internal/domain/repository"
 	"whatspire/internal/infrastructure/config"
 	"whatspire/internal/infrastructure/metrics"
 	"whatspire/internal/infrastructure/ratelimit"
@@ -25,6 +26,8 @@ type RouterConfig struct {
 	Metrics *metrics.Metrics
 	// MetricsConfig is the metrics configuration (optional)
 	MetricsConfig *config.MetricsConfig
+	// AuditLogger is the audit logger instance (optional)
+	AuditLogger repository.AuditLogger
 }
 
 // DefaultRouterConfig returns the default router configuration
@@ -37,6 +40,7 @@ func DefaultRouterConfig() RouterConfig {
 		APIKeyConfig:         nil,
 		Metrics:              nil,
 		MetricsConfig:        nil,
+		AuditLogger:          nil,
 	}
 }
 
@@ -101,11 +105,14 @@ func registerRoutes(router *gin.Engine, handler *Handler, routerConfig RouterCon
 
 	// Apply API key authentication to API routes if configured
 	if routerConfig.APIKeyConfig != nil && routerConfig.APIKeyConfig.Enabled {
-		api.Use(APIKeyMiddleware(*routerConfig.APIKeyConfig))
+		api.Use(APIKeyMiddleware(*routerConfig.APIKeyConfig, routerConfig.AuditLogger))
 	}
 
-	// Internal routes (called by Node.js API for session lifecycle)
+	// Internal routes (called by Node.js API for session lifecycle) - require admin role
 	internal := api.Group("/internal")
+	if routerConfig.APIKeyConfig != nil && routerConfig.APIKeyConfig.Enabled {
+		internal.Use(RoleAuthorizationMiddleware(config.RoleAdmin, routerConfig.APIKeyConfig))
+	}
 	internal.POST("/sessions/register", handler.RegisterSession)
 	internal.POST("/sessions/:id/unregister", handler.UnregisterSession)
 	internal.POST("/sessions/:id/status", handler.UpdateSessionStatus)
@@ -113,26 +120,48 @@ func registerRoutes(router *gin.Engine, handler *Handler, routerConfig RouterCon
 	internal.POST("/sessions/:id/disconnect", handler.DisconnectSession)
 	internal.POST("/sessions/:id/history-sync", handler.ConfigureHistorySync)
 
-	// Session routes (groups sync)
+	// Session routes (groups sync) - require write role for sync, read for list
 	sessions := api.Group("/sessions")
-	sessions.POST("/:id/groups/sync", handler.SyncGroups)
-	sessions.GET("/:id/contacts", handler.ListContacts)
-	sessions.GET("/:id/chats", handler.ListChats)
+	if routerConfig.APIKeyConfig != nil && routerConfig.APIKeyConfig.Enabled {
+		sessions.POST("/:id/groups/sync", RoleAuthorizationMiddleware(config.RoleWrite, routerConfig.APIKeyConfig), handler.SyncGroups)
+		sessions.GET("/:id/contacts", RoleAuthorizationMiddleware(config.RoleRead, routerConfig.APIKeyConfig), handler.ListContacts)
+		sessions.GET("/:id/chats", RoleAuthorizationMiddleware(config.RoleRead, routerConfig.APIKeyConfig), handler.ListChats)
+	} else {
+		sessions.POST("/:id/groups/sync", handler.SyncGroups)
+		sessions.GET("/:id/contacts", handler.ListContacts)
+		sessions.GET("/:id/chats", handler.ListChats)
+	}
 
-	// Contact routes
+	// Contact routes - require read role
 	contacts := api.Group("/contacts")
-	contacts.GET("/check", handler.CheckPhoneNumber)
-	contacts.GET("/:jid/profile", handler.GetUserProfile)
+	if routerConfig.APIKeyConfig != nil && routerConfig.APIKeyConfig.Enabled {
+		contacts.GET("/check", RoleAuthorizationMiddleware(config.RoleRead, routerConfig.APIKeyConfig), handler.CheckPhoneNumber)
+		contacts.GET("/:jid/profile", RoleAuthorizationMiddleware(config.RoleRead, routerConfig.APIKeyConfig), handler.GetUserProfile)
+	} else {
+		contacts.GET("/check", handler.CheckPhoneNumber)
+		contacts.GET("/:jid/profile", handler.GetUserProfile)
+	}
 
-	// Message routes
+	// Message routes - require write role
 	messages := api.Group("/messages")
-	messages.POST("", handler.SendMessage)
-	messages.POST("/:messageId/reactions", handler.SendReaction)
-	messages.DELETE("/:messageId/reactions", handler.RemoveReaction)
-	messages.POST("/receipts", handler.SendReadReceipt)
+	if routerConfig.APIKeyConfig != nil && routerConfig.APIKeyConfig.Enabled {
+		messages.POST("", RoleAuthorizationMiddleware(config.RoleWrite, routerConfig.APIKeyConfig), handler.SendMessage)
+		messages.POST("/:messageId/reactions", RoleAuthorizationMiddleware(config.RoleWrite, routerConfig.APIKeyConfig), handler.SendReaction)
+		messages.DELETE("/:messageId/reactions", RoleAuthorizationMiddleware(config.RoleWrite, routerConfig.APIKeyConfig), handler.RemoveReaction)
+		messages.POST("/receipts", RoleAuthorizationMiddleware(config.RoleWrite, routerConfig.APIKeyConfig), handler.SendReadReceipt)
+	} else {
+		messages.POST("", handler.SendMessage)
+		messages.POST("/:messageId/reactions", handler.SendReaction)
+		messages.DELETE("/:messageId/reactions", handler.RemoveReaction)
+		messages.POST("/receipts", handler.SendReadReceipt)
+	}
 
-	// Presence routes
-	api.POST("/presence", handler.SendPresence)
+	// Presence routes - require write role
+	if routerConfig.APIKeyConfig != nil && routerConfig.APIKeyConfig.Enabled {
+		api.POST("/presence", RoleAuthorizationMiddleware(config.RoleWrite, routerConfig.APIKeyConfig), handler.SendPresence)
+	} else {
+		api.POST("/presence", handler.SendPresence)
+	}
 }
 
 // NewRouter creates a new Gin router with a pre-configured handler

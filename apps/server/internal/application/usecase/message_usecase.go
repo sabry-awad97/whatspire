@@ -39,6 +39,7 @@ type MessageUseCase struct {
 	waClient      repository.WhatsAppClient
 	publisher     repository.EventPublisher
 	mediaUploader repository.MediaUploader
+	auditLogger   repository.AuditLogger
 	config        MessageUseCaseConfig
 
 	// Rate limiting
@@ -57,12 +58,14 @@ func NewMessageUseCase(
 	waClient repository.WhatsAppClient,
 	publisher repository.EventPublisher,
 	mediaUploader repository.MediaUploader,
+	auditLogger repository.AuditLogger,
 	config MessageUseCaseConfig,
 ) *MessageUseCase {
 	uc := &MessageUseCase{
 		waClient:      waClient,
 		publisher:     publisher,
 		mediaUploader: mediaUploader,
+		auditLogger:   auditLogger,
 		config:        config,
 		rateLimitChan: make(chan struct{}, config.RateLimitPerSecond),
 		queue:         make(chan *entity.Message, config.QueueSize),
@@ -269,6 +272,17 @@ func (uc *MessageUseCase) sendWithRetry(ctx context.Context, msg *entity.Message
 			log.Printf("[MessageUseCase] waClient.SendMessage succeeded")
 			msg.SetStatus(entity.MessageStatusSent)
 			uc.emitMessageStatusEvent(ctx, msg, entity.MessageStatusSent)
+
+			// Log message sent
+			if uc.auditLogger != nil {
+				uc.auditLogger.LogMessageSent(ctx, repository.MessageSentEvent{
+					SessionID:   msg.SessionID,
+					Recipient:   msg.To,
+					MessageType: msg.Type.String(),
+					Timestamp:   time.Now(),
+				})
+			}
+
 			return nil
 		}
 

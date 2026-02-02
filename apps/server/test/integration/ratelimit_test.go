@@ -33,7 +33,7 @@ func setupRateLimitTestRouter(sessionUC *usecase.SessionUseCase, limiter *rateli
 
 func TestRateLimit_AllowedRequests(t *testing.T) {
 	repo := NewSessionRepositoryMock()
-	sessionUC := usecase.NewSessionUseCase(repo, nil, nil)
+	sessionUC := usecase.NewSessionUseCase(repo, nil, nil, nil)
 
 	// Configure rate limiter with high limit
 	limiterConfig := ratelimit.Config{
@@ -60,7 +60,7 @@ func TestRateLimit_AllowedRequests(t *testing.T) {
 
 func TestRateLimit_ExceedLimit(t *testing.T) {
 	repo := NewSessionRepositoryMock()
-	sessionUC := usecase.NewSessionUseCase(repo, nil, nil)
+	sessionUC := usecase.NewSessionUseCase(repo, nil, nil, nil)
 
 	// Configure rate limiter with very low limit
 	limiterConfig := ratelimit.Config{
@@ -102,7 +102,7 @@ func TestRateLimit_ExceedLimit(t *testing.T) {
 
 func TestRateLimit_Headers(t *testing.T) {
 	repo := NewSessionRepositoryMock()
-	sessionUC := usecase.NewSessionUseCase(repo, nil, nil)
+	sessionUC := usecase.NewSessionUseCase(repo, nil, nil, nil)
 
 	limiterConfig := ratelimit.Config{
 		Enabled:           true,
@@ -143,7 +143,7 @@ func TestRateLimit_Headers(t *testing.T) {
 
 func TestRateLimit_RetryAfterHeader(t *testing.T) {
 	repo := NewSessionRepositoryMock()
-	sessionUC := usecase.NewSessionUseCase(repo, nil, nil)
+	sessionUC := usecase.NewSessionUseCase(repo, nil, nil, nil)
 
 	limiterConfig := ratelimit.Config{
 		Enabled:           true,
@@ -175,7 +175,7 @@ func TestRateLimit_RetryAfterHeader(t *testing.T) {
 
 func TestRateLimit_ByIP(t *testing.T) {
 	repo := NewSessionRepositoryMock()
-	sessionUC := usecase.NewSessionUseCase(repo, nil, nil)
+	sessionUC := usecase.NewSessionUseCase(repo, nil, nil, nil)
 
 	limiterConfig := ratelimit.Config{
 		Enabled:           true,
@@ -212,7 +212,7 @@ func TestRateLimit_ByIP(t *testing.T) {
 
 func TestRateLimit_Disabled(t *testing.T) {
 	repo := NewSessionRepositoryMock()
-	sessionUC := usecase.NewSessionUseCase(repo, nil, nil)
+	sessionUC := usecase.NewSessionUseCase(repo, nil, nil, nil)
 
 	limiterConfig := ratelimit.Config{
 		Enabled:           false, // Disabled
@@ -238,7 +238,7 @@ func TestRateLimit_Disabled(t *testing.T) {
 
 func TestRateLimit_NoLimiter(t *testing.T) {
 	repo := NewSessionRepositoryMock()
-	sessionUC := usecase.NewSessionUseCase(repo, nil, nil)
+	sessionUC := usecase.NewSessionUseCase(repo, nil, nil, nil)
 
 	// No rate limiter configured
 	router := setupRateLimitTestRouter(sessionUC, nil)
@@ -256,7 +256,7 @@ func TestRateLimit_NoLimiter(t *testing.T) {
 
 func TestRateLimit_XForwardedFor(t *testing.T) {
 	repo := NewSessionRepositoryMock()
-	sessionUC := usecase.NewSessionUseCase(repo, nil, nil)
+	sessionUC := usecase.NewSessionUseCase(repo, nil, nil, nil)
 
 	limiterConfig := ratelimit.Config{
 		Enabled:           true,

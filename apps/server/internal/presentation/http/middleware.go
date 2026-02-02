@@ -12,6 +12,7 @@ import (
 	"time"
 
 	"whatspire/internal/application/dto"
+	"whatspire/internal/domain/repository"
 	"whatspire/internal/infrastructure/config"
 	"whatspire/internal/infrastructure/metrics"
 	"whatspire/internal/infrastructure/ratelimit"
@@ -292,13 +293,7 @@ func extractRateLimitKey(r *http.Request, config ratelimit.Config) string {
 
 // APIKeyMiddleware provides API key authentication for protected routes.
 // It validates the API key from the configured header against the list of valid keys.
-func APIKeyMiddleware(apiKeyConfig config.APIKeyConfig) gin.HandlerFunc {
-	// Build a set of valid keys for O(1) lookup
-	validKeys := make(map[string]struct{}, len(apiKeyConfig.Keys))
-	for _, key := range apiKeyConfig.Keys {
-		validKeys[key] = struct{}{}
-	}
-
+func APIKeyMiddleware(apiKeyConfig config.APIKeyConfig, auditLogger repository.AuditLogger) gin.HandlerFunc {
 	headerName := apiKeyConfig.Header
 	if headerName == "" {
 		headerName = "X-API-Key"
@@ -314,6 +309,17 @@ func APIKeyMiddleware(apiKeyConfig config.APIKeyConfig) gin.HandlerFunc {
 		// Get API key from header
 		apiKey := c.GetHeader(headerName)
 		if apiKey == "" {
+			// Log authentication failure
+			if auditLogger != nil {
+				auditLogger.LogAuthFailure(c.Request.Context(), repository.AuthFailureEvent{
+					APIKey:    "",
+					Endpoint:  c.Request.URL.Path,
+					Reason:    "missing_api_key",
+					Timestamp: time.Now(),
+					IPAddress: c.ClientIP(),
+				})
+			}
+
 			c.JSON(http.StatusUnauthorized, dto.NewErrorResponse[interface{}](
 				"MISSING_API_KEY",
 				fmt.Sprintf("API key is required in %s header", headerName),
@@ -323,8 +329,19 @@ func APIKeyMiddleware(apiKeyConfig config.APIKeyConfig) gin.HandlerFunc {
 			return
 		}
 
-		// Validate API key
-		if _, valid := validKeys[apiKey]; !valid {
+		// Validate API key using the new IsValidKey method
+		if !apiKeyConfig.IsValidKey(apiKey) {
+			// Log authentication failure
+			if auditLogger != nil {
+				auditLogger.LogAuthFailure(c.Request.Context(), repository.AuthFailureEvent{
+					APIKey:    apiKey,
+					Endpoint:  c.Request.URL.Path,
+					Reason:    "invalid_api_key",
+					Timestamp: time.Now(),
+					IPAddress: c.ClientIP(),
+				})
+			}
+
 			c.JSON(http.StatusUnauthorized, dto.NewErrorResponse[interface{}](
 				"INVALID_API_KEY",
 				"Invalid API key",
@@ -334,8 +351,19 @@ func APIKeyMiddleware(apiKeyConfig config.APIKeyConfig) gin.HandlerFunc {
 			return
 		}
 
-		// Store API key in context for potential use by other middleware (e.g., rate limiting)
+		// Store API key in context for potential use by other middleware (e.g., rate limiting, role authorization)
 		c.Set("api_key", apiKey)
+
+		// Log API key usage
+		if auditLogger != nil {
+			auditLogger.LogAPIKeyUsage(c.Request.Context(), repository.APIKeyUsageEvent{
+				APIKeyID:  apiKey, // In production, this should be a key ID, not the key itself
+				Endpoint:  c.Request.URL.Path,
+				Method:    c.Request.Method,
+				Timestamp: time.Now(),
+				IPAddress: c.ClientIP(),
+			})
+		}
 
 		c.Next()
 	}

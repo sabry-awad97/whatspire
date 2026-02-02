@@ -4,6 +4,7 @@ import (
 	"time"
 
 	"whatspire/internal/application/usecase"
+	"whatspire/internal/domain/repository"
 	"whatspire/internal/infrastructure/config"
 	"whatspire/internal/infrastructure/ratelimit"
 	infraWs "whatspire/internal/infrastructure/websocket"
@@ -42,6 +43,7 @@ func NewHTTPHandler(
 func NewRouter(
 	handler *http.Handler,
 	cfg *config.Config,
+	auditLogger repository.AuditLogger,
 ) *gin.Engine {
 	// Create rate limiter if enabled
 	var rateLimiter *ratelimit.Limiter
@@ -64,6 +66,7 @@ func NewRouter(
 		RateLimiter:          rateLimiter,
 		CORSConfig:           &cfg.CORS,
 		APIKeyConfig:         &cfg.APIKey,
+		AuditLogger:          auditLogger,
 	}
 
 	return http.NewRouter(handler, routerConfig)

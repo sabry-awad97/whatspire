@@ -2,6 +2,7 @@ package usecase
 
 import (
 	"context"
+	"time"
 
 	"whatspire/internal/domain/entity"
 	"whatspire/internal/domain/errors"
@@ -14,9 +15,10 @@ import (
 // Session CRUD is managed by Node.js API with PostgreSQL.
 // This usecase maintains local state for WhatsApp client tracking.
 type SessionUseCase struct {
-	repo      repository.SessionRepository
-	waClient  repository.WhatsAppClient
-	publisher repository.EventPublisher
+	repo        repository.SessionRepository
+	waClient    repository.WhatsAppClient
+	publisher   repository.EventPublisher
+	auditLogger repository.AuditLogger
 }
 
 // NewSessionUseCase creates a new SessionUseCase
@@ -24,11 +26,13 @@ func NewSessionUseCase(
 	repo repository.SessionRepository,
 	waClient repository.WhatsAppClient,
 	publisher repository.EventPublisher,
+	auditLogger repository.AuditLogger,
 ) *SessionUseCase {
 	return &SessionUseCase{
-		repo:      repo,
-		waClient:  waClient,
-		publisher: publisher,
+		repo:        repo,
+		waClient:    waClient,
+		publisher:   publisher,
+		auditLogger: auditLogger,
 	}
 }
 
@@ -39,6 +43,16 @@ func (uc *SessionUseCase) CreateSessionWithID(ctx context.Context, id, name stri
 
 	if err := uc.repo.Create(ctx, session); err != nil {
 		return nil, errors.ErrDatabaseError.WithCause(err)
+	}
+
+	// Log session creation
+	if uc.auditLogger != nil {
+		uc.auditLogger.LogSessionAction(ctx, repository.SessionActionEvent{
+			SessionID: id,
+			Action:    "created",
+			APIKeyID:  "", // API key ID would be extracted from context in production
+			Timestamp: time.Now(),
+		})
 	}
 
 	return session, nil
@@ -58,6 +72,16 @@ func (uc *SessionUseCase) DeleteSession(ctx context.Context, id string) error {
 			return nil // Idempotent - already deleted
 		}
 		return errors.ErrDatabaseError.WithCause(err)
+	}
+
+	// Log session deletion
+	if uc.auditLogger != nil {
+		uc.auditLogger.LogSessionAction(ctx, repository.SessionActionEvent{
+			SessionID: id,
+			Action:    "deleted",
+			APIKeyID:  "", // API key ID would be extracted from context in production
+			Timestamp: time.Now(),
+		})
 	}
 
 	return nil

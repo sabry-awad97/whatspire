@@ -49,7 +49,7 @@ func TestWebSocket_QRFlow_Success(t *testing.T) {
 	session := entity.NewSession("test-session", "Test Session")
 	repo.Sessions["test-session"] = session
 
-	sessionUC := usecase.NewSessionUseCase(repo, waClient, publisher)
+	sessionUC := usecase.NewSessionUseCase(repo, waClient, publisher, nil)
 
 	config := ws.DefaultQRHandlerConfig()
 	config.AuthTimeout = 5 * time.Second
@@ -92,7 +92,7 @@ func TestWebSocket_QRFlow_Authentication(t *testing.T) {
 	session := entity.NewSession("test-session", "Test Session")
 	repo.Sessions["test-session"] = session
 
-	sessionUC := usecase.NewSessionUseCase(repo, waClient, publisher)
+	sessionUC := usecase.NewSessionUseCase(repo, waClient, publisher, nil)
 
 	config := ws.DefaultQRHandlerConfig()
 	config.AuthTimeout = 5 * time.Second
@@ -131,7 +131,7 @@ func TestWebSocket_QRFlow_NoWhatsAppClient(t *testing.T) {
 	publisher := NewEventPublisherMock()
 
 	// No WhatsApp client - simulates client not available
-	sessionUC := usecase.NewSessionUseCase(repo, nil, publisher)
+	sessionUC := usecase.NewSessionUseCase(repo, nil, publisher, nil)
 
 	config := ws.DefaultQRHandlerConfig()
 	config.AuthTimeout = 5 * time.Second
@@ -164,7 +164,7 @@ func TestWebSocket_QRFlow_DuplicateConnection(t *testing.T) {
 	session := entity.NewSession("test-session", "Test Session")
 	repo.Sessions["test-session"] = session
 
-	sessionUC := usecase.NewSessionUseCase(repo, waClient, publisher)
+	sessionUC := usecase.NewSessionUseCase(repo, waClient, publisher, nil)
 
 	config := ws.DefaultQRHandlerConfig()
 	config.AuthTimeout = 5 * time.Second
@@ -209,7 +209,7 @@ func TestWebSocket_QRFlow_ErrorEvent(t *testing.T) {
 	session := entity.NewSession("test-session", "Test Session")
 	repo.Sessions["test-session"] = session
 
-	sessionUC := usecase.NewSessionUseCase(repo, waClient, publisher)
+	sessionUC := usecase.NewSessionUseCase(repo, waClient, publisher, nil)
 
 	config := ws.DefaultQRHandlerConfig()
 	config.AuthTimeout = 5 * time.Second
@@ -250,7 +250,7 @@ func TestWebSocket_OriginValidation_Allowed(t *testing.T) {
 	session := entity.NewSession("test-session", "Test Session")
 	repo.Sessions["test-session"] = session
 
-	sessionUC := usecase.NewSessionUseCase(repo, waClient, publisher)
+	sessionUC := usecase.NewSessionUseCase(repo, waClient, publisher, nil)
 
 	config := ws.DefaultQRHandlerConfig()
 	config.AllowedOrigins = []string{"http://localhost:3000", "https://example.com"}
@@ -277,7 +277,7 @@ func TestWebSocket_OriginValidation_Wildcard(t *testing.T) {
 	session := entity.NewSession("test-session", "Test Session")
 	repo.Sessions["test-session"] = session
 
-	sessionUC := usecase.NewSessionUseCase(repo, waClient, publisher)
+	sessionUC := usecase.NewSessionUseCase(repo, waClient, publisher, nil)
 
 	config := ws.DefaultQRHandlerConfig()
 	config.AllowedOrigins = []string{"*"} // Allow all
@@ -305,7 +305,7 @@ func TestWebSocket_ActiveConnectionCount(t *testing.T) {
 	repo.Sessions["session-1"] = entity.NewSession("session-1", "Session 1")
 	repo.Sessions["session-2"] = entity.NewSession("session-2", "Session 2")
 
-	sessionUC := usecase.NewSessionUseCase(repo, waClient, publisher)
+	sessionUC := usecase.NewSessionUseCase(repo, waClient, publisher, nil)
 
 	config := ws.DefaultQRHandlerConfig()
 	config.AuthTimeout = 10 * time.Second

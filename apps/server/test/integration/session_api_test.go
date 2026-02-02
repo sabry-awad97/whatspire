@@ -33,7 +33,7 @@ func TestRegisterSession_Success(t *testing.T) {
 	repo := NewSessionRepositoryMock()
 	waClient := NewWhatsAppClientMock()
 	publisher := NewEventPublisherMock()
-	sessionUC := usecase.NewSessionUseCase(repo, waClient, publisher)
+	sessionUC := usecase.NewSessionUseCase(repo, waClient, publisher, nil)
 	router := setupTestRouter(sessionUC)
 
 	reqBody := map[string]string{"id": "test-session-id", "name": "Test Session"}
@@ -59,7 +59,7 @@ func TestRegisterSession_Success(t *testing.T) {
 
 func TestRegisterSession_InvalidJSON(t *testing.T) {
 	repo := NewSessionRepositoryMock()
-	sessionUC := usecase.NewSessionUseCase(repo, nil, nil)
+	sessionUC := usecase.NewSessionUseCase(repo, nil, nil, nil)
 	router := setupTestRouter(sessionUC)
 
 	req := httptest.NewRequest(http.MethodPost, "/api/internal/sessions/register", bytes.NewReader([]byte("invalid json")))
@@ -80,7 +80,7 @@ func TestRegisterSession_InvalidJSON(t *testing.T) {
 
 func TestRegisterSession_MissingID(t *testing.T) {
 	repo := NewSessionRepositoryMock()
-	sessionUC := usecase.NewSessionUseCase(repo, nil, nil)
+	sessionUC := usecase.NewSessionUseCase(repo, nil, nil, nil)
 	router := setupTestRouter(sessionUC)
 
 	reqBody := map[string]string{"name": "Test Session"}
@@ -106,7 +106,7 @@ func TestUnregisterSession_Success(t *testing.T) {
 	repo.Sessions["test-id"] = existingSession
 	waClient.Connected["test-id"] = true
 
-	sessionUC := usecase.NewSessionUseCase(repo, waClient, publisher)
+	sessionUC := usecase.NewSessionUseCase(repo, waClient, publisher, nil)
 	router := setupTestRouter(sessionUC)
 
 	req := httptest.NewRequest(http.MethodPost, "/api/internal/sessions/test-id/unregister", nil)
@@ -131,7 +131,7 @@ func TestUnregisterSession_Success(t *testing.T) {
 func TestUnregisterSession_NotFound_NoError(t *testing.T) {
 	// Unregistering a non-existent session should succeed (idempotent)
 	repo := NewSessionRepositoryMock()
-	sessionUC := usecase.NewSessionUseCase(repo, nil, nil)
+	sessionUC := usecase.NewSessionUseCase(repo, nil, nil, nil)
 	router := setupTestRouter(sessionUC)
 
 	req := httptest.NewRequest(http.MethodPost, "/api/internal/sessions/non-existent/unregister", nil)
@@ -149,7 +149,7 @@ func TestUpdateSessionStatus_Success(t *testing.T) {
 	repo := NewSessionRepositoryMock()
 	existingSession := entity.NewSession("test-id", "Test Session")
 	repo.Sessions["test-id"] = existingSession
-	sessionUC := usecase.NewSessionUseCase(repo, nil, nil)
+	sessionUC := usecase.NewSessionUseCase(repo, nil, nil, nil)
 	router := setupTestRouter(sessionUC)
 
 	reqBody := map[string]string{"status": "connected"}
@@ -179,7 +179,7 @@ func TestUpdateSessionStatus_WithJID(t *testing.T) {
 	publisher := NewEventPublisherMock()
 	existingSession := entity.NewSession("test-id", "Test Session")
 	repo.Sessions["test-id"] = existingSession
-	sessionUC := usecase.NewSessionUseCase(repo, waClient, publisher)
+	sessionUC := usecase.NewSessionUseCase(repo, waClient, publisher, nil)
 	router := setupTestRouter(sessionUC)
 
 	reqBody := map[string]string{"status": "connected", "jid": "1234567890@s.whatsapp.net"}
@@ -201,7 +201,7 @@ func TestUpdateSessionStatus_InvalidStatus(t *testing.T) {
 	repo := NewSessionRepositoryMock()
 	existingSession := entity.NewSession("test-id", "Test Session")
 	repo.Sessions["test-id"] = existingSession
-	sessionUC := usecase.NewSessionUseCase(repo, nil, nil)
+	sessionUC := usecase.NewSessionUseCase(repo, nil, nil, nil)
 	router := setupTestRouter(sessionUC)
 
 	reqBody := map[string]string{"status": "invalid_status"}
@@ -225,7 +225,7 @@ func TestUpdateSessionStatus_InvalidStatus(t *testing.T) {
 
 func TestUpdateSessionStatus_CreatesSessionIfNotExists(t *testing.T) {
 	repo := NewSessionRepositoryMock()
-	sessionUC := usecase.NewSessionUseCase(repo, nil, nil)
+	sessionUC := usecase.NewSessionUseCase(repo, nil, nil, nil)
 	router := setupTestRouter(sessionUC)
 
 	reqBody := map[string]string{"status": "connected"}
@@ -256,7 +256,7 @@ func TestReconnectSession_Success(t *testing.T) {
 	existingSession.SetJID("1234567890@s.whatsapp.net")
 	repo.Sessions["test-id"] = existingSession
 
-	sessionUC := usecase.NewSessionUseCase(repo, waClient, publisher)
+	sessionUC := usecase.NewSessionUseCase(repo, waClient, publisher, nil)
 	router := setupTestRouter(sessionUC)
 
 	req := httptest.NewRequest(http.MethodPost, "/api/internal/sessions/test-id/reconnect", nil)
@@ -290,7 +290,7 @@ func TestReconnectSession_AlreadyConnected(t *testing.T) {
 	repo.Sessions["test-id"] = existingSession
 	waClient.Connected["test-id"] = true
 
-	sessionUC := usecase.NewSessionUseCase(repo, waClient, publisher)
+	sessionUC := usecase.NewSessionUseCase(repo, waClient, publisher, nil)
 	router := setupTestRouter(sessionUC)
 
 	req := httptest.NewRequest(http.MethodPost, "/api/internal/sessions/test-id/reconnect", nil)
@@ -316,7 +316,7 @@ func TestReconnectSession_ConnectionFailed(t *testing.T) {
 		return errors.ErrConnectionFailed
 	}
 
-	sessionUC := usecase.NewSessionUseCase(repo, waClient, publisher)
+	sessionUC := usecase.NewSessionUseCase(repo, waClient, publisher, nil)
 	router := setupTestRouter(sessionUC)
 
 	req := httptest.NewRequest(http.MethodPost, "/api/internal/sessions/test-id/reconnect", nil)
@@ -332,7 +332,7 @@ func TestReconnectSession_ConnectionFailed(t *testing.T) {
 
 func TestReconnectSession_MissingID(t *testing.T) {
 	repo := NewSessionRepositoryMock()
-	sessionUC := usecase.NewSessionUseCase(repo, nil, nil)
+	sessionUC := usecase.NewSessionUseCase(repo, nil, nil, nil)
 	router := setupTestRouter(sessionUC)
 
 	req := httptest.NewRequest(http.MethodPost, "/api/internal/sessions//reconnect", nil)
@@ -357,7 +357,7 @@ func TestDisconnectSession_Success(t *testing.T) {
 	repo.Sessions["test-id"] = existingSession
 	waClient.Connected["test-id"] = true
 
-	sessionUC := usecase.NewSessionUseCase(repo, waClient, publisher)
+	sessionUC := usecase.NewSessionUseCase(repo, waClient, publisher, nil)
 	router := setupTestRouter(sessionUC)
 
 	req := httptest.NewRequest(http.MethodPost, "/api/internal/sessions/test-id/disconnect", nil)
@@ -390,7 +390,7 @@ func TestDisconnectSession_AlreadyDisconnected(t *testing.T) {
 	existingSession.SetStatus(entity.StatusDisconnected)
 	repo.Sessions["test-id"] = existingSession
 
-	sessionUC := usecase.NewSessionUseCase(repo, waClient, publisher)
+	sessionUC := usecase.NewSessionUseCase(repo, waClient, publisher, nil)
 	router := setupTestRouter(sessionUC)
 
 	req := httptest.NewRequest(http.MethodPost, "/api/internal/sessions/test-id/disconnect", nil)
@@ -416,7 +416,7 @@ func TestDisconnectSession_PreservesJID(t *testing.T) {
 	repo.Sessions["test-id"] = existingSession
 	waClient.Connected["test-id"] = true
 
-	sessionUC := usecase.NewSessionUseCase(repo, waClient, publisher)
+	sessionUC := usecase.NewSessionUseCase(repo, waClient, publisher, nil)
 	router := setupTestRouter(sessionUC)
 
 	req := httptest.NewRequest(http.MethodPost, "/api/internal/sessions/test-id/disconnect", nil)
@@ -432,7 +432,7 @@ func TestDisconnectSession_PreservesJID(t *testing.T) {
 
 func TestDisconnectSession_MissingID(t *testing.T) {
 	repo := NewSessionRepositoryMock()
-	sessionUC := usecase.NewSessionUseCase(repo, nil, nil)
+	sessionUC := usecase.NewSessionUseCase(repo, nil, nil, nil)
 	router := setupTestRouter(sessionUC)
 
 	req := httptest.NewRequest(http.MethodPost, "/api/internal/sessions//disconnect", nil)
@@ -449,7 +449,7 @@ func TestDisconnectSession_SessionNotFound(t *testing.T) {
 	waClient := NewWhatsAppClientMock()
 	publisher := NewEventPublisherMock()
 
-	sessionUC := usecase.NewSessionUseCase(repo, waClient, publisher)
+	sessionUC := usecase.NewSessionUseCase(repo, waClient, publisher, nil)
 	router := setupTestRouter(sessionUC)
 
 	req := httptest.NewRequest(http.MethodPost, "/api/internal/sessions/non-existent/disconnect", nil)

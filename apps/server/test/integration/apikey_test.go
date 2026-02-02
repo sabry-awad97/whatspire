@@ -32,7 +32,7 @@ func setupAPIKeyTestRouter(sessionUC *usecase.SessionUseCase, apiKeyConfig *conf
 
 func TestAPIKey_ValidKey(t *testing.T) {
 	repo := NewSessionRepositoryMock()
-	sessionUC := usecase.NewSessionUseCase(repo, nil, nil)
+	sessionUC := usecase.NewSessionUseCase(repo, nil, nil, nil)
 
 	apiKeyConfig := &config.APIKeyConfig{
 		Enabled: true,
@@ -55,7 +55,7 @@ func TestAPIKey_ValidKey(t *testing.T) {
 
 func TestAPIKey_InvalidKey(t *testing.T) {
 	repo := NewSessionRepositoryMock()
-	sessionUC := usecase.NewSessionUseCase(repo, nil, nil)
+	sessionUC := usecase.NewSessionUseCase(repo, nil, nil, nil)
 
 	apiKeyConfig := &config.APIKeyConfig{
 		Enabled: true,
@@ -83,7 +83,7 @@ func TestAPIKey_InvalidKey(t *testing.T) {
 
 func TestAPIKey_MissingKey(t *testing.T) {
 	repo := NewSessionRepositoryMock()
-	sessionUC := usecase.NewSessionUseCase(repo, nil, nil)
+	sessionUC := usecase.NewSessionUseCase(repo, nil, nil, nil)
 
 	apiKeyConfig := &config.APIKeyConfig{
 		Enabled: true,
@@ -111,7 +111,7 @@ func TestAPIKey_MissingKey(t *testing.T) {
 
 func TestAPIKey_Disabled(t *testing.T) {
 	repo := NewSessionRepositoryMock()
-	sessionUC := usecase.NewSessionUseCase(repo, nil, nil)
+	sessionUC := usecase.NewSessionUseCase(repo, nil, nil, nil)
 
 	apiKeyConfig := &config.APIKeyConfig{
 		Enabled: false, // Disabled
@@ -132,7 +132,7 @@ func TestAPIKey_Disabled(t *testing.T) {
 
 func TestAPIKey_NoConfig(t *testing.T) {
 	repo := NewSessionRepositoryMock()
-	sessionUC := usecase.NewSessionUseCase(repo, nil, nil)
+	sessionUC := usecase.NewSessionUseCase(repo, nil, nil, nil)
 
 	// No API key config
 	router := setupAPIKeyTestRouter(sessionUC, nil)
@@ -148,7 +148,7 @@ func TestAPIKey_NoConfig(t *testing.T) {
 
 func TestAPIKey_CustomHeader(t *testing.T) {
 	repo := NewSessionRepositoryMock()
-	sessionUC := usecase.NewSessionUseCase(repo, nil, nil)
+	sessionUC := usecase.NewSessionUseCase(repo, nil, nil, nil)
 
 	apiKeyConfig := &config.APIKeyConfig{
 		Enabled: true,
@@ -171,7 +171,7 @@ func TestAPIKey_CustomHeader(t *testing.T) {
 
 func TestAPIKey_MultipleValidKeys(t *testing.T) {
 	repo := NewSessionRepositoryMock()
-	sessionUC := usecase.NewSessionUseCase(repo, nil, nil)
+	sessionUC := usecase.NewSessionUseCase(repo, nil, nil, nil)
 
 	apiKeyConfig := &config.APIKeyConfig{
 		Enabled: true,
@@ -195,7 +195,7 @@ func TestAPIKey_MultipleValidKeys(t *testing.T) {
 
 func TestAPIKey_HealthEndpointsNoAuth(t *testing.T) {
 	repo := NewSessionRepositoryMock()
-	sessionUC := usecase.NewSessionUseCase(repo, nil, nil)
+	sessionUC := usecase.NewSessionUseCase(repo, nil, nil, nil)
 
 	apiKeyConfig := &config.APIKeyConfig{
 		Enabled: true,
@@ -221,7 +221,7 @@ func TestAPIKey_HealthEndpointsNoAuth(t *testing.T) {
 
 func TestAPIKey_EmptyKey(t *testing.T) {
 	repo := NewSessionRepositoryMock()
-	sessionUC := usecase.NewSessionUseCase(repo, nil, nil)
+	sessionUC := usecase.NewSessionUseCase(repo, nil, nil, nil)
 
 	apiKeyConfig := &config.APIKeyConfig{
 		Enabled: true,
@@ -250,7 +250,7 @@ func TestAPIKey_EmptyKey(t *testing.T) {
 
 func TestAPIKey_CaseSensitive(t *testing.T) {
 	repo := NewSessionRepositoryMock()
-	sessionUC := usecase.NewSessionUseCase(repo, nil, nil)
+	sessionUC := usecase.NewSessionUseCase(repo, nil, nil, nil)
 
 	apiKeyConfig := &config.APIKeyConfig{
 		Enabled: true,

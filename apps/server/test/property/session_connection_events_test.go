@@ -51,7 +51,7 @@ func TestConnectingEventPublication_Property3(t *testing.T) {
 			session := entity.NewSession(sessionID, "Test Session")
 			_ = repo.Create(ctx, session)
 
-			uc := usecase.NewSessionUseCase(repo, waClient, publisher)
+			uc := usecase.NewSessionUseCase(repo, waClient, publisher, nil)
 
 			// Track connection order
 			var connectingEventPublished bool
@@ -102,7 +102,7 @@ func TestConnectingEventPublication_Property3(t *testing.T) {
 			session := entity.NewSession(sessionID, "Test Session")
 			_ = repo.Create(ctx, session)
 
-			uc := usecase.NewSessionUseCase(repo, waClient, publisher)
+			uc := usecase.NewSessionUseCase(repo, waClient, publisher, nil)
 
 			// Call reconnect
 			_ = uc.ReconnectSessionWithJID(ctx, sessionID, "")
@@ -135,7 +135,7 @@ func TestConnectingEventPublication_Property3(t *testing.T) {
 			session := entity.NewSession(sessionID, "Test Session")
 			_ = repo.Create(ctx, session)
 
-			uc := usecase.NewSessionUseCase(repo, waClient, publisher)
+			uc := usecase.NewSessionUseCase(repo, waClient, publisher, nil)
 
 			// Call reconnect
 			_ = uc.ReconnectSessionWithJID(ctx, sessionID, "")
@@ -173,7 +173,7 @@ func TestConnectingEventPublication_Property3(t *testing.T) {
 				return errors.ErrConnectionFailed.WithMessage("simulated failure")
 			}
 
-			uc := usecase.NewSessionUseCase(repo, waClient, publisher)
+			uc := usecase.NewSessionUseCase(repo, waClient, publisher, nil)
 
 			// Call reconnect (will fail)
 			_ = uc.ReconnectSessionWithJID(ctx, sessionID, "")
@@ -224,7 +224,7 @@ func TestFailedEventPublication_Property8(t *testing.T) {
 				return errors.ErrConnectionFailed.WithMessage("simulated failure")
 			}
 
-			uc := usecase.NewSessionUseCase(repo, waClient, publisher)
+			uc := usecase.NewSessionUseCase(repo, waClient, publisher, nil)
 
 			// Call reconnect (will fail)
 			_ = uc.ReconnectSessionWithJID(ctx, sessionID, "")
@@ -262,7 +262,7 @@ func TestFailedEventPublication_Property8(t *testing.T) {
 				return errors.ErrConnectionFailed.WithMessage("simulated failure")
 			}
 
-			uc := usecase.NewSessionUseCase(repo, waClient, publisher)
+			uc := usecase.NewSessionUseCase(repo, waClient, publisher, nil)
 
 			// Call reconnect (will fail)
 			_ = uc.ReconnectSessionWithJID(ctx, sessionID, "")
@@ -304,7 +304,7 @@ func TestFailedEventPublication_Property8(t *testing.T) {
 				return errors.ErrConnectionFailed.WithMessage("simulated failure")
 			}
 
-			uc := usecase.NewSessionUseCase(repo, waClient, publisher)
+			uc := usecase.NewSessionUseCase(repo, waClient, publisher, nil)
 
 			// Call reconnect (will fail)
 			_ = uc.ReconnectSessionWithJID(ctx, sessionID, "")
@@ -346,7 +346,7 @@ func TestFailedEventPublication_Property8(t *testing.T) {
 				return errors.ErrConnectionFailed.WithMessage("simulated failure")
 			}
 
-			uc := usecase.NewSessionUseCase(repo, waClient, publisher)
+			uc := usecase.NewSessionUseCase(repo, waClient, publisher, nil)
 
 			// Call reconnect (will fail)
 			_ = uc.ReconnectSessionWithJID(ctx, sessionID, "")
@@ -384,7 +384,7 @@ func TestFailedEventPublication_Property8(t *testing.T) {
 				return errors.ErrConnectionFailed.WithMessage("simulated failure")
 			}
 
-			uc := usecase.NewSessionUseCase(repo, waClient, publisher)
+			uc := usecase.NewSessionUseCase(repo, waClient, publisher, nil)
 
 			// Call reconnect (will fail)
 			_ = uc.ReconnectSessionWithJID(ctx, sessionID, "")
@@ -417,7 +417,7 @@ func TestFailedEventPublication_Property8(t *testing.T) {
 			_ = repo.Create(ctx, session)
 
 			// Create usecase with nil waClient
-			uc := usecase.NewSessionUseCase(repo, nil, publisher)
+			uc := usecase.NewSessionUseCase(repo, nil, publisher, nil)
 
 			// Call reconnect (will fail due to nil client)
 			_ = uc.ReconnectSessionWithJID(ctx, sessionID, "")

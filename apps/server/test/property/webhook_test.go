@@ -75,7 +75,7 @@ func TestProperty16_HMACSignatureVerification(t *testing.T) {
 			Secret: secret,
 			Events: []string{eventType},
 		}
-		publisher := webhook.NewWebhookPublisher(config, createTestLogger())
+		publisher := webhook.NewWebhookPublisher(config, createTestLogger(), nil)
 
 		// Create and publish event
 		event := createTestEvent(eventType, sessionID)
@@ -142,7 +142,7 @@ func TestProperty17_WebhookTimestampFreshness(t *testing.T) {
 			URL:    server.URL,
 			Events: []string{eventType},
 		}
-		publisher := webhook.NewWebhookPublisher(config, createTestLogger())
+		publisher := webhook.NewWebhookPublisher(config, createTestLogger(), nil)
 
 		// Record time before publishing (with buffer for timing variations)
 		beforePublish := time.Now().Add(-1 * time.Second)
@@ -230,7 +230,7 @@ func TestProperty18_HMACSignatureConditionalInclusion(t *testing.T) {
 		if hasSecret {
 			config.Secret = "test-secret-key"
 		}
-		publisher := webhook.NewWebhookPublisher(config, createTestLogger())
+		publisher := webhook.NewWebhookPublisher(config, createTestLogger(), nil)
 
 		// Create and publish event
 		event := createTestEvent(eventType, sessionID)
@@ -303,7 +303,7 @@ func TestProperty30_WebhookRetryPolicy(t *testing.T) {
 			URL:    server.URL,
 			Events: []string{eventType},
 		}
-		publisher := webhook.NewWebhookPublisher(config, createTestLogger())
+		publisher := webhook.NewWebhookPublisher(config, createTestLogger(), nil)
 
 		// Create and publish event
 		event := createTestEvent(eventType, sessionID)
@@ -365,7 +365,7 @@ func TestProperty31_WebhookRetryExhaustion(t *testing.T) {
 			URL:    server.URL,
 			Events: []string{eventType},
 		}
-		publisher := webhook.NewWebhookPublisher(config, createTestLogger())
+		publisher := webhook.NewWebhookPublisher(config, createTestLogger(), nil)
 
 		// Create and publish event
 		event := createTestEvent(eventType, sessionID)
@@ -424,7 +424,7 @@ func TestProperty32_WebhookSuccessLogging(t *testing.T) {
 			URL:    server.URL,
 			Events: []string{eventType},
 		}
-		publisher := webhook.NewWebhookPublisher(config, createTestLogger())
+		publisher := webhook.NewWebhookPublisher(config, createTestLogger(), nil)
 
 		// Create and publish event
 		event := createTestEvent(eventType, sessionID)

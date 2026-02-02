@@ -12,6 +12,7 @@ import (
 	"time"
 
 	"whatspire/internal/domain/entity"
+	"whatspire/internal/domain/repository"
 	"whatspire/internal/infrastructure/logger"
 )
 
@@ -24,19 +25,21 @@ type WebhookConfig struct {
 
 // WebhookPublisher publishes events to external webhooks with HMAC security
 type WebhookPublisher struct {
-	config     WebhookConfig
-	httpClient *http.Client
-	logger     logger.Logger
+	config      WebhookConfig
+	httpClient  *http.Client
+	logger      logger.Logger
+	auditLogger repository.AuditLogger
 }
 
 // NewWebhookPublisher creates a new webhook publisher
-func NewWebhookPublisher(config WebhookConfig, logger logger.Logger) *WebhookPublisher {
+func NewWebhookPublisher(config WebhookConfig, logger logger.Logger, auditLogger repository.AuditLogger) *WebhookPublisher {
 	return &WebhookPublisher{
 		config: config,
 		httpClient: &http.Client{
 			Timeout: 10 * time.Second,
 		},
-		logger: logger,
+		logger:      logger,
+		auditLogger: auditLogger,
 	}
 }
 
@@ -129,6 +132,19 @@ func (wp *WebhookPublisher) sendWithRetry(ctx context.Context, req *http.Request
 				logger.String("url", wp.config.URL),
 				logger.Int("status_code", resp.StatusCode),
 				logger.Int("attempt", attempt+1))
+
+			// Log successful webhook delivery
+			if wp.auditLogger != nil {
+				wp.auditLogger.LogWebhookDelivery(ctx, repository.WebhookDeliveryEvent{
+					WebhookURL: wp.config.URL,
+					EventType:  "", // Event type would be extracted from payload in production
+					StatusCode: resp.StatusCode,
+					Success:    true,
+					Error:      nil,
+					Timestamp:  time.Now(),
+				})
+			}
+
 			return nil
 		}
 
@@ -139,6 +155,20 @@ func (wp *WebhookPublisher) sendWithRetry(ctx context.Context, req *http.Request
 				logger.String("url", wp.config.URL),
 				logger.Int("status_code", resp.StatusCode),
 				logger.Int("attempt", attempt+1))
+
+			// Log failed webhook delivery
+			if wp.auditLogger != nil {
+				errMsg := fmt.Sprintf("client error: status %d", resp.StatusCode)
+				wp.auditLogger.LogWebhookDelivery(ctx, repository.WebhookDeliveryEvent{
+					WebhookURL: wp.config.URL,
+					EventType:  "",
+					StatusCode: resp.StatusCode,
+					Success:    false,
+					Error:      &errMsg,
+					Timestamp:  time.Now(),
+				})
+			}
+
 			return fmt.Errorf("webhook delivery failed with status %d", resp.StatusCode)
 		}
 
@@ -182,6 +212,24 @@ func (wp *WebhookPublisher) sendWithRetry(ctx context.Context, req *http.Request
 		fields = append(fields, logger.Err(lastErr))
 	}
 	wp.logger.Error("Webhook delivery failed after all retries", fields...)
+
+	// Log failed webhook delivery after all retries
+	if wp.auditLogger != nil {
+		var errMsg string
+		if lastErr != nil {
+			errMsg = lastErr.Error()
+		} else {
+			errMsg = fmt.Sprintf("status %d after %d attempts", lastStatusCode, maxAttempts)
+		}
+		wp.auditLogger.LogWebhookDelivery(ctx, repository.WebhookDeliveryEvent{
+			WebhookURL: wp.config.URL,
+			EventType:  "",
+			StatusCode: lastStatusCode,
+			Success:    false,
+			Error:      &errMsg,
+			Timestamp:  time.Now(),
+		})
+	}
 
 	if lastErr != nil {
 		return fmt.Errorf("webhook delivery failed after %d attempts: %w", maxAttempts, lastErr)

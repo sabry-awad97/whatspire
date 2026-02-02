@@ -82,7 +82,7 @@ func TestMessageStatusEventEmission_Property9(t *testing.T) {
 		func(statusIndex int) bool {
 			publisher := newMockEventPublisher()
 			config := usecase.DefaultMessageUseCaseConfig()
-			uc := usecase.NewMessageUseCase(nil, publisher, nil, config)
+			uc := usecase.NewMessageUseCase(nil, publisher, nil, nil, config)
 			defer uc.Close()
 
 			ctx := context.Background()
@@ -129,7 +129,7 @@ func TestMessageStatusEventEmission_Property9(t *testing.T) {
 		func(statusIndex int) bool {
 			publisher := newMockEventPublisher()
 			config := usecase.DefaultMessageUseCaseConfig()
-			uc := usecase.NewMessageUseCase(nil, publisher, nil, config)
+			uc := usecase.NewMessageUseCase(nil, publisher, nil, nil, config)
 			defer uc.Close()
 
 			ctx := context.Background()
@@ -184,7 +184,7 @@ func TestMessageStatusEventEmission_Property9(t *testing.T) {
 		func(textLen int) bool {
 			publisher := newMockEventPublisher()
 			config := usecase.DefaultMessageUseCaseConfig()
-			uc := usecase.NewMessageUseCase(nil, publisher, nil, config)
+			uc := usecase.NewMessageUseCase(nil, publisher, nil, nil, config)
 			defer uc.Close()
 
 			ctx := context.Background()
@@ -234,7 +234,7 @@ func TestMessageStatusEventEmission_Property9(t *testing.T) {
 			_ = publisher.Disconnect(context.Background()) // Disconnect the publisher
 
 			config := usecase.DefaultMessageUseCaseConfig()
-			uc := usecase.NewMessageUseCase(nil, publisher, nil, config)
+			uc := usecase.NewMessageUseCase(nil, publisher, nil, nil, config)
 			defer uc.Close()
 
 			ctx := context.Background()
@@ -266,7 +266,7 @@ func TestMessageStatusEventEmission_Property9(t *testing.T) {
 		func(statusIndex int) bool {
 			publisher := newMockEventPublisher()
 			config := usecase.DefaultMessageUseCaseConfig()
-			uc := usecase.NewMessageUseCase(nil, publisher, nil, config)
+			uc := usecase.NewMessageUseCase(nil, publisher, nil, nil, config)
 			defer uc.Close()
 
 			ctx := context.Background()
@@ -303,7 +303,7 @@ func TestMessageStatusEventEmission_Property9(t *testing.T) {
 		func(count int) bool {
 			publisher := newMockEventPublisher()
 			config := usecase.DefaultMessageUseCaseConfig()
-			uc := usecase.NewMessageUseCase(nil, publisher, nil, config)
+			uc := usecase.NewMessageUseCase(nil, publisher, nil, nil, config)
 			defer uc.Close()
 
 			ctx := context.Background()
@@ -340,7 +340,7 @@ func TestMessageStatusEventEmission_Property9(t *testing.T) {
 		func(_ int) bool {
 			publisher := newMockEventPublisher()
 			config := usecase.DefaultMessageUseCaseConfig()
-			uc := usecase.NewMessageUseCase(nil, publisher, nil, config)
+			uc := usecase.NewMessageUseCase(nil, publisher, nil, nil, config)
 			defer uc.Close()
 
 			ctx := context.Background()
