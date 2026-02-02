@@ -36,6 +36,9 @@ type Config struct {
 
 	// Circuit breaker configuration
 	CircuitBreaker CircuitBreakerConfig `mapstructure:"circuitbreaker"`
+
+	// Media storage configuration
+	Media MediaConfig `mapstructure:"media"`
 }
 
 // CircuitBreakerConfig holds circuit breaker configuration
@@ -46,6 +49,13 @@ type CircuitBreakerConfig struct {
 	Timeout          time.Duration `mapstructure:"timeout"`           // Timeout before transitioning from open to half-open
 	FailureThreshold uint32        `mapstructure:"failure_threshold"` // Consecutive failures to open circuit
 	SuccessThreshold uint32        `mapstructure:"success_threshold"` // Consecutive successes to close circuit
+}
+
+// MediaConfig holds media storage configuration
+type MediaConfig struct {
+	BasePath    string `mapstructure:"base_path"`     // Local directory for storing media files
+	BaseURL     string `mapstructure:"base_url"`      // Public URL prefix for accessing media
+	MaxFileSize int64  `mapstructure:"max_file_size"` // Maximum file size in bytes (default: 16MB)
 }
 
 // MetricsConfig holds Prometheus metrics configuration
@@ -244,6 +254,26 @@ func (c *Config) Validate() error {
 		}
 	}
 
+	// Validate Media config
+	if c.Media.BasePath == "" {
+		errs = append(errs, ValidationError{
+			Field:   "media.base_path",
+			Message: "is required",
+		})
+	}
+	if c.Media.BaseURL == "" {
+		errs = append(errs, ValidationError{
+			Field:   "media.base_url",
+			Message: "is required",
+		})
+	}
+	if c.Media.MaxFileSize <= 0 {
+		errs = append(errs, ValidationError{
+			Field:   "media.max_file_size",
+			Message: "must be positive",
+		})
+	}
+
 	if len(errs) > 0 {
 		return errs
 	}
@@ -353,6 +383,11 @@ func setDefaults(v *viper.Viper) {
 	v.SetDefault("circuitbreaker.timeout", 30*time.Second)
 	v.SetDefault("circuitbreaker.failure_threshold", 5)
 	v.SetDefault("circuitbreaker.success_threshold", 2)
+
+	// Media defaults
+	v.SetDefault("media.base_path", "/data/media")
+	v.SetDefault("media.base_url", "http://localhost:8080/media")
+	v.SetDefault("media.max_file_size", 16*1024*1024) // 16MB
 }
 
 func bindEnvVars(v *viper.Viper) {
@@ -414,6 +449,11 @@ func bindEnvVars(v *viper.Viper) {
 	_ = v.BindEnv("circuitbreaker.timeout", "WHATSAPP_CIRCUIT_BREAKER_TIMEOUT")
 	_ = v.BindEnv("circuitbreaker.failure_threshold", "WHATSAPP_CIRCUIT_BREAKER_FAILURE_THRESHOLD")
 	_ = v.BindEnv("circuitbreaker.success_threshold", "WHATSAPP_CIRCUIT_BREAKER_SUCCESS_THRESHOLD")
+
+	// Media
+	_ = v.BindEnv("media.base_path", "WHATSAPP_MEDIA_BASE_PATH")
+	_ = v.BindEnv("media.base_url", "WHATSAPP_MEDIA_BASE_URL")
+	_ = v.BindEnv("media.max_file_size", "WHATSAPP_MEDIA_MAX_FILE_SIZE")
 }
 
 // MustLoad loads configuration and panics on error (for use in main)

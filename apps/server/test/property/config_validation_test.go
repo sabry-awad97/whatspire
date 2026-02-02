@@ -56,6 +56,11 @@ func TestConfigurationValidation_Property13(t *testing.T) {
 					Level:  logLevel,
 					Format: logFormat,
 				},
+				Media: config.MediaConfig{
+					BasePath:    "/data/media",
+					BaseURL:     "http://localhost:8080/media",
+					MaxFileSize: 16 * 1024 * 1024, // 16MB
+				},
 			}
 
 			err := cfg.Validate()
@@ -290,6 +295,11 @@ func createValidConfig() *config.Config {
 		Log: config.LogConfig{
 			Level:  "info",
 			Format: "json",
+		},
+		Media: config.MediaConfig{
+			BasePath:    "/data/media",
+			BaseURL:     "http://localhost:8080/media",
+			MaxFileSize: 16 * 1024 * 1024, // 16MB
 		},
 	}
 }
