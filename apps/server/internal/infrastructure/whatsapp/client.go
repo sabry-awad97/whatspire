@@ -1432,3 +1432,184 @@ func (c *WhatsmeowClient) GetHistorySyncConfig(sessionID string) (enabled, fullS
 
 	return config.Enabled, config.FullSync, config.Since
 }
+
+// CheckPhoneNumber checks if a phone number is registered on WhatsApp
+func (c *WhatsmeowClient) CheckPhoneNumber(ctx context.Context, sessionID, phone string) (*entity.Contact, error) {
+	c.mu.RLock()
+	client, exists := c.clients[sessionID]
+	c.mu.RUnlock()
+
+	if !exists {
+		return nil, errors.ErrSessionNotFound
+	}
+
+	if !client.IsConnected() {
+		return nil, errors.ErrDisconnected
+	}
+
+	// Clean phone number (remove + and spaces)
+	cleanPhone := strings.ReplaceAll(strings.TrimPrefix(phone, "+"), " ", "")
+
+	// Check if number is on WhatsApp
+	isOnWhatsApp, err := client.IsOnWhatsApp(ctx, []string{cleanPhone})
+	if err != nil {
+		return nil, errors.ErrInternal.WithMessage("failed to check phone number").WithCause(err)
+	}
+
+	if len(isOnWhatsApp) == 0 {
+		return nil, errors.ErrInternal.WithMessage("no result from WhatsApp")
+	}
+
+	result := isOnWhatsApp[0]
+	contact := entity.NewContact(result.JID.String(), phone, result.IsIn)
+
+	return contact, nil
+}
+
+// GetUserProfile retrieves the profile information for a user
+func (c *WhatsmeowClient) GetUserProfile(ctx context.Context, sessionID, jid string) (*entity.Contact, error) {
+	c.mu.RLock()
+	client, exists := c.clients[sessionID]
+	c.mu.RUnlock()
+
+	if !exists {
+		return nil, errors.ErrSessionNotFound
+	}
+
+	if !client.IsConnected() {
+		return nil, errors.ErrDisconnected
+	}
+
+	// Parse JID
+	parsedJID, err := types.ParseJID(jid)
+	if err != nil {
+		return nil, errors.ErrInvalidInput.WithMessage("invalid JID").WithCause(err)
+	}
+
+	// Get profile picture
+	var avatarURL string
+	pic, err := client.GetProfilePictureInfo(ctx, parsedJID, &whatsmeow.GetProfilePictureParams{})
+	if err == nil && pic != nil {
+		avatarURL = pic.URL
+	}
+
+	// Get status/about
+	var status string
+	// Note: whatsmeow doesn't have a direct method to get user status
+	// We'll leave it empty for now
+
+	// Get display name from contact store
+	contactInfo, err := client.Store.Contacts.GetContact(ctx, parsedJID)
+	displayName := jid
+	if err == nil && contactInfo.FullName != "" {
+		displayName = contactInfo.FullName
+	} else if err == nil && contactInfo.PushName != "" {
+		displayName = contactInfo.PushName
+	}
+
+	contact := entity.NewContact(jid, displayName, true)
+	if avatarURL != "" {
+		contact.SetAvatar(avatarURL)
+	}
+	if status != "" {
+		contact.SetStatus(status)
+	}
+
+	return contact, nil
+}
+
+// ListContacts retrieves all contacts for a session
+func (c *WhatsmeowClient) ListContacts(ctx context.Context, sessionID string) ([]*entity.Contact, error) {
+	c.mu.RLock()
+	client, exists := c.clients[sessionID]
+	c.mu.RUnlock()
+
+	if !exists {
+		return nil, errors.ErrSessionNotFound
+	}
+
+	if !client.IsConnected() {
+		return nil, errors.ErrDisconnected
+	}
+
+	// Get all contacts from the store
+	allContacts, err := client.Store.Contacts.GetAllContacts(ctx)
+	if err != nil {
+		return nil, errors.ErrInternal.WithMessage("failed to get contacts").WithCause(err)
+	}
+
+	contacts := make([]*entity.Contact, 0, len(allContacts))
+	for jid, contactInfo := range allContacts {
+		// Skip group JIDs
+		if jid.Server == types.GroupServer || jid.Server == types.BroadcastServer {
+			continue
+		}
+
+		displayName := contactInfo.FullName
+		if displayName == "" {
+			displayName = contactInfo.PushName
+		}
+		if displayName == "" {
+			displayName = jid.User
+		}
+
+		contact := entity.NewContact(jid.String(), displayName, true)
+		contacts = append(contacts, contact)
+	}
+
+	return contacts, nil
+}
+
+// ListChats retrieves all chats for a session
+func (c *WhatsmeowClient) ListChats(ctx context.Context, sessionID string) ([]*entity.Chat, error) {
+	c.mu.RLock()
+	client, exists := c.clients[sessionID]
+	c.mu.RUnlock()
+
+	if !exists {
+		return nil, errors.ErrSessionNotFound
+	}
+
+	if !client.IsConnected() {
+		return nil, errors.ErrDisconnected
+	}
+
+	// Get all contacts and create chats from them
+	allContacts, err := client.Store.Contacts.GetAllContacts(ctx)
+	if err != nil {
+		return nil, errors.ErrInternal.WithMessage("failed to get chats").WithCause(err)
+	}
+
+	chats := make([]*entity.Chat, 0, len(allContacts))
+	for jid, contactInfo := range allContacts {
+		// Determine if it's a group
+		isGroup := jid.Server == types.GroupServer
+
+		// Get display name
+		displayName := contactInfo.FullName
+		if displayName == "" {
+			displayName = contactInfo.PushName
+		}
+		if displayName == "" {
+			displayName = jid.User
+		}
+
+		// For groups, try to get group info
+		if isGroup {
+			groupInfo, err := client.GetGroupInfo(ctx, jid)
+			if err == nil && groupInfo != nil {
+				displayName = groupInfo.Name
+			}
+		}
+
+		chat := entity.NewChat(jid.String(), displayName, isGroup)
+
+		// Note: ChatSettings API varies by whatsmeow version
+		// We'll set basic defaults for now
+		chat.SetUnreadCount(0)
+
+		chats = append(chats, chat)
+	}
+
+	return chats, nil
+}

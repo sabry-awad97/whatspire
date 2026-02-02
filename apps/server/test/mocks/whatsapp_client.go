@@ -158,3 +158,55 @@ func (m *WhatsAppClientMock) SendPresence(ctx context.Context, sessionID, chatJI
 	}
 	return nil
 }
+
+func (m *WhatsAppClientMock) CheckPhoneNumber(ctx context.Context, sessionID, phone string) (*entity.Contact, error) {
+	m.mu.RLock()
+	defer m.mu.RUnlock()
+	if !m.Connected[sessionID] {
+		return nil, errors.ErrDisconnected
+	}
+	// Return a mock contact
+	contact := entity.NewContact(phone+"@s.whatsapp.net", phone, true)
+	return contact, nil
+}
+
+func (m *WhatsAppClientMock) GetUserProfile(ctx context.Context, sessionID, jid string) (*entity.Contact, error) {
+	m.mu.RLock()
+	defer m.mu.RUnlock()
+	if !m.Connected[sessionID] {
+		return nil, errors.ErrDisconnected
+	}
+	// Return a mock contact
+	contact := entity.NewContact(jid, "Test User", true)
+	contact.SetAvatar("https://example.com/avatar.jpg")
+	contact.SetStatus("Hey there!")
+	return contact, nil
+}
+
+func (m *WhatsAppClientMock) ListContacts(ctx context.Context, sessionID string) ([]*entity.Contact, error) {
+	m.mu.RLock()
+	defer m.mu.RUnlock()
+	if !m.Connected[sessionID] {
+		return nil, errors.ErrDisconnected
+	}
+	// Return mock contacts
+	contacts := []*entity.Contact{
+		entity.NewContact("1234567890@s.whatsapp.net", "Contact 1", true),
+		entity.NewContact("0987654321@s.whatsapp.net", "Contact 2", true),
+	}
+	return contacts, nil
+}
+
+func (m *WhatsAppClientMock) ListChats(ctx context.Context, sessionID string) ([]*entity.Chat, error) {
+	m.mu.RLock()
+	defer m.mu.RUnlock()
+	if !m.Connected[sessionID] {
+		return nil, errors.ErrDisconnected
+	}
+	// Return mock chats
+	chats := []*entity.Chat{
+		entity.NewChat("1234567890@s.whatsapp.net", "Chat 1", false),
+		entity.NewChat("group123@g.us", "Group Chat", true),
+	}
+	return chats, nil
+}

@@ -116,6 +116,13 @@ func registerRoutes(router *gin.Engine, handler *Handler, routerConfig RouterCon
 	// Session routes (groups sync)
 	sessions := api.Group("/sessions")
 	sessions.POST("/:id/groups/sync", handler.SyncGroups)
+	sessions.GET("/:id/contacts", handler.ListContacts)
+	sessions.GET("/:id/chats", handler.ListChats)
+
+	// Contact routes
+	contacts := api.Group("/contacts")
+	contacts.GET("/check", handler.CheckPhoneNumber)
+	contacts.GET("/:jid/profile", handler.GetUserProfile)
 
 	// Message routes
 	messages := api.Group("/messages")

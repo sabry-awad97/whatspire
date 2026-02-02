@@ -76,6 +76,18 @@ func (m *MockWhatsAppClient) SendReadReceipt(ctx context.Context, sessionID, cha
 func (m *MockWhatsAppClient) SendPresence(ctx context.Context, sessionID, chatJID, state string) error {
 	return nil
 }
+func (m *MockWhatsAppClient) CheckPhoneNumber(ctx context.Context, sessionID, phone string) (*entity.Contact, error) {
+	return nil, nil
+}
+func (m *MockWhatsAppClient) GetUserProfile(ctx context.Context, sessionID, jid string) (*entity.Contact, error) {
+	return nil, nil
+}
+func (m *MockWhatsAppClient) ListContacts(ctx context.Context, sessionID string) ([]*entity.Contact, error) {
+	return nil, nil
+}
+func (m *MockWhatsAppClient) ListChats(ctx context.Context, sessionID string) ([]*entity.Chat, error) {
+	return nil, nil
+}
 
 func TestWhatsAppClientHealthChecker_Healthy(t *testing.T) {
 	client := &MockWhatsAppClient{connected: true}

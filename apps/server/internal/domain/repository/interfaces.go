@@ -106,6 +106,18 @@ type WhatsAppClient interface {
 
 	// GetHistorySyncConfig gets the history sync configuration for a session
 	GetHistorySyncConfig(sessionID string) (enabled, fullSync bool, since string)
+
+	// CheckPhoneNumber checks if a phone number is registered on WhatsApp
+	CheckPhoneNumber(ctx context.Context, sessionID, phone string) (*entity.Contact, error)
+
+	// GetUserProfile retrieves the profile information for a user
+	GetUserProfile(ctx context.Context, sessionID, jid string) (*entity.Contact, error)
+
+	// ListContacts retrieves all contacts for a session
+	ListContacts(ctx context.Context, sessionID string) ([]*entity.Contact, error)
+
+	// ListChats retrieves all chats for a session
+	ListChats(ctx context.Context, sessionID string) ([]*entity.Chat, error)
 }
 
 // EventPublisher defines event propagation operations to the API server

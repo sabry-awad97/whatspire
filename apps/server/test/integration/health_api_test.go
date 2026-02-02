@@ -54,7 +54,7 @@ func setupHealthTestRouter(healthUC *usecase.HealthUseCase) *gin.Engine {
 	gin.SetMode(gin.TestMode)
 
 	// Create handler with health use case
-	handler := httpHandler.NewHandler(nil, nil, healthUC, nil)
+	handler := httpHandler.NewHandler(nil, nil, healthUC, nil, nil, nil, nil, nil)
 
 	// Register routes with health-enabled handler
 	return httpHandler.NewRouter(handler, httpHandler.DefaultRouterConfig())
@@ -109,7 +109,7 @@ func TestHealth_WithDetails(t *testing.T) {
 func TestHealth_WithoutHealthUseCase(t *testing.T) {
 	// Create router without health use case
 	gin.SetMode(gin.TestMode)
-	handler := httpHandler.NewHandler(nil, nil, nil, nil)
+	handler := httpHandler.NewHandler(nil, nil, nil, nil, nil, nil, nil, nil)
 	router := httpHandler.NewRouter(handler, httpHandler.DefaultRouterConfig())
 
 	req := httptest.NewRequest(http.MethodGet, "/health", nil)
@@ -267,7 +267,7 @@ func TestReady_NoCheckers(t *testing.T) {
 func TestReady_WithoutHealthUseCase(t *testing.T) {
 	// Create router without health use case
 	gin.SetMode(gin.TestMode)
-	handler := httpHandler.NewHandler(nil, nil, nil, nil)
+	handler := httpHandler.NewHandler(nil, nil, nil, nil, nil, nil, nil, nil)
 	router := httpHandler.NewRouter(handler, httpHandler.DefaultRouterConfig())
 
 	req := httptest.NewRequest(http.MethodGet, "/ready", nil)

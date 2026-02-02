@@ -33,8 +33,9 @@ func NewHTTPHandler(
 	reactionUC *usecase.ReactionUseCase,
 	receiptUC *usecase.ReceiptUseCase,
 	presenceUC *usecase.PresenceUseCase,
+	contactUC *usecase.ContactUseCase,
 ) *http.Handler {
-	return http.NewHandler(sessionUC, messageUC, healthUC, groupsUC, reactionUC, receiptUC, presenceUC)
+	return http.NewHandler(sessionUC, messageUC, healthUC, groupsUC, reactionUC, receiptUC, presenceUC, contactUC)
 }
 
 // NewRouter creates a new Gin router with all routes configured
