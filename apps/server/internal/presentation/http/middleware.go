@@ -72,7 +72,14 @@ func ErrorHandlerMiddleware() gin.HandlerFunc {
 	return func(c *gin.Context) {
 		defer func() {
 			if err := recover(); err != nil {
-				log.Printf("Panic recovered: %v", err)
+				// Get request ID for correlation
+				requestID, _ := c.Get(RequestIDKey)
+
+				// Log full panic details with stack trace
+				log.Printf("[PANIC] [%v] Panic recovered: %v", requestID, err)
+				log.Printf("[PANIC] [%v] Request: %s %s", requestID, c.Request.Method, c.Request.URL.Path)
+
+				// Return generic error to client
 				c.JSON(500, dto.NewErrorResponse[interface{}](
 					"INTERNAL_ERROR",
 					"An internal error occurred",
@@ -248,11 +255,18 @@ func RateLimitMiddleware(limiter *ratelimit.Limiter) gin.HandlerFunc {
 		if !limiter.Allow(key) {
 			info := limiter.GetLimitInfo(key)
 
+			// Calculate retry time based on rate limiter
+			// For token bucket: time to get one token = 1 / requests_per_second
+			retryAfterSeconds := int(1.0 / limiter.Config().RequestsPerSecond)
+			if retryAfterSeconds < 1 {
+				retryAfterSeconds = 1
+			}
+
 			// Set rate limit headers
 			c.Header("X-RateLimit-Limit", fmt.Sprintf("%d", info.Limit))
 			c.Header("X-RateLimit-Remaining", "0")
 			c.Header("X-RateLimit-Reset", fmt.Sprintf("%d", info.Reset))
-			c.Header("Retry-After", "1")
+			c.Header("Retry-After", fmt.Sprintf("%d", retryAfterSeconds))
 
 			c.JSON(http.StatusTooManyRequests, dto.NewErrorResponse[interface{}](
 				"RATE_LIMIT_EXCEEDED",

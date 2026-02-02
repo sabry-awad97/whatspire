@@ -147,4 +147,26 @@ var (
 
 	// Circuit breaker errors
 	ErrCircuitOpen = NewDomainError("CIRCUIT_OPEN", "circuit breaker is open, service temporarily unavailable")
+
+	// Reaction errors
+	ErrInvalidEmoji       = NewDomainError("INVALID_EMOJI", "invalid emoji format")
+	ErrInvalidReaction    = NewDomainError("INVALID_REACTION", "invalid reaction")
+	ErrReactionSendFailed = NewDomainError("REACTION_SEND_FAILED", "failed to send reaction")
+
+	// Receipt errors
+	ErrInvalidReceiptType = NewDomainError("INVALID_RECEIPT_TYPE", "invalid receipt type")
+	ErrReceiptSendFailed  = NewDomainError("RECEIPT_SEND_FAILED", "failed to send receipt")
+
+	// Presence errors
+	ErrInvalidPresenceState = NewDomainError("INVALID_PRESENCE_STATE", "invalid presence state")
+	ErrPresenceSendFailed   = NewDomainError("PRESENCE_SEND_FAILED", "failed to send presence")
+
+	// Contact errors
+	ErrContactNotFound = NewDomainError("CONTACT_NOT_FOUND", "contact not found")
+	ErrChatNotFound    = NewDomainError("CHAT_NOT_FOUND", "chat not found")
+	ErrInvalidJID      = NewDomainError("INVALID_JID", "invalid JID format")
+
+	// WhatsApp errors
+	ErrWhatsAppUnavailable = NewDomainError("WHATSAPP_UNAVAILABLE", "WhatsApp service is unavailable")
+	ErrWhatsAppError       = NewDomainError("WHATSAPP_ERROR", "WhatsApp operation failed")
 )

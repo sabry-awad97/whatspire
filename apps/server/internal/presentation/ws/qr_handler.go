@@ -8,6 +8,7 @@ import (
 	"sync"
 	"time"
 
+	"whatspire/internal/application/dto"
 	"whatspire/internal/application/usecase"
 	"whatspire/internal/domain/errors"
 	"whatspire/internal/domain/repository"
@@ -92,7 +93,7 @@ type QRWebSocketMessage struct {
 func (h *QRHandler) HandleQRAuth(c *gin.Context) {
 	sessionID := c.Param("session_id")
 	if sessionID == "" {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "session_id is required"})
+		respondWithError(c, http.StatusBadRequest, "INVALID_ID", "session_id is required", nil)
 		return
 	}
 
@@ -304,4 +305,9 @@ func NewQREvent(eventType, data, message string) repository.QREvent {
 // It delegates to the shared implementation in the http package
 func IsOriginAllowed(origin string, allowedOrigins []string) bool {
 	return httpPkg.IsOriginAllowed(origin, allowedOrigins)
+}
+
+// respondWithError sends an error JSON response (helper for consistency with HTTP handlers)
+func respondWithError(c *gin.Context, statusCode int, code, message string, details map[string]string) {
+	c.JSON(statusCode, dto.NewErrorResponse[any](code, message, details))
 }

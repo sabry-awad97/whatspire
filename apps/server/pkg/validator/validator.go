@@ -59,20 +59,38 @@ func formatValidationError(e validator.FieldError) string {
 	case "required":
 		return "this field is required"
 	case "min":
-		return "value is too short"
+		return "value is too short or too small"
 	case "max":
-		return "value is too long"
+		return "value is too long or too large"
 	case "uuid":
 		return "must be a valid UUID"
 	case "e164":
-		return "must be a valid E.164 phone number"
+		return "must be a valid E.164 phone number (e.g., +1234567890)"
 	case "url":
 		return "must be a valid URL"
 	case "oneof":
-		return "must be one of the allowed values"
+		return "must be one of the allowed values: " + e.Param()
 	case "required_if":
 		return "this field is required based on other field values"
+	case "email":
+		return "must be a valid email address"
+	case "numeric":
+		return "must be a numeric value"
+	case "alpha":
+		return "must contain only alphabetic characters"
+	case "alphanum":
+		return "must contain only alphanumeric characters"
+	case "len":
+		return "must be exactly " + e.Param() + " characters long"
+	case "gt":
+		return "must be greater than " + e.Param()
+	case "gte":
+		return "must be greater than or equal to " + e.Param()
+	case "lt":
+		return "must be less than " + e.Param()
+	case "lte":
+		return "must be less than or equal to " + e.Param()
 	default:
-		return "validation failed"
+		return "validation failed for " + e.Tag()
 	}
 }
