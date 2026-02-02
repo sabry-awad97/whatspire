@@ -19,12 +19,18 @@ import (
 
 	waLog "go.mau.fi/whatsmeow/util/log"
 	"go.uber.org/fx"
+	"gorm.io/gorm"
 )
 
 // Module provides all infrastructure layer dependencies
 var Module = fx.Module("infrastructure",
 	fx.Provide(
-		NewInMemorySessionRepository,
+		NewDB,
+		NewSessionRepository,
+		fx.Annotate(
+			NewSessionRepository,
+			fx.As(new(repository.SessionRepository)),
+		),
 		NewWhatsmeowClient,
 		fx.Annotate(
 			func(c *whatsapp.WhatsmeowClient) *whatsapp.WhatsmeowClient { return c },
@@ -37,26 +43,101 @@ var Module = fx.Module("infrastructure",
 		NewGorillaEventPublisher,
 		NewAuditLogger,
 		NewAuditLogRepository,
+		fx.Annotate(
+			NewAuditLogRepository,
+			fx.As(new(repository.AuditLogger)),
+		),
 		NewWebhookPublisher,
 		NewCompositeEventPublisher,
 		NewEventHub,
 		NewHealthCheckers,
 		NewMediaUploader,
 		NewReactionRepository,
+		fx.Annotate(
+			NewReactionRepository,
+			fx.As(new(repository.ReactionRepository)),
+		),
 		NewReceiptRepository,
+		fx.Annotate(
+			NewReceiptRepository,
+			fx.As(new(repository.ReceiptRepository)),
+		),
 		NewPresenceRepository,
+		fx.Annotate(
+			NewPresenceRepository,
+			fx.As(new(repository.PresenceRepository)),
+		),
+		NewAPIKeyRepository,
+		fx.Annotate(
+			NewAPIKeyRepository,
+			fx.As(new(repository.APIKeyRepository)),
+		),
 		NewLocalMediaStorage,
 	),
 	// Wire EventHub to WhatsApp client events
 	fx.Invoke(WireEventHubToWhatsAppClient),
 	fx.Invoke(WireMessageHandler),
 	fx.Invoke(WireReactionHandler),
+	fx.Invoke(RunMigrations),
 )
 
-// NewInMemorySessionRepository creates a new in-memory session repository
-// Session state is stored in memory; whatsmeow's SQLite preserves auth for auto-reconnect
-func NewInMemorySessionRepository() repository.SessionRepository {
-	return persistence.NewInMemorySessionRepository()
+// NewDB creates a new GORM database connection
+func NewDB(lc fx.Lifecycle, cfg *config.Config) (*gorm.DB, error) {
+	dbConfig := persistence.DBConfig{
+		DSN:             cfg.WhatsApp.DBPath + "?_pragma=foreign_keys(1)&_pragma=journal_mode(WAL)&_pragma=busy_timeout(5000)",
+		MaxIdleConns:    10,
+		MaxOpenConns:    100,
+		ConnMaxLifetime: time.Hour,
+		LogLevel:        persistence.GetLogLevel(cfg.Log.Level),
+	}
+
+	db, err := persistence.NewDB(dbConfig)
+	if err != nil {
+		return nil, err
+	}
+
+	lc.Append(fx.Hook{
+		OnStop: func(ctx context.Context) error {
+			log.Println("🛑 Closing database connection...")
+			sqlDB, err := db.DB()
+			if err != nil {
+				return err
+			}
+			return sqlDB.Close()
+		},
+	})
+
+	return db, nil
+}
+
+// NewSessionRepository creates a new session repository
+func NewSessionRepository(db *gorm.DB) repository.SessionRepository {
+	return persistence.NewSessionRepository(db)
+}
+
+// NewReactionRepository creates a new reaction repository
+func NewReactionRepository(db *gorm.DB) repository.ReactionRepository {
+	return persistence.NewReactionRepository(db)
+}
+
+// NewReceiptRepository creates a new receipt repository
+func NewReceiptRepository(db *gorm.DB) repository.ReceiptRepository {
+	return persistence.NewReceiptRepository(db)
+}
+
+// NewPresenceRepository creates a new presence repository
+func NewPresenceRepository(db *gorm.DB) repository.PresenceRepository {
+	return persistence.NewPresenceRepository(db)
+}
+
+// NewAPIKeyRepository creates a new API key repository
+func NewAPIKeyRepository(db *gorm.DB) repository.APIKeyRepository {
+	return persistence.NewAPIKeyRepository(db)
+}
+
+// NewAuditLogRepository creates a new audit log repository
+func NewAuditLogRepository(db *gorm.DB) *persistence.AuditLogRepository {
+	return persistence.NewAuditLogRepository(db)
 }
 
 // NewWhatsmeowClient creates a new WhatsApp client
@@ -149,11 +230,6 @@ func NewAuditLogger(cfg *config.Config) repository.AuditLogger {
 	auditLogger := logger.NewAuditLogger(structuredLogger)
 
 	return auditLogger
-}
-
-// NewAuditLogRepository creates a new audit log repository
-func NewAuditLogRepository() *persistence.InMemoryAuditLogRepository {
-	return persistence.NewInMemoryAuditLogRepository()
 }
 
 // NewWebhookPublisher creates a new webhook publisher (optional, based on config)
@@ -297,21 +373,6 @@ func NewEventHub(lc fx.Lifecycle, cfg *config.Config) *websocket.EventHub {
 	return hub
 }
 
-// NewReactionRepository creates a new reaction repository
-func NewReactionRepository() repository.ReactionRepository {
-	return persistence.NewInMemoryReactionRepository()
-}
-
-// NewReceiptRepository creates a new receipt repository
-func NewReceiptRepository() repository.ReceiptRepository {
-	return persistence.NewInMemoryReceiptRepository()
-}
-
-// NewPresenceRepository creates a new presence repository
-func NewPresenceRepository() repository.PresenceRepository {
-	return persistence.NewInMemoryPresenceRepository()
-}
-
 // NewLocalMediaStorage creates a new local media storage
 func NewLocalMediaStorage(cfg *config.Config) (repository.MediaStorage, error) {
 	storageConfig := repository.MediaStorageConfig{
@@ -382,4 +443,28 @@ func WireReactionHandler(
 ) {
 	// This function is kept for backward compatibility but does nothing
 	// The reaction handler is now wired in WireMessageHandler
+}
+
+// RunMigrations runs GORM auto-migration on startup
+func RunMigrations(lc fx.Lifecycle, db *gorm.DB) {
+	lc.Append(fx.Hook{
+		OnStart: func(ctx context.Context) error {
+			log.Println("🔄 Running database migrations...")
+
+			// Run auto-migration
+			if err := persistence.RunAutoMigration(db); err != nil {
+				log.Printf("⚠️  Auto-migration warning: %v", err)
+				// Don't fail startup - continue with existing schema
+				return nil
+			}
+
+			// Verify schema
+			if err := persistence.VerifySchema(db); err != nil {
+				log.Printf("⚠️  Schema verification warning: %v", err)
+			}
+
+			log.Println("✅ Database migrations completed")
+			return nil
+		},
+	})
 }

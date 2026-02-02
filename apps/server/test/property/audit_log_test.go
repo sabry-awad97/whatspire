@@ -28,7 +28,8 @@ func TestProperty26_AuditLogCompleteness(t *testing.T) {
 			// Create audit logger and repository
 			testLogger := logger.NewStructuredLogger(logger.Config{Level: "info", Format: "json"})
 			auditLogger := logger.NewAuditLogger(testLogger)
-			auditRepo := persistence.NewInMemoryAuditLogRepository()
+			db := setupTestDBForRapid(t)
+			auditRepo := persistence.NewAuditLogRepository(db)
 
 			ctx := context.Background()
 
@@ -84,7 +85,8 @@ func TestProperty26_AuditLogCompleteness(t *testing.T) {
 			// Create audit logger and repository
 			testLogger := logger.NewStructuredLogger(logger.Config{Level: "info", Format: "json"})
 			auditLogger := logger.NewAuditLogger(testLogger)
-			auditRepo := persistence.NewInMemoryAuditLogRepository()
+			db := setupTestDBForRapid(t)
+			auditRepo := persistence.NewAuditLogRepository(db)
 
 			ctx := context.Background()
 
@@ -138,7 +140,8 @@ func TestProperty26_AuditLogCompleteness(t *testing.T) {
 			// Create audit logger and repository
 			testLogger := logger.NewStructuredLogger(logger.Config{Level: "info", Format: "json"})
 			auditLogger := logger.NewAuditLogger(testLogger)
-			auditRepo := persistence.NewInMemoryAuditLogRepository()
+			db := setupTestDBForRapid(t)
+			auditRepo := persistence.NewAuditLogRepository(db)
 
 			ctx := context.Background()
 
@@ -192,7 +195,8 @@ func TestProperty26_AuditLogCompleteness(t *testing.T) {
 			// Create audit logger and repository
 			testLogger := logger.NewStructuredLogger(logger.Config{Level: "info", Format: "json"})
 			auditLogger := logger.NewAuditLogger(testLogger)
-			auditRepo := persistence.NewInMemoryAuditLogRepository()
+			db := setupTestDBForRapid(t)
+			auditRepo := persistence.NewAuditLogRepository(db)
 
 			ctx := context.Background()
 
@@ -248,7 +252,8 @@ func TestProperty26_AuditLogCompleteness(t *testing.T) {
 			// Create audit logger and repository
 			testLogger := logger.NewStructuredLogger(logger.Config{Level: "info", Format: "json"})
 			auditLogger := logger.NewAuditLogger(testLogger)
-			auditRepo := persistence.NewInMemoryAuditLogRepository()
+			db := setupTestDBForRapid(t)
+			auditRepo := persistence.NewAuditLogRepository(db)
 
 			ctx := context.Background()
 

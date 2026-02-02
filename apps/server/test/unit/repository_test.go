@@ -11,15 +11,31 @@ import (
 	"github.com/google/uuid"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"gorm.io/driver/sqlite"
+	"gorm.io/gorm"
 )
+
+// setupTestDB creates an in-memory SQLite database for testing
+func setupTestDB(t *testing.T) *gorm.DB {
+	db, err := gorm.Open(sqlite.Open(":memory:"), &gorm.Config{})
+	require.NoError(t, err)
+
+	// Run migrations
+	err = persistence.RunAutoMigration(db)
+	require.NoError(t, err)
+
+	return db
+}
 
 // TestReactionRepository tests the reaction repository operations
 func TestReactionRepository(t *testing.T) {
 	ctx := context.Background()
-	repo := persistence.NewInMemoryReactionRepository()
+	db := setupTestDB(t)
+	repo := persistence.NewReactionRepository(db)
 
 	t.Run("Save and FindByMessageID", func(t *testing.T) {
-		repo.Clear()
+		// Clean database using GORM
+		db.Exec("DELETE FROM reactions WHERE 1=1")
 
 		messageID := uuid.New().String()
 		reaction1 := entity.NewReaction(uuid.New().String(), messageID, "session1", "user1", "user2", "😀")
@@ -37,7 +53,8 @@ func TestReactionRepository(t *testing.T) {
 	})
 
 	t.Run("FindBySessionID with pagination", func(t *testing.T) {
-		repo.Clear()
+		// Clean database using GORM
+		db.Exec("DELETE FROM reactions WHERE 1=1")
 
 		sessionID := "session1"
 		for i := 0; i < 5; i++ {
@@ -65,7 +82,8 @@ func TestReactionRepository(t *testing.T) {
 	})
 
 	t.Run("Delete reaction", func(t *testing.T) {
-		repo.Clear()
+		// Clean database using GORM
+		db.Exec("DELETE FROM reactions WHERE 1=1")
 
 		reaction := entity.NewReaction(uuid.New().String(), uuid.New().String(), "session1", "user1", "user2", "😀")
 		err := repo.Save(ctx, reaction)
@@ -80,7 +98,8 @@ func TestReactionRepository(t *testing.T) {
 	})
 
 	t.Run("DeleteByMessageIDAndFrom", func(t *testing.T) {
-		repo.Clear()
+		// Clean database using GORM
+		db.Exec("DELETE FROM reactions WHERE 1=1")
 
 		messageID := uuid.New().String()
 		reaction1 := entity.NewReaction(uuid.New().String(), messageID, "session1", "user1", "user2", "😀")
@@ -105,10 +124,12 @@ func TestReactionRepository(t *testing.T) {
 // TestReceiptRepository tests the receipt repository operations
 func TestReceiptRepository(t *testing.T) {
 	ctx := context.Background()
-	repo := persistence.NewInMemoryReceiptRepository()
+	db := setupTestDB(t)
+	repo := persistence.NewReceiptRepository(db)
 
 	t.Run("Save and FindByMessageID", func(t *testing.T) {
-		repo.Clear()
+		// Clean database using GORM
+		db.Exec("DELETE FROM receipts WHERE 1=1")
 
 		messageID := uuid.New().String()
 		receipt1 := entity.NewReceipt(uuid.New().String(), messageID, "session1", "user1", "user2", entity.ReceiptTypeDelivered)
@@ -126,7 +147,8 @@ func TestReceiptRepository(t *testing.T) {
 	})
 
 	t.Run("FindBySessionID with pagination", func(t *testing.T) {
-		repo.Clear()
+		// Clean database using GORM
+		db.Exec("DELETE FROM receipts WHERE 1=1")
 
 		sessionID := "session1"
 		for i := 0; i < 5; i++ {
@@ -154,7 +176,8 @@ func TestReceiptRepository(t *testing.T) {
 	})
 
 	t.Run("Delete receipt", func(t *testing.T) {
-		repo.Clear()
+		// Clean database using GORM
+		db.Exec("DELETE FROM receipts WHERE 1=1")
 
 		receipt := entity.NewReceipt(uuid.New().String(), uuid.New().String(), "session1", "user1", "user2", entity.ReceiptTypeDelivered)
 		err := repo.Save(ctx, receipt)
@@ -172,10 +195,12 @@ func TestReceiptRepository(t *testing.T) {
 // TestPresenceRepository tests the presence repository operations
 func TestPresenceRepository(t *testing.T) {
 	ctx := context.Background()
-	repo := persistence.NewInMemoryPresenceRepository()
+	db := setupTestDB(t)
+	repo := persistence.NewPresenceRepository(db)
 
 	t.Run("Save and FindBySessionID", func(t *testing.T) {
-		repo.Clear()
+		// Clean database using GORM
+		db.Exec("DELETE FROM presence WHERE 1=1")
 
 		sessionID := "session1"
 		presence1 := entity.NewPresence(uuid.New().String(), sessionID, "user1", "chat1", entity.PresenceStateTyping)
@@ -193,7 +218,8 @@ func TestPresenceRepository(t *testing.T) {
 	})
 
 	t.Run("FindByUserJID with pagination", func(t *testing.T) {
-		repo.Clear()
+		// Clean database using GORM
+		db.Exec("DELETE FROM presence WHERE 1=1")
 
 		userJID := "user1"
 		for i := 0; i < 5; i++ {
@@ -220,7 +246,8 @@ func TestPresenceRepository(t *testing.T) {
 	})
 
 	t.Run("GetLatestByUserJID", func(t *testing.T) {
-		repo.Clear()
+		// Clean database using GORM
+		db.Exec("DELETE FROM presence WHERE 1=1")
 
 		userJID := "user1"
 		presence1 := entity.NewPresence(uuid.New().String(), "session1", userJID, "chat1", entity.PresenceStateTyping)
@@ -229,8 +256,8 @@ func TestPresenceRepository(t *testing.T) {
 		require.NoError(t, err)
 
 		// Create second presence with a later timestamp
+		time.Sleep(10 * time.Millisecond) // Ensure different timestamp
 		presence2 := entity.NewPresence(uuid.New().String(), "session1", userJID, "chat1", entity.PresenceStatePaused)
-		presence2.Timestamp = presence1.Timestamp.Add(1 * time.Second)
 
 		err = repo.Save(ctx, presence2)
 		require.NoError(t, err)
@@ -241,7 +268,8 @@ func TestPresenceRepository(t *testing.T) {
 	})
 
 	t.Run("Delete presence", func(t *testing.T) {
-		repo.Clear()
+		// Clean database using GORM
+		db.Exec("DELETE FROM presence WHERE 1=1")
 
 		presence := entity.NewPresence(uuid.New().String(), "session1", "user1", "chat1", entity.PresenceStateTyping)
 		err := repo.Save(ctx, presence)

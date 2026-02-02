@@ -31,8 +31,9 @@ func TestProperty9_ReadReceiptAtomicity(t *testing.T) {
 			messageIDs[i] = uuid.New().String()
 		}
 
-		// Create in-memory repository
-		receiptRepo := persistence.NewInMemoryReceiptRepository()
+		// Create GORM repository
+		db := setupTestDBForRapid(t)
+		receiptRepo := persistence.NewReceiptRepository(db)
 
 		// Create mock WhatsApp client
 		mockWAClient := mocks.NewWhatsAppClientMock()

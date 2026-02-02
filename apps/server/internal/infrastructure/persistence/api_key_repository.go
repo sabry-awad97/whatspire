@@ -2,151 +2,158 @@ package persistence
 
 import (
 	"context"
-	"sync"
+	"errors"
 	"time"
 
 	"whatspire/internal/domain/entity"
-	"whatspire/internal/domain/errors"
+	domainErrors "whatspire/internal/domain/errors"
+	"whatspire/internal/infrastructure/persistence/models"
+
+	"gorm.io/gorm"
 )
 
-// InMemoryAPIKeyRepository implements APIKeyRepository with in-memory storage
-type InMemoryAPIKeyRepository struct {
-	apiKeys      map[string]*entity.APIKey // ID -> APIKey
-	keyHashIndex map[string]string         // KeyHash -> ID
-	mu           sync.RWMutex
+// APIKeyRepository implements APIKeyRepository with GORM
+type APIKeyRepository struct {
+	db *gorm.DB
 }
 
-// NewInMemoryAPIKeyRepository creates a new in-memory API key repository
-func NewInMemoryAPIKeyRepository() *InMemoryAPIKeyRepository {
-	return &InMemoryAPIKeyRepository{
-		apiKeys:      make(map[string]*entity.APIKey),
-		keyHashIndex: make(map[string]string),
-	}
+// NewAPIKeyRepository creates a new GORM API key repository
+func NewAPIKeyRepository(db *gorm.DB) *APIKeyRepository {
+	return &APIKeyRepository{db: db}
 }
 
 // Save stores an API key in the repository
-func (r *InMemoryAPIKeyRepository) Save(ctx context.Context, apiKey *entity.APIKey) error {
-	r.mu.Lock()
-	defer r.mu.Unlock()
-
-	// Check if key hash already exists
-	if existingID, exists := r.keyHashIndex[apiKey.KeyHash]; exists && existingID != apiKey.ID {
-		return errors.ErrDuplicate.WithMessage("API key with this hash already exists")
+func (r *APIKeyRepository) Save(ctx context.Context, apiKey *entity.APIKey) error {
+	model := &models.APIKey{
+		ID:         apiKey.ID,
+		KeyHash:    apiKey.KeyHash,
+		Role:       apiKey.Role,
+		CreatedAt:  apiKey.CreatedAt,
+		LastUsedAt: apiKey.LastUsedAt,
+		IsActive:   apiKey.IsActive,
 	}
 
-	// Store a copy to prevent external mutation
-	apiKeyCopy := *apiKey
-	r.apiKeys[apiKey.ID] = &apiKeyCopy
-
-	// Index by key hash
-	r.keyHashIndex[apiKey.KeyHash] = apiKey.ID
+	result := r.db.WithContext(ctx).Create(model)
+	if result.Error != nil {
+		if isUniqueConstraintError(result.Error) {
+			return domainErrors.ErrDuplicate.WithMessage("API key with this hash already exists")
+		}
+		return domainErrors.ErrDatabaseError.WithCause(result.Error)
+	}
 
 	return nil
 }
 
 // FindByKeyHash retrieves an API key by its key hash
-func (r *InMemoryAPIKeyRepository) FindByKeyHash(ctx context.Context, keyHash string) (*entity.APIKey, error) {
-	r.mu.RLock()
-	defer r.mu.RUnlock()
+func (r *APIKeyRepository) FindByKeyHash(ctx context.Context, keyHash string) (*entity.APIKey, error) {
+	var model models.APIKey
 
-	id, exists := r.keyHashIndex[keyHash]
-	if !exists {
-		return nil, errors.ErrNotFound.WithMessage("API key not found")
+	result := r.db.WithContext(ctx).Where("key_hash = ?", keyHash).First(&model)
+	if result.Error != nil {
+		if errors.Is(result.Error, gorm.ErrRecordNotFound) {
+			return nil, domainErrors.ErrNotFound.WithMessage("API key not found")
+		}
+		return nil, domainErrors.ErrDatabaseError.WithCause(result.Error)
 	}
 
-	apiKey, exists := r.apiKeys[id]
-	if !exists {
-		return nil, errors.ErrNotFound.WithMessage("API key not found")
+	// Convert model to domain entity
+	apiKey := &entity.APIKey{
+		ID:         model.ID,
+		KeyHash:    model.KeyHash,
+		Role:       model.Role,
+		CreatedAt:  model.CreatedAt,
+		LastUsedAt: model.LastUsedAt,
+		IsActive:   model.IsActive,
 	}
 
-	// Return a copy to prevent external mutation
-	apiKeyCopy := *apiKey
-	return &apiKeyCopy, nil
+	return apiKey, nil
 }
 
 // FindByID retrieves an API key by its ID
-func (r *InMemoryAPIKeyRepository) FindByID(ctx context.Context, id string) (*entity.APIKey, error) {
-	r.mu.RLock()
-	defer r.mu.RUnlock()
+func (r *APIKeyRepository) FindByID(ctx context.Context, id string) (*entity.APIKey, error) {
+	var model models.APIKey
 
-	apiKey, exists := r.apiKeys[id]
-	if !exists {
-		return nil, errors.ErrNotFound.WithMessage("API key not found")
+	result := r.db.WithContext(ctx).First(&model, "id = ?", id)
+	if result.Error != nil {
+		if errors.Is(result.Error, gorm.ErrRecordNotFound) {
+			return nil, domainErrors.ErrNotFound.WithMessage("API key not found")
+		}
+		return nil, domainErrors.ErrDatabaseError.WithCause(result.Error)
 	}
 
-	// Return a copy to prevent external mutation
-	apiKeyCopy := *apiKey
-	return &apiKeyCopy, nil
+	// Convert model to domain entity
+	apiKey := &entity.APIKey{
+		ID:         model.ID,
+		KeyHash:    model.KeyHash,
+		Role:       model.Role,
+		CreatedAt:  model.CreatedAt,
+		LastUsedAt: model.LastUsedAt,
+		IsActive:   model.IsActive,
+	}
+
+	return apiKey, nil
 }
 
 // UpdateLastUsed updates the last used timestamp for an API key
-func (r *InMemoryAPIKeyRepository) UpdateLastUsed(ctx context.Context, keyHash string) error {
-	r.mu.Lock()
-	defer r.mu.Unlock()
-
-	id, exists := r.keyHashIndex[keyHash]
-	if !exists {
-		return errors.ErrNotFound.WithMessage("API key not found")
-	}
-
-	apiKey, exists := r.apiKeys[id]
-	if !exists {
-		return errors.ErrNotFound.WithMessage("API key not found")
-	}
-
+func (r *APIKeyRepository) UpdateLastUsed(ctx context.Context, keyHash string) error {
 	now := time.Now()
-	apiKey.LastUsedAt = &now
+	result := r.db.WithContext(ctx).Model(&models.APIKey{}).
+		Where("key_hash = ?", keyHash).
+		Update("last_used_at", now)
+
+	if result.Error != nil {
+		return domainErrors.ErrDatabaseError.WithCause(result.Error)
+	}
+
+	if result.RowsAffected == 0 {
+		return domainErrors.ErrNotFound.WithMessage("API key not found")
+	}
+
 	return nil
 }
 
 // Delete removes an API key by its ID
-func (r *InMemoryAPIKeyRepository) Delete(ctx context.Context, id string) error {
-	r.mu.Lock()
-	defer r.mu.Unlock()
+func (r *APIKeyRepository) Delete(ctx context.Context, id string) error {
+	result := r.db.WithContext(ctx).Delete(&models.APIKey{}, "id = ?", id)
 
-	apiKey, exists := r.apiKeys[id]
-	if !exists {
-		return errors.ErrNotFound.WithMessage("API key not found")
+	if result.Error != nil {
+		return domainErrors.ErrDatabaseError.WithCause(result.Error)
 	}
 
-	// Remove from key hash index
-	delete(r.keyHashIndex, apiKey.KeyHash)
+	if result.RowsAffected == 0 {
+		return domainErrors.ErrNotFound.WithMessage("API key not found")
+	}
 
-	// Remove from main storage
-	delete(r.apiKeys, id)
 	return nil
 }
 
 // List retrieves all API keys with pagination
-func (r *InMemoryAPIKeyRepository) List(ctx context.Context, limit, offset int) ([]*entity.APIKey, error) {
-	r.mu.RLock()
-	defer r.mu.RUnlock()
+func (r *APIKeyRepository) List(ctx context.Context, limit, offset int) ([]*entity.APIKey, error) {
+	var modelKeys []models.APIKey
 
-	// Collect all API keys
-	allKeys := make([]*entity.APIKey, 0, len(r.apiKeys))
-	for _, apiKey := range r.apiKeys {
-		apiKeyCopy := *apiKey
-		allKeys = append(allKeys, &apiKeyCopy)
+	result := r.db.WithContext(ctx).
+		Order("created_at DESC").
+		Limit(limit).
+		Offset(offset).
+		Find(&modelKeys)
+
+	if result.Error != nil {
+		return nil, domainErrors.ErrDatabaseError.WithCause(result.Error)
 	}
 
-	// Apply pagination
-	start := offset
-	if start >= len(allKeys) {
-		return []*entity.APIKey{}, nil
+	// Convert models to domain entities
+	apiKeys := make([]*entity.APIKey, 0, len(modelKeys))
+	for _, model := range modelKeys {
+		apiKey := &entity.APIKey{
+			ID:         model.ID,
+			KeyHash:    model.KeyHash,
+			Role:       model.Role,
+			CreatedAt:  model.CreatedAt,
+			LastUsedAt: model.LastUsedAt,
+			IsActive:   model.IsActive,
+		}
+		apiKeys = append(apiKeys, apiKey)
 	}
 
-	end := start + limit
-	if end > len(allKeys) {
-		end = len(allKeys)
-	}
-
-	return allKeys[start:end], nil
-}
-
-// Clear removes all API keys (for testing)
-func (r *InMemoryAPIKeyRepository) Clear() {
-	r.mu.Lock()
-	defer r.mu.Unlock()
-	r.apiKeys = make(map[string]*entity.APIKey)
-	r.keyHashIndex = make(map[string]string)
+	return apiKeys, nil
 }

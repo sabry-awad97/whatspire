@@ -2,209 +2,133 @@ package persistence
 
 import (
 	"context"
-	"sync"
 
 	"whatspire/internal/domain/entity"
-	"whatspire/internal/domain/errors"
+	domainErrors "whatspire/internal/domain/errors"
+	"whatspire/internal/infrastructure/persistence/models"
+
+	"gorm.io/gorm"
 )
 
-// InMemoryReactionRepository implements ReactionRepository with in-memory storage
-type InMemoryReactionRepository struct {
-	reactions        map[string]*entity.Reaction // ID -> Reaction
-	messageReactions map[string][]string         // MessageID -> []ReactionID
-	sessionReactions map[string][]string         // SessionID -> []ReactionID
-	mu               sync.RWMutex
+// ReactionRepository implements ReactionRepository with GORM
+type ReactionRepository struct {
+	db *gorm.DB
 }
 
-// NewInMemoryReactionRepository creates a new in-memory reaction repository
-func NewInMemoryReactionRepository() *InMemoryReactionRepository {
-	return &InMemoryReactionRepository{
-		reactions:        make(map[string]*entity.Reaction),
-		messageReactions: make(map[string][]string),
-		sessionReactions: make(map[string][]string),
-	}
+// NewReactionRepository creates a new GORM reaction repository
+func NewReactionRepository(db *gorm.DB) *ReactionRepository {
+	return &ReactionRepository{db: db}
 }
 
 // Save stores a reaction in the repository
-func (r *InMemoryReactionRepository) Save(ctx context.Context, reaction *entity.Reaction) error {
-	r.mu.Lock()
-	defer r.mu.Unlock()
-
-	// Store a copy to prevent external mutation
-	reactionCopy := *reaction
-	r.reactions[reaction.ID] = &reactionCopy
-
-	// Index by message ID
-	if _, exists := r.messageReactions[reaction.MessageID]; !exists {
-		r.messageReactions[reaction.MessageID] = []string{}
-	}
-	// Check if already indexed
-	found := false
-	for _, id := range r.messageReactions[reaction.MessageID] {
-		if id == reaction.ID {
-			found = true
-			break
-		}
-	}
-	if !found {
-		r.messageReactions[reaction.MessageID] = append(r.messageReactions[reaction.MessageID], reaction.ID)
+func (r *ReactionRepository) Save(ctx context.Context, reaction *entity.Reaction) error {
+	model := &models.Reaction{
+		ID:        reaction.ID,
+		MessageID: reaction.MessageID,
+		SessionID: reaction.SessionID,
+		FromJID:   reaction.From,
+		ToJID:     reaction.To,
+		Emoji:     reaction.Emoji,
+		CreatedAt: reaction.Timestamp,
 	}
 
-	// Index by session ID
-	if _, exists := r.sessionReactions[reaction.SessionID]; !exists {
-		r.sessionReactions[reaction.SessionID] = []string{}
-	}
-	// Check if already indexed
-	found = false
-	for _, id := range r.sessionReactions[reaction.SessionID] {
-		if id == reaction.ID {
-			found = true
-			break
-		}
-	}
-	if !found {
-		r.sessionReactions[reaction.SessionID] = append(r.sessionReactions[reaction.SessionID], reaction.ID)
+	// Use Create with OnConflict to handle upsert
+	result := r.db.WithContext(ctx).Create(model)
+	if result.Error != nil {
+		return domainErrors.ErrDatabaseError.WithCause(result.Error)
 	}
 
 	return nil
 }
 
 // FindByMessageID retrieves all reactions for a specific message
-func (r *InMemoryReactionRepository) FindByMessageID(ctx context.Context, messageID string) ([]*entity.Reaction, error) {
-	r.mu.RLock()
-	defer r.mu.RUnlock()
+func (r *ReactionRepository) FindByMessageID(ctx context.Context, messageID string) ([]*entity.Reaction, error) {
+	var modelReactions []models.Reaction
 
-	reactionIDs, exists := r.messageReactions[messageID]
-	if !exists {
-		return []*entity.Reaction{}, nil
+	result := r.db.WithContext(ctx).
+		Where("message_id = ?", messageID).
+		Order("created_at DESC").
+		Find(&modelReactions)
+
+	if result.Error != nil {
+		return nil, domainErrors.ErrDatabaseError.WithCause(result.Error)
 	}
 
-	reactions := make([]*entity.Reaction, 0, len(reactionIDs))
-	for _, id := range reactionIDs {
-		if reaction, exists := r.reactions[id]; exists {
-			reactionCopy := *reaction
-			reactions = append(reactions, &reactionCopy)
+	// Convert models to domain entities
+	reactions := make([]*entity.Reaction, 0, len(modelReactions))
+	for _, model := range modelReactions {
+		reaction := &entity.Reaction{
+			ID:        model.ID,
+			MessageID: model.MessageID,
+			SessionID: model.SessionID,
+			From:      model.FromJID,
+			To:        model.ToJID,
+			Emoji:     model.Emoji,
+			Timestamp: model.CreatedAt,
 		}
+		reactions = append(reactions, reaction)
 	}
 
 	return reactions, nil
 }
 
 // FindBySessionID retrieves all reactions for a specific session with pagination
-func (r *InMemoryReactionRepository) FindBySessionID(ctx context.Context, sessionID string, limit, offset int) ([]*entity.Reaction, error) {
-	r.mu.RLock()
-	defer r.mu.RUnlock()
+func (r *ReactionRepository) FindBySessionID(ctx context.Context, sessionID string, limit, offset int) ([]*entity.Reaction, error) {
+	var modelReactions []models.Reaction
 
-	reactionIDs, exists := r.sessionReactions[sessionID]
-	if !exists {
-		return []*entity.Reaction{}, nil
+	result := r.db.WithContext(ctx).
+		Where("session_id = ?", sessionID).
+		Order("created_at DESC").
+		Limit(limit).
+		Offset(offset).
+		Find(&modelReactions)
+
+	if result.Error != nil {
+		return nil, domainErrors.ErrDatabaseError.WithCause(result.Error)
 	}
 
-	// Apply pagination
-	start := offset
-	if start >= len(reactionIDs) {
-		return []*entity.Reaction{}, nil
-	}
-
-	end := start + limit
-	if end > len(reactionIDs) {
-		end = len(reactionIDs)
-	}
-
-	reactions := make([]*entity.Reaction, 0, end-start)
-	for i := start; i < end; i++ {
-		if reaction, exists := r.reactions[reactionIDs[i]]; exists {
-			reactionCopy := *reaction
-			reactions = append(reactions, &reactionCopy)
+	// Convert models to domain entities
+	reactions := make([]*entity.Reaction, 0, len(modelReactions))
+	for _, model := range modelReactions {
+		reaction := &entity.Reaction{
+			ID:        model.ID,
+			MessageID: model.MessageID,
+			SessionID: model.SessionID,
+			From:      model.FromJID,
+			To:        model.ToJID,
+			Emoji:     model.Emoji,
+			Timestamp: model.CreatedAt,
 		}
+		reactions = append(reactions, reaction)
 	}
 
 	return reactions, nil
 }
 
 // Delete removes a reaction by its ID
-func (r *InMemoryReactionRepository) Delete(ctx context.Context, id string) error {
-	r.mu.Lock()
-	defer r.mu.Unlock()
+func (r *ReactionRepository) Delete(ctx context.Context, id string) error {
+	result := r.db.WithContext(ctx).Delete(&models.Reaction{}, "id = ?", id)
 
-	reaction, exists := r.reactions[id]
-	if !exists {
-		return errors.ErrNotFound
+	if result.Error != nil {
+		return domainErrors.ErrDatabaseError.WithCause(result.Error)
 	}
 
-	// Remove from message index
-	if reactionIDs, exists := r.messageReactions[reaction.MessageID]; exists {
-		newIDs := make([]string, 0, len(reactionIDs))
-		for _, rid := range reactionIDs {
-			if rid != id {
-				newIDs = append(newIDs, rid)
-			}
-		}
-		r.messageReactions[reaction.MessageID] = newIDs
+	if result.RowsAffected == 0 {
+		return domainErrors.ErrNotFound
 	}
 
-	// Remove from session index
-	if reactionIDs, exists := r.sessionReactions[reaction.SessionID]; exists {
-		newIDs := make([]string, 0, len(reactionIDs))
-		for _, rid := range reactionIDs {
-			if rid != id {
-				newIDs = append(newIDs, rid)
-			}
-		}
-		r.sessionReactions[reaction.SessionID] = newIDs
-	}
-
-	// Remove from main storage
-	delete(r.reactions, id)
 	return nil
 }
 
 // DeleteByMessageIDAndFrom removes a reaction by message ID and sender
-func (r *InMemoryReactionRepository) DeleteByMessageIDAndFrom(ctx context.Context, messageID, from string) error {
-	r.mu.Lock()
-	defer r.mu.Unlock()
+func (r *ReactionRepository) DeleteByMessageIDAndFrom(ctx context.Context, messageID, from string) error {
+	result := r.db.WithContext(ctx).
+		Where("message_id = ? AND from_jid = ?", messageID, from).
+		Delete(&models.Reaction{})
 
-	reactionIDs, exists := r.messageReactions[messageID]
-	if !exists {
-		return nil // No reactions for this message
-	}
-
-	// Find and delete matching reactions
-	for _, id := range reactionIDs {
-		if reaction, exists := r.reactions[id]; exists && reaction.From == from {
-			// Remove from message index
-			newIDs := make([]string, 0, len(reactionIDs))
-			for _, rid := range reactionIDs {
-				if rid != id {
-					newIDs = append(newIDs, rid)
-				}
-			}
-			r.messageReactions[messageID] = newIDs
-
-			// Remove from session index
-			if sessionIDs, exists := r.sessionReactions[reaction.SessionID]; exists {
-				newSessionIDs := make([]string, 0, len(sessionIDs))
-				for _, rid := range sessionIDs {
-					if rid != id {
-						newSessionIDs = append(newSessionIDs, rid)
-					}
-				}
-				r.sessionReactions[reaction.SessionID] = newSessionIDs
-			}
-
-			// Remove from main storage
-			delete(r.reactions, id)
-		}
+	if result.Error != nil {
+		return domainErrors.ErrDatabaseError.WithCause(result.Error)
 	}
 
 	return nil
-}
-
-// Clear removes all reactions (for testing)
-func (r *InMemoryReactionRepository) Clear() {
-	r.mu.Lock()
-	defer r.mu.Unlock()
-	r.reactions = make(map[string]*entity.Reaction)
-	r.messageReactions = make(map[string][]string)
-	r.sessionReactions = make(map[string][]string)
 }

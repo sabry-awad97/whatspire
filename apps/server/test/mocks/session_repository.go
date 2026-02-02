@@ -90,3 +90,15 @@ func (m *SessionRepositoryMock) GetSessions() map[string]*entity.Session {
 	}
 	return result
 }
+
+// GetAll retrieves all sessions
+func (m *SessionRepositoryMock) GetAll(ctx context.Context) ([]*entity.Session, error) {
+	m.mu.RLock()
+	defer m.mu.RUnlock()
+
+	sessions := make([]*entity.Session, 0, len(m.Sessions))
+	for _, session := range m.Sessions {
+		sessions = append(sessions, session)
+	}
+	return sessions, nil
+}

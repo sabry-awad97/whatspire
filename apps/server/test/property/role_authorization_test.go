@@ -109,7 +109,8 @@ func TestRoleStorageAndRetrieval_Property20(t *testing.T) {
 			}
 
 			ctx := context.Background()
-			repo := persistence.NewInMemoryAPIKeyRepository()
+			db := setupTestDB(t)
+			repo := persistence.NewAPIKeyRepository(db)
 
 			// Create and save API key
 			keyHash := hashKey(key)
@@ -140,7 +141,8 @@ func TestRoleStorageAndRetrieval_Property20(t *testing.T) {
 			}
 
 			ctx := context.Background()
-			repo := persistence.NewInMemoryAPIKeyRepository()
+			db := setupTestDB(t)
+			repo := persistence.NewAPIKeyRepository(db)
 
 			// Create and save API key
 			keyHash := hashKey(key)
@@ -176,7 +178,8 @@ func TestRoleStorageAndRetrieval_Property20(t *testing.T) {
 			}
 
 			ctx := context.Background()
-			repo := persistence.NewInMemoryAPIKeyRepository()
+			db := setupTestDB(t)
+			repo := persistence.NewAPIKeyRepository(db)
 
 			// Create and save API key
 			keyHash := hashKey(key)

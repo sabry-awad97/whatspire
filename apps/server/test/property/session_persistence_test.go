@@ -23,8 +23,9 @@ func TestSessionPersistenceRoundTrip_Property2(t *testing.T) {
 	parameters.MinSuccessfulTests = 100
 	properties := gopter.NewProperties(parameters)
 
-	// Use in-memory repository for testing
-	repo := persistence.NewInMemorySessionRepository()
+	// Use GORM repository for testing
+	db := setupTestDB(t)
+	repo := persistence.NewSessionRepository(db)
 
 	ctx := context.Background()
 

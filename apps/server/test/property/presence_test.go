@@ -24,8 +24,9 @@ func TestProperty10_PresenceStateTransitions(t *testing.T) {
 		sessionID := uuid.New().String()
 		chatJID := rapid.StringMatching("[0-9]{10,15}@s\\.whatsapp\\.net").Draw(t, "chat_jid")
 
-		// Create in-memory repository
-		presenceRepo := persistence.NewInMemoryPresenceRepository()
+		// Create GORM repository
+		db := setupTestDBForRapid(t)
+		presenceRepo := persistence.NewPresenceRepository(db)
 
 		// Create mock WhatsApp client
 		mockWAClient := mocks.NewWhatsAppClientMock()
@@ -174,8 +175,9 @@ func TestPresenceUseCaseValidStates(t *testing.T) {
 			"offline",
 		}).Draw(t, "valid_state")
 
-		// Create in-memory repository
-		presenceRepo := persistence.NewInMemoryPresenceRepository()
+		// Create GORM repository
+		db := setupTestDBForRapid(t)
+		presenceRepo := persistence.NewPresenceRepository(db)
 
 		// Create mock WhatsApp client
 		mockWAClient := mocks.NewWhatsAppClientMock()

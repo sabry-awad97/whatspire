@@ -27,8 +27,9 @@ func TestProperty6_ReactionDeliveryIdempotence(t *testing.T) {
 		chatJID := rapid.StringMatching("[0-9]{10,15}@s\\.whatsapp\\.net").Draw(t, "chat_jid")
 		emoji := rapid.SampledFrom([]string{"👍", "❤️", "😂", "🎉"}).Draw(t, "emoji")
 
-		// Create in-memory repository
-		reactionRepo := persistence.NewInMemoryReactionRepository()
+		// Create GORM repository
+		db := setupTestDBForRapid(t)
+		reactionRepo := persistence.NewReactionRepository(db)
 
 		// Create mock WhatsApp client
 		mockWAClient := mocks.NewWhatsAppClientMock()
@@ -101,8 +102,9 @@ func TestProperty7_ReactionRemovalIntegration(t *testing.T) {
 		chatJID := rapid.StringMatching("[0-9]{10,15}@s\\.whatsapp\\.net").Draw(t, "chat_jid")
 		emoji := rapid.SampledFrom([]string{"👍", "❤️", "😂"}).Draw(t, "emoji")
 
-		// Create in-memory repository
-		reactionRepo := persistence.NewInMemoryReactionRepository()
+		// Create GORM repository
+		db := setupTestDBForRapid(t)
+		reactionRepo := persistence.NewReactionRepository(db)
 
 		// Create mock WhatsApp client
 		mockWAClient := mocks.NewWhatsAppClientMock()
@@ -179,8 +181,9 @@ func TestProperty8_InvalidEmojiRejectionIntegration(t *testing.T) {
 			"😀😀😀😀😀",                    // Too many emoji (>4 runes)
 		}).Draw(t, "invalid_emoji")
 
-		// Create in-memory repository
-		reactionRepo := persistence.NewInMemoryReactionRepository()
+		// Create GORM repository
+		db := setupTestDBForRapid(t)
+		reactionRepo := persistence.NewReactionRepository(db)
 
 		// Create mock WhatsApp client
 		mockWAClient := mocks.NewWhatsAppClientMock()

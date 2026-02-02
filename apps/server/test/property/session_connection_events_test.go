@@ -43,7 +43,8 @@ func TestConnectingEventPublication_Property3(t *testing.T) {
 			}
 
 			ctx := context.Background()
-			repo := persistence.NewInMemorySessionRepository()
+			db := setupTestDB(t)
+			repo := persistence.NewSessionRepository(db)
 			waClient := NewWhatsAppClientMock()
 			publisher := NewEventPublisherMock()
 
@@ -94,7 +95,8 @@ func TestConnectingEventPublication_Property3(t *testing.T) {
 			}
 
 			ctx := context.Background()
-			repo := persistence.NewInMemorySessionRepository()
+			db := setupTestDB(t)
+			repo := persistence.NewSessionRepository(db)
 			waClient := NewWhatsAppClientMock()
 			publisher := NewEventPublisherMock()
 
@@ -127,7 +129,8 @@ func TestConnectingEventPublication_Property3(t *testing.T) {
 			}
 
 			ctx := context.Background()
-			repo := persistence.NewInMemorySessionRepository()
+			db := setupTestDB(t)
+			repo := persistence.NewSessionRepository(db)
 			waClient := NewWhatsAppClientMock()
 			publisher := NewEventPublisherMock()
 
@@ -160,7 +163,8 @@ func TestConnectingEventPublication_Property3(t *testing.T) {
 			}
 
 			ctx := context.Background()
-			repo := persistence.NewInMemorySessionRepository()
+			db := setupTestDB(t)
+			repo := persistence.NewSessionRepository(db)
 			waClient := NewWhatsAppClientMock()
 			publisher := NewEventPublisherMock()
 
@@ -211,7 +215,8 @@ func TestFailedEventPublication_Property8(t *testing.T) {
 			}
 
 			ctx := context.Background()
-			repo := persistence.NewInMemorySessionRepository()
+			db := setupTestDB(t)
+			repo := persistence.NewSessionRepository(db)
 			waClient := NewWhatsAppClientMock()
 			publisher := NewEventPublisherMock()
 
@@ -249,7 +254,8 @@ func TestFailedEventPublication_Property8(t *testing.T) {
 			}
 
 			ctx := context.Background()
-			repo := persistence.NewInMemorySessionRepository()
+			db := setupTestDB(t)
+			repo := persistence.NewSessionRepository(db)
 			waClient := NewWhatsAppClientMock()
 			publisher := NewEventPublisherMock()
 
@@ -291,7 +297,8 @@ func TestFailedEventPublication_Property8(t *testing.T) {
 			}
 
 			ctx := context.Background()
-			repo := persistence.NewInMemorySessionRepository()
+			db := setupTestDB(t)
+			repo := persistence.NewSessionRepository(db)
 			waClient := NewWhatsAppClientMock()
 			publisher := NewEventPublisherMock()
 
@@ -333,7 +340,8 @@ func TestFailedEventPublication_Property8(t *testing.T) {
 			}
 
 			ctx := context.Background()
-			repo := persistence.NewInMemorySessionRepository()
+			db := setupTestDB(t)
+			repo := persistence.NewSessionRepository(db)
 			waClient := NewWhatsAppClientMock()
 			publisher := NewEventPublisherMock()
 
@@ -371,7 +379,8 @@ func TestFailedEventPublication_Property8(t *testing.T) {
 			}
 
 			ctx := context.Background()
-			repo := persistence.NewInMemorySessionRepository()
+			db := setupTestDB(t)
+			repo := persistence.NewSessionRepository(db)
 			waClient := NewWhatsAppClientMock()
 			publisher := NewEventPublisherMock()
 
@@ -409,7 +418,8 @@ func TestFailedEventPublication_Property8(t *testing.T) {
 			}
 
 			ctx := context.Background()
-			repo := persistence.NewInMemorySessionRepository()
+			db := setupTestDB(t)
+			repo := persistence.NewSessionRepository(db)
 			publisher := NewEventPublisherMock()
 
 			// Create session

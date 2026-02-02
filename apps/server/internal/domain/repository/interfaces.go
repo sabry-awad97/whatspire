@@ -14,6 +14,9 @@ type SessionRepository interface {
 	// GetByID retrieves a session by its ID
 	GetByID(ctx context.Context, id string) (*entity.Session, error)
 
+	// GetAll retrieves all sessions
+	GetAll(ctx context.Context) ([]*entity.Session, error)
+
 	// Update updates an existing session
 	Update(ctx context.Context, session *entity.Session) error
 
