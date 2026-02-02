@@ -32,6 +32,12 @@ func (h *MediaDownloadHelper) DownloadAndStoreImage(
 	sessionID, messageID string,
 	imageMsg *waE2E.ImageMessage,
 ) (string, string, error) {
+	// Check file size before downloading
+	fileSize := int64(imageMsg.GetFileLength())
+	if err := h.storage.ValidateSize(fileSize); err != nil {
+		return "", "", err
+	}
+
 	// Download image data from WhatsApp
 	data, err := client.Download(ctx, imageMsg)
 	if err != nil {
@@ -44,11 +50,6 @@ func (h *MediaDownloadHelper) DownloadAndStoreImage(
 		mimeType = "image/jpeg" // Default
 	}
 	extension := getExtensionFromMimeType(mimeType)
-
-	// Validate size before storing
-	if err := h.storage.ValidateSize(int64(len(data))); err != nil {
-		return "", "", err
-	}
 
 	// Store the media
 	reader := bytes.NewReader(data)
@@ -67,6 +68,12 @@ func (h *MediaDownloadHelper) DownloadAndStoreVideo(
 	sessionID, messageID string,
 	videoMsg *waE2E.VideoMessage,
 ) (string, string, error) {
+	// Check file size before downloading
+	fileSize := int64(videoMsg.GetFileLength())
+	if err := h.storage.ValidateSize(fileSize); err != nil {
+		return "", "", err
+	}
+
 	// Download video data from WhatsApp
 	data, err := client.Download(ctx, videoMsg)
 	if err != nil {
@@ -79,11 +86,6 @@ func (h *MediaDownloadHelper) DownloadAndStoreVideo(
 		mimeType = "video/mp4" // Default
 	}
 	extension := getExtensionFromMimeType(mimeType)
-
-	// Validate size before storing
-	if err := h.storage.ValidateSize(int64(len(data))); err != nil {
-		return "", "", err
-	}
 
 	// Store the media
 	reader := bytes.NewReader(data)
@@ -102,6 +104,12 @@ func (h *MediaDownloadHelper) DownloadAndStoreAudio(
 	sessionID, messageID string,
 	audioMsg *waE2E.AudioMessage,
 ) (string, string, error) {
+	// Check file size before downloading
+	fileSize := int64(audioMsg.GetFileLength())
+	if err := h.storage.ValidateSize(fileSize); err != nil {
+		return "", "", err
+	}
+
 	// Download audio data from WhatsApp
 	data, err := client.Download(ctx, audioMsg)
 	if err != nil {
@@ -114,11 +122,6 @@ func (h *MediaDownloadHelper) DownloadAndStoreAudio(
 		mimeType = "audio/ogg" // Default for WhatsApp voice messages
 	}
 	extension := getExtensionFromMimeType(mimeType)
-
-	// Validate size before storing
-	if err := h.storage.ValidateSize(int64(len(data))); err != nil {
-		return "", "", err
-	}
 
 	// Store the media
 	reader := bytes.NewReader(data)
@@ -137,6 +140,12 @@ func (h *MediaDownloadHelper) DownloadAndStoreDocument(
 	sessionID, messageID string,
 	docMsg *waE2E.DocumentMessage,
 ) (string, string, error) {
+	// Check file size before downloading
+	fileSize := int64(docMsg.GetFileLength())
+	if err := h.storage.ValidateSize(fileSize); err != nil {
+		return "", "", err
+	}
+
 	// Download document data from WhatsApp
 	data, err := client.Download(ctx, docMsg)
 	if err != nil {
@@ -158,11 +167,6 @@ func (h *MediaDownloadHelper) DownloadAndStoreDocument(
 		extension = getExtensionFromMimeType(mimeType)
 	}
 
-	// Validate size before storing
-	if err := h.storage.ValidateSize(int64(len(data))); err != nil {
-		return "", "", err
-	}
-
 	// Store the media
 	reader := bytes.NewReader(data)
 	filePath, publicURL, err := h.storage.DownloadAndStore(ctx, sessionID, messageID, reader, mimeType, extension)
@@ -180,6 +184,12 @@ func (h *MediaDownloadHelper) DownloadAndStoreSticker(
 	sessionID, messageID string,
 	stickerMsg *waE2E.StickerMessage,
 ) (string, string, error) {
+	// Check file size before downloading
+	fileSize := int64(stickerMsg.GetFileLength())
+	if err := h.storage.ValidateSize(fileSize); err != nil {
+		return "", "", err
+	}
+
 	// Download sticker data from WhatsApp
 	data, err := client.Download(ctx, stickerMsg)
 	if err != nil {
@@ -192,11 +202,6 @@ func (h *MediaDownloadHelper) DownloadAndStoreSticker(
 		mimeType = "image/webp" // Default for WhatsApp stickers
 	}
 	extension := getExtensionFromMimeType(mimeType)
-
-	// Validate size before storing
-	if err := h.storage.ValidateSize(int64(len(data))); err != nil {
-		return "", "", err
-	}
 
 	// Store the media
 	reader := bytes.NewReader(data)

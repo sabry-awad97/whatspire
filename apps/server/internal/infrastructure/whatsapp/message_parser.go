@@ -2,6 +2,8 @@ package whatsapp
 
 import (
 	"encoding/json"
+	"fmt"
+	"strings"
 	"time"
 
 	waE2E "go.mau.fi/whatsmeow/proto/waE2E"
@@ -106,6 +108,11 @@ func NewMessageParser() *MessageParser {
 
 // ParseRealtimeMessage parses a real-time message event from whatsmeow
 func (p *MessageParser) ParseRealtimeMessage(sessionID string, evt *events.Message) (*ParsedMessage, error) {
+	// Validate input - only check that event is not nil
+	if evt == nil {
+		return nil, fmt.Errorf("message event is nil")
+	}
+
 	msg := &ParsedMessage{
 		MessageID:        evt.Info.ID,
 		SessionID:        sessionID,
@@ -118,7 +125,7 @@ func (p *MessageParser) ParseRealtimeMessage(sessionID string, evt *events.Messa
 		Source:           ParsedMessageSourceRealtime,
 	}
 
-	// Parse message content based on type
+	// Parse message content based on type (handles nil message gracefully)
 	p.parseMessageContent(msg, evt.Message)
 
 	// Store raw payload
@@ -170,11 +177,21 @@ func (p *MessageParser) parseMessageContent(msg *ParsedMessage, waMsg *waE2E.Mes
 	case waMsg.GetConversation() != "":
 		msg.MessageType = ParsedMessageTypeText
 		text := waMsg.GetConversation()
+		// Validate text is not empty or whitespace-only
+		if isEmptyOrWhitespace(text) {
+			msg.MessageType = ParsedMessageTypeUnknown
+			return
+		}
 		msg.Text = &text
 
 	case waMsg.GetExtendedTextMessage() != nil:
 		msg.MessageType = ParsedMessageTypeText
 		text := waMsg.GetExtendedTextMessage().GetText()
+		// Validate text is not empty or whitespace-only
+		if isEmptyOrWhitespace(text) {
+			msg.MessageType = ParsedMessageTypeUnknown
+			return
+		}
 		msg.Text = &text
 		// Check context info for replies
 		if ctx := waMsg.GetExtendedTextMessage().GetContextInfo(); ctx != nil {
@@ -547,4 +564,9 @@ func (pm *ParsedMessage) GetTextContent() string {
 		return *pm.Caption
 	}
 	return ""
+}
+
+// isEmptyOrWhitespace checks if a string is empty or contains only whitespace
+func isEmptyOrWhitespace(s string) bool {
+	return strings.TrimSpace(s) == ""
 }

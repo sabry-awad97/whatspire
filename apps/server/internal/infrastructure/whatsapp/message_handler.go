@@ -5,6 +5,7 @@ import (
 	"fmt"
 
 	"whatspire/internal/domain/entity"
+	"whatspire/internal/domain/errors"
 	"whatspire/internal/domain/repository"
 
 	"go.mau.fi/whatsmeow"
@@ -68,6 +69,21 @@ func (h *MessageHandler) HandleIncomingMessage(
 		return nil, err
 	}
 
+	// Handle unknown message types (unsupported content or empty text)
+	if parsedMsg.MessageType == ParsedMessageTypeUnknown {
+		// Check if this is an empty text message (validation failure) or truly unsupported type
+		if parsedMsg.Text != nil || msg.Message.GetConversation() != "" || msg.Message.GetExtendedTextMessage() != nil {
+			// This is an empty text message - reject it
+			h.logger.Warnf("Rejected message with empty text content from %s (message ID: %s)",
+				parsedMsg.SenderJID, parsedMsg.MessageID)
+			return nil, fmt.Errorf("message text content is empty")
+		}
+		// This is an unsupported message type - log warning but continue
+		h.logger.Warnf("Received unsupported message type from %s (message ID: %s), publishing with raw data",
+			parsedMsg.SenderJID, parsedMsg.MessageID)
+		// Event will be published with raw payload data
+	}
+
 	// Resolve LID to phone number JID if needed
 	if msg.Info.Sender.Server == "lid" && client != nil && client.Store != nil && client.Store.LIDs != nil {
 		pnJID, err := client.Store.LIDs.GetPNForLID(ctx, msg.Info.Sender)
@@ -80,7 +96,12 @@ func (h *MessageHandler) HandleIncomingMessage(
 	// Download and store media if this is a media message
 	if h.isMediaMessage(parsedMsg) && h.mediaDownloader != nil && h.mediaStorage != nil {
 		if err := h.downloadAndStoreMedia(ctx, sessionID, client, msg, parsedMsg); err != nil {
-			h.logger.Warnf("Failed to download media for message %s: %v", parsedMsg.MessageID, err)
+			// Check if it's a size limit error
+			if domainErr := errors.GetDomainError(err); domainErr != nil && domainErr.Code == "MEDIA_TOO_LARGE" {
+				h.logger.Warnf("Rejected oversized media for message %s: %v", parsedMsg.MessageID, err)
+			} else {
+				h.logger.Warnf("Failed to download media for message %s: %v", parsedMsg.MessageID, err)
+			}
 			// Continue processing - we still want to emit the event even if media download fails
 		}
 	}
