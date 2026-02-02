@@ -20,6 +20,7 @@ var Module = fx.Module("application",
 		NewGroupsUseCase,
 		NewReactionUseCase,
 		NewReceiptUseCase,
+		NewPresenceUseCase,
 	),
 )
 
@@ -90,4 +91,13 @@ func NewReceiptUseCase(
 	publisher repository.EventPublisher,
 ) *usecase.ReceiptUseCase {
 	return usecase.NewReceiptUseCase(waClient, receiptRepo, publisher)
+}
+
+// NewPresenceUseCase creates a new presence use case
+func NewPresenceUseCase(
+	waClient repository.WhatsAppClient,
+	presenceRepo repository.PresenceRepository,
+	publisher repository.EventPublisher,
+) *usecase.PresenceUseCase {
+	return usecase.NewPresenceUseCase(waClient, presenceRepo, publisher)
 }

@@ -18,6 +18,11 @@ const (
 	EventTypeMessageReaction  EventType = "message.reaction"
 )
 
+// Presence events
+const (
+	EventTypePresenceUpdate EventType = "presence.update"
+)
+
 // Connection events
 const (
 	EventTypeConnectionConnecting EventType = "connection.connecting"
@@ -49,6 +54,7 @@ func (et EventType) IsValid() bool {
 	switch et {
 	case EventTypeMessageReceived, EventTypeMessageSent, EventTypeMessageDelivered,
 		EventTypeMessageRead, EventTypeMessageFailed, EventTypeMessageReaction,
+		EventTypePresenceUpdate,
 		EventTypeConnectionConnecting, EventTypeConnected, EventTypeDisconnected,
 		EventTypeLoggedOut, EventTypeConnectionFailed, EventTypeQRScanned,
 		EventTypeAuthenticated, EventTypeSessionExpired, EventTypeQRCode,

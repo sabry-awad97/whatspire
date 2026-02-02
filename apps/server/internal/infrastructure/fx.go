@@ -267,6 +267,7 @@ func WireMessageHandler(
 	cfg *config.Config,
 	mediaStorage repository.MediaStorage,
 	reactionRepo repository.ReactionRepository,
+	presenceRepo repository.PresenceRepository,
 	publisher repository.EventPublisher,
 ) {
 	// Create media download helper
@@ -299,6 +300,9 @@ func WireMessageHandler(
 
 	// Wire message handler to the client
 	waClient.SetMessageHandler(messageHandler)
+
+	// Wire presence repository to the client
+	waClient.SetPresenceRepository(presenceRepo)
 
 	log.Println("✅ Message handler and reaction handler wired to WhatsApp client")
 }

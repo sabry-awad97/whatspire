@@ -64,6 +64,7 @@ type WhatsmeowClient struct {
 	messageParser   *MessageParser
 	messageHandler  *MessageHandler
 	reactionHandler *ReactionHandler
+	presenceRepo    repository.PresenceRepository
 
 	// History sync configuration per session
 	historySyncConfig map[string]HistorySyncConfig
@@ -314,6 +315,77 @@ func (c *WhatsmeowClient) sendReadReceiptInternal(ctx context.Context, sessionID
 	err = client.MarkRead(ctx, msgIDs, time.Now(), jid, jid, types.ReceiptTypeRead)
 	if err != nil {
 		return errors.ErrMessageSendFailed.WithMessage("failed to send read receipts").WithCause(err)
+	}
+
+	return nil
+}
+
+// SendPresence sends a presence update (typing, paused, online, offline)
+func (c *WhatsmeowClient) SendPresence(ctx context.Context, sessionID, chatJID, state string) error {
+	// Use circuit breaker if enabled
+	if c.circuitBreaker != nil {
+		_, err := c.circuitBreaker.Execute(ctx, func() (any, error) {
+			return nil, c.sendPresenceInternal(ctx, sessionID, chatJID, state)
+		})
+		return err
+	}
+	return c.sendPresenceInternal(ctx, sessionID, chatJID, state)
+}
+
+// sendPresenceInternal performs the actual presence sending logic
+func (c *WhatsmeowClient) sendPresenceInternal(ctx context.Context, sessionID, chatJID, state string) error {
+	c.mu.RLock()
+	client, exists := c.clients[sessionID]
+	c.mu.RUnlock()
+
+	if !exists {
+		return errors.ErrSessionNotFound
+	}
+
+	if !client.IsConnected() {
+		return errors.ErrDisconnected
+	}
+
+	// Parse chat JID
+	jid, err := types.ParseJID(chatJID)
+	if err != nil {
+		return errors.ErrInvalidInput.WithMessage("invalid chat JID").WithCause(err)
+	}
+
+	// Map state string to whatsmeow presence type
+	var presenceType types.Presence
+	switch state {
+	case "typing":
+		presenceType = types.PresenceAvailable // General presence
+	case "paused":
+		presenceType = types.PresenceAvailable
+	case "online":
+		presenceType = types.PresenceAvailable
+	case "offline":
+		presenceType = types.PresenceUnavailable
+	default:
+		return errors.ErrInvalidInput.WithMessage("invalid presence state")
+	}
+
+	// Send general presence update
+	err = client.SendPresence(ctx, presenceType)
+	if err != nil {
+		return errors.ErrMessageSendFailed.WithMessage("failed to send presence").WithCause(err)
+	}
+
+	// If chat-specific presence (typing/paused), send to specific chat
+	if state == "typing" || state == "paused" {
+		var chatPresence types.ChatPresence
+		if state == "typing" {
+			chatPresence = types.ChatPresenceComposing
+		} else {
+			chatPresence = types.ChatPresencePaused
+		}
+
+		err = client.SendChatPresence(ctx, jid, chatPresence, types.ChatPresenceMediaText)
+		if err != nil {
+			return errors.ErrMessageSendFailed.WithMessage("failed to send chat presence").WithCause(err)
+		}
 	}
 
 	return nil
@@ -743,6 +815,13 @@ func (c *WhatsmeowClient) SetReactionHandler(handler *ReactionHandler) {
 	c.reactionHandler = handler
 }
 
+// SetPresenceRepository sets the presence repository for storing presence updates
+func (c *WhatsmeowClient) SetPresenceRepository(repo repository.PresenceRepository) {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	c.presenceRepo = repo
+}
+
 // getOrCreateDevice gets or creates a device store for the session
 func (c *WhatsmeowClient) getOrCreateDevice(ctx context.Context, sessionID string) (*store.Device, error) {
 	// Try to get existing device
@@ -817,6 +896,8 @@ func (c *WhatsmeowClient) handleEvent(sessionID string, client *whatsmeow.Client
 		c.mu.Unlock()
 	case *events.Receipt:
 		event, err = c.handleReceiptEvent(sessionID, v)
+	case *events.Presence:
+		event, err = c.handlePresenceEvent(sessionID, v)
 	case *events.HistorySync:
 		// Handle history sync to extract pushnames and emit message events
 		c.handleHistorySyncEvent(sessionID, client, v)
@@ -924,6 +1005,44 @@ func (c *WhatsmeowClient) handleReceiptEvent(sessionID string, receipt *events.R
 		eventType,
 		sessionID,
 		payload,
+	)
+}
+
+// handlePresenceEvent converts a WhatsApp presence event to a domain event
+func (c *WhatsmeowClient) handlePresenceEvent(sessionID string, presence *events.Presence) (*entity.Event, error) {
+	// Map whatsmeow presence to our domain presence state
+	var state entity.PresenceState
+
+	// Check if it's unavailable (offline)
+	if presence.Unavailable {
+		state = entity.PresenceStateOffline
+	} else {
+		// Available means online
+		state = entity.PresenceStateOnline
+	}
+
+	// Create presence entity
+	presenceEntity := entity.NewPresence(
+		generateEventID(),
+		sessionID,
+		presence.From.String(),
+		"", // Chat JID is empty for general presence
+		state,
+	)
+
+	// Save to repository if available
+	if c.presenceRepo != nil {
+		ctx := context.Background()
+		if err := c.presenceRepo.Save(ctx, presenceEntity); err != nil {
+			c.logger.Warnf("Failed to save presence: %v", err)
+		}
+	}
+
+	return entity.NewEventWithPayload(
+		generateEventID(),
+		entity.EventTypePresenceUpdate,
+		sessionID,
+		presenceEntity,
 	)
 }
 

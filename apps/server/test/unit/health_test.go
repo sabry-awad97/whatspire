@@ -73,6 +73,9 @@ func (m *MockWhatsAppClient) SendReaction(ctx context.Context, sessionID, chatJI
 func (m *MockWhatsAppClient) SendReadReceipt(ctx context.Context, sessionID, chatJID string, messageIDs []string) error {
 	return nil
 }
+func (m *MockWhatsAppClient) SendPresence(ctx context.Context, sessionID, chatJID, state string) error {
+	return nil
+}
 
 func TestWhatsAppClientHealthChecker_Healthy(t *testing.T) {
 	client := &MockWhatsAppClient{connected: true}

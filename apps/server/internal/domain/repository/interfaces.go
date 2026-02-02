@@ -83,6 +83,9 @@ type WhatsAppClient interface {
 	// SendReadReceipt sends read receipts for multiple messages atomically
 	SendReadReceipt(ctx context.Context, sessionID, chatJID string, messageIDs []string) error
 
+	// SendPresence sends a presence update (typing, paused, online, offline)
+	SendPresence(ctx context.Context, sessionID, chatJID, state string) error
+
 	// GetQRChannel returns a channel that receives QR code events for authentication
 	GetQRChannel(ctx context.Context, sessionID string) (<-chan QREvent, error)
 

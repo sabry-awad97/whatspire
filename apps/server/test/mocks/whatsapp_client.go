@@ -149,3 +149,12 @@ func (m *WhatsAppClientMock) SendReadReceipt(ctx context.Context, sessionID, cha
 	})
 	return nil
 }
+
+func (m *WhatsAppClientMock) SendPresence(ctx context.Context, sessionID, chatJID, state string) error {
+	m.mu.RLock()
+	defer m.mu.RUnlock()
+	if !m.Connected[sessionID] {
+		return errors.ErrDisconnected
+	}
+	return nil
+}

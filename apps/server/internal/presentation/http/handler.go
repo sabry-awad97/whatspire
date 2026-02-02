@@ -21,10 +21,11 @@ type Handler struct {
 	groupsUC   *usecase.GroupsUseCase
 	reactionUC *usecase.ReactionUseCase
 	receiptUC  *usecase.ReceiptUseCase
+	presenceUC *usecase.PresenceUseCase
 }
 
 // NewHandler creates a new Handler with all use cases
-func NewHandler(sessionUC *usecase.SessionUseCase, messageUC *usecase.MessageUseCase, healthUC *usecase.HealthUseCase, groupsUC *usecase.GroupsUseCase, reactionUC *usecase.ReactionUseCase, receiptUC *usecase.ReceiptUseCase) *Handler {
+func NewHandler(sessionUC *usecase.SessionUseCase, messageUC *usecase.MessageUseCase, healthUC *usecase.HealthUseCase, groupsUC *usecase.GroupsUseCase, reactionUC *usecase.ReactionUseCase, receiptUC *usecase.ReceiptUseCase, presenceUC *usecase.PresenceUseCase) *Handler {
 	return &Handler{
 		sessionUC:  sessionUC,
 		messageUC:  messageUC,
@@ -32,6 +33,7 @@ func NewHandler(sessionUC *usecase.SessionUseCase, messageUC *usecase.MessageUse
 		groupsUC:   groupsUC,
 		reactionUC: reactionUC,
 		receiptUC:  receiptUC,
+		presenceUC: presenceUC,
 	}
 }
 
@@ -189,6 +191,39 @@ func (h *Handler) SendReadReceipt(c *gin.Context) {
 	}
 
 	response := dto.NewReceiptResponse(len(req.MessageIDs), time.Now().Format(time.RFC3339))
+	respondWithSuccess(c, http.StatusOK, response)
+}
+
+// SendPresence handles POST /api/presence
+func (h *Handler) SendPresence(c *gin.Context) {
+	var req dto.SendPresenceRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		respondWithError(c, http.StatusBadRequest, "INVALID_JSON", "Invalid request body", nil)
+		return
+	}
+
+	if err := validator.Validate(req); err != nil {
+		details := validator.ValidationErrors(err)
+		respondWithError(c, http.StatusBadRequest, "VALIDATION_FAILED", "Validation failed", details)
+		return
+	}
+
+	if h.presenceUC == nil {
+		respondWithError(c, http.StatusInternalServerError, "INTERNAL_ERROR", "Presence use case not configured", nil)
+		return
+	}
+
+	err := h.presenceUC.SendPresence(c.Request.Context(), req)
+	if err != nil {
+		handleDomainError(c, err)
+		return
+	}
+
+	response := dto.PresenceResponse{
+		ChatJID:   req.ChatJID,
+		State:     req.State,
+		Timestamp: time.Now(),
+	}
 	respondWithSuccess(c, http.StatusOK, response)
 }
 
