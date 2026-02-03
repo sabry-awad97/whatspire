@@ -24,7 +24,7 @@ func setupAPIKeyTestRouter(sessionUC *usecase.SessionUseCase, apiKeyConfig *conf
 	routerConfig := httpHandler.DefaultRouterConfig()
 	routerConfig.APIKeyConfig = apiKeyConfig
 
-	handler := httpHandler.NewHandler(sessionUC, nil, nil, nil, nil, nil, nil, nil)
+	handler := httpHandler.NewHandler(sessionUC, nil, nil, nil, nil, nil, nil, nil, nil)
 	return httpHandler.NewRouter(handler, routerConfig)
 }
 

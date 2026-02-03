@@ -10,6 +10,7 @@ import (
 	"whatspire/internal/domain/valueobject"
 	"whatspire/internal/infrastructure/config"
 	"whatspire/internal/infrastructure/health"
+	"whatspire/internal/infrastructure/jobs"
 	"whatspire/internal/infrastructure/logger"
 	"whatspire/internal/infrastructure/persistence"
 	"whatspire/internal/infrastructure/storage"
@@ -72,13 +73,20 @@ var Module = fx.Module("infrastructure",
 			NewAPIKeyRepository,
 			fx.As(new(repository.APIKeyRepository)),
 		),
+		NewEventRepository,
+		fx.Annotate(
+			NewEventRepository,
+			fx.As(new(repository.EventRepository)),
+		),
 		NewLocalMediaStorage,
+		NewEventCleanupJob,
 	),
 	// Wire EventHub to WhatsApp client events
 	fx.Invoke(WireEventHubToWhatsAppClient),
 	fx.Invoke(WireMessageHandler),
 	fx.Invoke(WireReactionHandler),
 	fx.Invoke(RunMigrations),
+	fx.Invoke(StartEventCleanupJob),
 )
 
 // NewDB creates a new GORM database connection using the configured driver
@@ -129,6 +137,11 @@ func NewPresenceRepository(db *gorm.DB) repository.PresenceRepository {
 // NewAPIKeyRepository creates a new API key repository
 func NewAPIKeyRepository(db *gorm.DB) repository.APIKeyRepository {
 	return persistence.NewAPIKeyRepository(db)
+}
+
+// NewEventRepository creates a new event repository
+func NewEventRepository(db *gorm.DB) repository.EventRepository {
+	return persistence.NewEventRepository(db)
 }
 
 // NewAuditLogRepository creates a new audit log repository
@@ -312,6 +325,8 @@ func WireEventHubToWhatsAppClient(
 	waClient *whatsapp.WhatsmeowClient,
 	hub *websocket.EventHub,
 	publisher repository.EventPublisher, // This is now the CompositeEventPublisher
+	eventRepo repository.EventRepository,
+	cfg *config.Config,
 ) {
 	// Register an event handler that broadcasts events to the EventHub (for frontend WebSocket clients)
 	waClient.RegisterEventHandler(func(event *entity.Event) {
@@ -330,6 +345,20 @@ func WireEventHubToWhatsAppClient(
 			}
 		}()
 	})
+
+	// Register an event handler that persists events to the database (if enabled)
+	if cfg.Events.Enabled {
+		waClient.RegisterEventHandler(func(event *entity.Event) {
+			// Persist the event (non-blocking)
+			go func() {
+				ctx := context.Background()
+				if err := eventRepo.Create(ctx, event); err != nil {
+					log.Printf("⚠️  Failed to persist event: %v", err)
+				}
+			}()
+		})
+		log.Println("✅ Event persistence enabled")
+	}
 }
 
 // NewEventHub creates a new WebSocket event hub for broadcasting events to connected clients
@@ -475,6 +504,29 @@ func RunMigrations(lc fx.Lifecycle, db *gorm.DB) {
 
 			log.Println("✅ Database migrations completed")
 			return nil
+		},
+	})
+}
+
+// NewEventCleanupJob creates a new event cleanup job
+func NewEventCleanupJob(eventRepo repository.EventRepository, cfg *config.Config) *jobs.EventCleanupJob {
+	return jobs.NewEventCleanupJob(eventRepo, &cfg.Events)
+}
+
+// StartEventCleanupJob starts the event cleanup job if event persistence is enabled
+func StartEventCleanupJob(lc fx.Lifecycle, job *jobs.EventCleanupJob, cfg *config.Config) {
+	// Only start if event persistence is enabled
+	if !cfg.Events.Enabled {
+		return
+	}
+
+	lc.Append(fx.Hook{
+		OnStart: func(ctx context.Context) error {
+			return job.Start(ctx)
+		},
+		OnStop: func(ctx context.Context) error {
+			log.Println("🛑 Stopping event cleanup job...")
+			return job.Stop()
 		},
 	})
 }

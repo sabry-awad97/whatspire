@@ -162,6 +162,18 @@ func registerRoutes(router *gin.Engine, handler *Handler, routerConfig RouterCon
 	} else {
 		api.POST("/presence", handler.SendPresence)
 	}
+
+	// Event routes - require read role for query, admin role for replay
+	events := api.Group("/events")
+	if routerConfig.APIKeyConfig != nil && routerConfig.APIKeyConfig.Enabled {
+		events.GET("", RoleAuthorizationMiddleware(config.RoleRead, routerConfig.APIKeyConfig), handler.QueryEvents)
+		events.GET("/:id", RoleAuthorizationMiddleware(config.RoleRead, routerConfig.APIKeyConfig), handler.GetEventByID)
+		events.POST("/replay", RoleAuthorizationMiddleware(config.RoleAdmin, routerConfig.APIKeyConfig), handler.ReplayEvents)
+	} else {
+		events.GET("", handler.QueryEvents)
+		events.GET("/:id", handler.GetEventByID)
+		events.POST("/replay", handler.ReplayEvents)
+	}
 }
 
 // NewRouter creates a new Gin router with a pre-configured handler
