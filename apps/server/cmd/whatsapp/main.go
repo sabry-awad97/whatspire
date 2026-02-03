@@ -18,7 +18,11 @@ import (
 	"go.uber.org/fx"
 )
 
+// Version is the application version
+const Version = "2.0.0"
+
 func main() {
+	log.Printf("🚀 Starting Whatspire WhatsApp Service v%s", Version)
 	// Set up signal handling for graceful shutdown
 	sigChan := make(chan os.Signal, 1)
 	signal.Notify(sigChan, os.Interrupt, syscall.SIGTERM, syscall.SIGINT)

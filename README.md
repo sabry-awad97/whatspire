@@ -1,10 +1,25 @@
 # Whatspire WhatsApp Service
 
-A production-ready WhatsApp Business API service with a modern desktop application for managing WhatsApp sessions, messages, contacts, and groups.
+**Version 2.0.0** - A production-ready WhatsApp Business API service with a modern desktop application for managing WhatsApp sessions, messages, contacts, and groups.
 
 [![Go Version](https://img.shields.io/badge/Go-1.24+-00ADD8?style=flat&logo=go)](https://golang.org)
 [![Node Version](https://img.shields.io/badge/Node-18+-339933?style=flat&logo=node.js)](https://nodejs.org)
+[![Version](https://img.shields.io/badge/Version-2.0.0-blue.svg)](RELEASE_NOTES.md)
 [![License](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
+[![Test Coverage](https://img.shields.io/badge/Coverage-71.4%25-brightgreen.svg)](apps/server/test/TEST_STATUS.md)
+
+---
+
+## 🎉 What's New in v2.0.0
+
+- ✨ **Code Maintainability**: 56% reduction in file sizes, all files under 800 lines
+- 🚀 **PostgreSQL Support**: Production-ready database with automated migrations
+- 🔍 **Event Debugging**: Complete event persistence and replay system
+- ⚙️ **Hot-Reload Config**: YAML/JSON configuration with live updates
+- 🎨 **Modern Desktop App**: Glassmorphic UI with real-time updates
+- 📚 **Comprehensive Docs**: ADRs, guides, and API documentation
+
+[Read Full Release Notes →](RELEASE_NOTES.md)
 
 ---
 
