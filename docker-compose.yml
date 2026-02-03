@@ -1,0 +1,22 @@
+name: whatspire
+
+services:
+  postgres:
+    image: pgvector/pgvector:pg18-trixie
+    container_name: whatspire-postgres
+    environment:
+      POSTGRES_USER: whatspire
+      POSTGRES_PASSWORD: whatspire_dev
+      POSTGRES_DB: whatspire_test
+    ports:
+      - "5433:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U whatspire"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+volumes:
+  postgres_data:

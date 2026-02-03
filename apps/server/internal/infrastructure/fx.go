@@ -81,17 +81,13 @@ var Module = fx.Module("infrastructure",
 	fx.Invoke(RunMigrations),
 )
 
-// NewDB creates a new GORM database connection
+// NewDB creates a new GORM database connection using the configured driver
 func NewDB(lc fx.Lifecycle, cfg *config.Config) (*gorm.DB, error) {
-	dbConfig := persistence.DBConfig{
-		DSN:             cfg.WhatsApp.DBPath + "?_pragma=foreign_keys(1)&_pragma=journal_mode(WAL)&_pragma=busy_timeout(5000)",
-		MaxIdleConns:    10,
-		MaxOpenConns:    100,
-		ConnMaxLifetime: time.Hour,
-		LogLevel:        persistence.GetLogLevel(cfg.Log.Level),
-	}
+	// Create database factory
+	factory := persistence.NewDatabaseFactory()
 
-	db, err := persistence.NewDB(dbConfig)
+	// Create database connection using the factory
+	db, err := factory.CreateDatabase(cfg.Database)
 	if err != nil {
 		return nil, err
 	}
@@ -445,22 +441,36 @@ func WireReactionHandler(
 	// The reaction handler is now wired in WireMessageHandler
 }
 
-// RunMigrations runs GORM auto-migration on startup
+// RunMigrations runs GORM auto-migration on startup with version tracking
 func RunMigrations(lc fx.Lifecycle, db *gorm.DB) {
 	lc.Append(fx.Hook{
 		OnStart: func(ctx context.Context) error {
 			log.Println("🔄 Running database migrations...")
 
-			// Run auto-migration
-			if err := persistence.RunAutoMigration(db); err != nil {
-				log.Printf("⚠️  Auto-migration warning: %v", err)
+			// Create migration runner
+			runner := persistence.NewGORMMigrationRunner(db)
+
+			// Get current version
+			currentVersion, err := runner.Version(ctx)
+			if err != nil {
+				log.Printf("⚠️  Failed to get migration version: %v", err)
+			} else {
+				log.Printf("📊 Current migration version: %d", currentVersion)
+			}
+
+			// Run migrations
+			if err := runner.Up(ctx); err != nil {
+				log.Printf("⚠️  Migration error: %v", err)
 				// Don't fail startup - continue with existing schema
 				return nil
 			}
 
-			// Verify schema
-			if err := persistence.VerifySchema(db); err != nil {
-				log.Printf("⚠️  Schema verification warning: %v", err)
+			// Record migration if successful
+			newVersion := int(time.Now().Unix())
+			if err := runner.RecordMigration(ctx, newVersion, "auto_migration"); err != nil {
+				log.Printf("⚠️  Failed to record migration: %v", err)
+			} else {
+				log.Printf("✅ Migration recorded: version %d", newVersion)
 			}
 
 			log.Println("✅ Database migrations completed")
