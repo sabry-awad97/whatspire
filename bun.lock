@@ -98,6 +98,25 @@
         "typescript": "catalog:",
       },
     },
+    "packages/hooks": {
+      "name": "@whatspire/hooks",
+      "version": "2.0.0",
+      "dependencies": {
+        "@tanstack/react-query": "^5.90.20",
+        "@whatspire/api": "workspace:*",
+        "@whatspire/schema": "workspace:*",
+        "react": "19.2.4",
+      },
+      "devDependencies": {
+        "@types/node": "^25.2.0",
+        "@types/react": "19.2.10",
+        "typescript": "^5.9.3",
+      },
+      "peerDependencies": {
+        "@tanstack/react-query": "^5.90.20",
+        "react": "^19.2.4",
+      },
+    },
     "packages/schema": {
       "name": "@whatspire/schema",
       "version": "2.0.0",
@@ -633,6 +652,8 @@
     "@whatspire/config": ["@whatspire/config@workspace:packages/config"],
 
     "@whatspire/env": ["@whatspire/env@workspace:packages/env"],
+
+    "@whatspire/hooks": ["@whatspire/hooks@workspace:packages/hooks"],
 
     "@whatspire/schema": ["@whatspire/schema@workspace:packages/schema"],
 
