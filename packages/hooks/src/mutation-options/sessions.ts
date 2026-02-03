@@ -22,15 +22,9 @@ export const createSessionMutation = (
   queryClient: QueryClient,
 ): MutationOptions<Session, ApiClientError, CreateSessionRequest> => ({
   mutationFn: (data) => client.createSession(data),
-  onSuccess: (newSession) => {
-    // Update the sessions list cache
-    queryClient.setQueryData<Session[]>(sessionKeys.lists(), (old) => {
-      if (!old) return [newSession];
-      return [...old, newSession];
-    });
-
-    // Set the new session detail cache
-    queryClient.setQueryData(sessionKeys.detail(newSession.id), newSession);
+  onSuccess: () => {
+    // Invalidate sessions list to trigger refetch
+    queryClient.invalidateQueries({ queryKey: sessionKeys.lists() });
   },
   onError: (error) => {
     console.error("Failed to create session:", error);
@@ -49,11 +43,8 @@ export const deleteSessionMutation = (
 ): MutationOptions<void, ApiClientError, string> => ({
   mutationFn: (sessionId) => client.deleteSession(sessionId),
   onSuccess: (_, sessionId) => {
-    // Remove from sessions list cache
-    queryClient.setQueryData<Session[]>(sessionKeys.lists(), (old) => {
-      if (!old) return [];
-      return old.filter((session) => session.id !== sessionId);
-    });
+    // Invalidate sessions list to trigger refetch
+    queryClient.invalidateQueries({ queryKey: sessionKeys.lists() });
 
     // Remove session detail cache
     queryClient.removeQueries({ queryKey: sessionKeys.detail(sessionId) });
@@ -74,20 +65,10 @@ export const reconnectSessionMutation = (
   queryClient: QueryClient,
 ): MutationOptions<Session, ApiClientError, string> => ({
   mutationFn: (sessionId) => client.reconnectSession(sessionId),
-  onSuccess: (updatedSession) => {
-    // Update sessions list cache
-    queryClient.setQueryData<Session[]>(sessionKeys.lists(), (old) => {
-      if (!old) return [updatedSession];
-      return old.map((session) =>
-        session.id === updatedSession.id ? updatedSession : session,
-      );
-    });
-
-    // Update session detail cache
-    queryClient.setQueryData(
-      sessionKeys.detail(updatedSession.id),
-      updatedSession,
-    );
+  onSuccess: (_, sessionId) => {
+    // Invalidate sessions list and detail to trigger refetch
+    queryClient.invalidateQueries({ queryKey: sessionKeys.lists() });
+    queryClient.invalidateQueries({ queryKey: sessionKeys.detail(sessionId) });
   },
   onError: (error) => {
     console.error("Failed to reconnect session:", error);
@@ -105,20 +86,10 @@ export const disconnectSessionMutation = (
   queryClient: QueryClient,
 ): MutationOptions<Session, ApiClientError, string> => ({
   mutationFn: (sessionId) => client.disconnectSession(sessionId),
-  onSuccess: (updatedSession) => {
-    // Update sessions list cache
-    queryClient.setQueryData<Session[]>(sessionKeys.lists(), (old) => {
-      if (!old) return [updatedSession];
-      return old.map((session) =>
-        session.id === updatedSession.id ? updatedSession : session,
-      );
-    });
-
-    // Update session detail cache
-    queryClient.setQueryData(
-      sessionKeys.detail(updatedSession.id),
-      updatedSession,
-    );
+  onSuccess: (_, sessionId) => {
+    // Invalidate sessions list and detail to trigger refetch
+    queryClient.invalidateQueries({ queryKey: sessionKeys.lists() });
+    queryClient.invalidateQueries({ queryKey: sessionKeys.detail(sessionId) });
   },
   onError: (error) => {
     console.error("Failed to disconnect session:", error);

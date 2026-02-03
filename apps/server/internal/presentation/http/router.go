@@ -126,6 +126,7 @@ func registerRoutes(router *gin.Engine, handler *Handler, routerConfig RouterCon
 		sessions.POST("", handler.CreateSession) // Public endpoint - no auth required in development
 		sessions.GET("", RoleAuthorizationMiddleware(config.RoleRead, routerConfig.APIKeyConfig), handler.ListSessions)
 		sessions.GET("/:id", RoleAuthorizationMiddleware(config.RoleRead, routerConfig.APIKeyConfig), handler.GetSession)
+		sessions.DELETE("/:id", RoleAuthorizationMiddleware(config.RoleWrite, routerConfig.APIKeyConfig), handler.DeleteSession)
 		sessions.POST("/:id/groups/sync", RoleAuthorizationMiddleware(config.RoleWrite, routerConfig.APIKeyConfig), handler.SyncGroups)
 		sessions.GET("/:id/contacts", RoleAuthorizationMiddleware(config.RoleRead, routerConfig.APIKeyConfig), handler.ListContacts)
 		sessions.GET("/:id/chats", RoleAuthorizationMiddleware(config.RoleRead, routerConfig.APIKeyConfig), handler.ListChats)
@@ -133,6 +134,7 @@ func registerRoutes(router *gin.Engine, handler *Handler, routerConfig RouterCon
 		sessions.POST("", handler.CreateSession) // Public endpoint - no auth required in development
 		sessions.GET("", handler.ListSessions)
 		sessions.GET("/:id", handler.GetSession)
+		sessions.DELETE("/:id", handler.DeleteSession)
 		sessions.POST("/:id/groups/sync", handler.SyncGroups)
 		sessions.GET("/:id/contacts", handler.ListContacts)
 		sessions.GET("/:id/chats", handler.ListChats)

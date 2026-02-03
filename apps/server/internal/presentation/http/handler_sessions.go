@@ -254,6 +254,24 @@ func (h *Handler) GetSession(c *gin.Context) {
 	})
 }
 
+// DeleteSession handles DELETE /api/sessions/:id
+// Public endpoint for deleting a session
+func (h *Handler) DeleteSession(c *gin.Context) {
+	id := c.Param("id")
+	if id == "" {
+		respondWithError(c, http.StatusBadRequest, "INVALID_ID", "Session ID is required", nil)
+		return
+	}
+
+	// Disconnect and cleanup WhatsApp client resources
+	if err := h.sessionUC.DeleteSession(c.Request.Context(), id); err != nil {
+		handleDomainError(c, err)
+		return
+	}
+
+	respondWithSuccess(c, http.StatusOK, map[string]string{"message": "Session deleted successfully"})
+}
+
 // isValidSessionID validates that a session ID contains only alphanumeric characters, hyphens, and underscores
 func isValidSessionID(sessionID string) bool {
 	if sessionID == "" {

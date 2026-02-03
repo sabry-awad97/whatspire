@@ -171,18 +171,9 @@ func (c *WhatsmeowClient) GetQRChannel(ctx context.Context, sessionID string) (<
 
 				switch evt.Event {
 				case "code":
-					// Encode QR code as base64 PNG
-					qrBase64, err := EncodeQRToBase64(evt.Code)
-					if err != nil {
-						qrChan <- repository.QREvent{
-							Type:    "error",
-							Message: "failed to encode QR code",
-						}
-						continue
-					}
 					qrChan <- repository.QREvent{
 						Type: "qr",
-						Data: qrBase64,
+						Data: evt.Code,
 					}
 
 				case "success":
