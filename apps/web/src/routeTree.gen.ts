@@ -10,6 +10,7 @@
 
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
+import { Route as SettingsIndexRouteImport } from './routes/settings/index'
 import { Route as SessionsIndexRouteImport } from './routes/sessions/index'
 import { Route as MessagesIndexRouteImport } from './routes/messages/index'
 import { Route as GroupsIndexRouteImport } from './routes/groups/index'
@@ -23,6 +24,11 @@ import { Route as SessionsSessionIdEditRouteImport } from './routes/sessions/$se
 const IndexRoute = IndexRouteImport.update({
   id: '/',
   path: '/',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const SettingsIndexRoute = SettingsIndexRouteImport.update({
+  id: '/settings/',
+  path: '/settings/',
   getParentRoute: () => rootRouteImport,
 } as any)
 const SessionsIndexRoute = SessionsIndexRouteImport.update({
@@ -81,6 +87,7 @@ export interface FileRoutesByFullPath {
   '/groups/': typeof GroupsIndexRoute
   '/messages/': typeof MessagesIndexRoute
   '/sessions/': typeof SessionsIndexRoute
+  '/settings/': typeof SettingsIndexRoute
   '/sessions/$sessionId/edit': typeof SessionsSessionIdEditRoute
   '/sessions/$sessionId/webhooks': typeof SessionsSessionIdWebhooksRoute
 }
@@ -93,6 +100,7 @@ export interface FileRoutesByTo {
   '/groups': typeof GroupsIndexRoute
   '/messages': typeof MessagesIndexRoute
   '/sessions': typeof SessionsIndexRoute
+  '/settings': typeof SettingsIndexRoute
   '/sessions/$sessionId/edit': typeof SessionsSessionIdEditRoute
   '/sessions/$sessionId/webhooks': typeof SessionsSessionIdWebhooksRoute
 }
@@ -106,6 +114,7 @@ export interface FileRoutesById {
   '/groups/': typeof GroupsIndexRoute
   '/messages/': typeof MessagesIndexRoute
   '/sessions/': typeof SessionsIndexRoute
+  '/settings/': typeof SettingsIndexRoute
   '/sessions/$sessionId/edit': typeof SessionsSessionIdEditRoute
   '/sessions/$sessionId/webhooks': typeof SessionsSessionIdWebhooksRoute
 }
@@ -120,6 +129,7 @@ export interface FileRouteTypes {
     | '/groups/'
     | '/messages/'
     | '/sessions/'
+    | '/settings/'
     | '/sessions/$sessionId/edit'
     | '/sessions/$sessionId/webhooks'
   fileRoutesByTo: FileRoutesByTo
@@ -132,6 +142,7 @@ export interface FileRouteTypes {
     | '/groups'
     | '/messages'
     | '/sessions'
+    | '/settings'
     | '/sessions/$sessionId/edit'
     | '/sessions/$sessionId/webhooks'
   id:
@@ -144,6 +155,7 @@ export interface FileRouteTypes {
     | '/groups/'
     | '/messages/'
     | '/sessions/'
+    | '/settings/'
     | '/sessions/$sessionId/edit'
     | '/sessions/$sessionId/webhooks'
   fileRoutesById: FileRoutesById
@@ -157,6 +169,7 @@ export interface RootRouteChildren {
   GroupsIndexRoute: typeof GroupsIndexRoute
   MessagesIndexRoute: typeof MessagesIndexRoute
   SessionsIndexRoute: typeof SessionsIndexRoute
+  SettingsIndexRoute: typeof SettingsIndexRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -166,6 +179,13 @@ declare module '@tanstack/react-router' {
       path: '/'
       fullPath: '/'
       preLoaderRoute: typeof IndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/settings/': {
+      id: '/settings/'
+      path: '/settings'
+      fullPath: '/settings/'
+      preLoaderRoute: typeof SettingsIndexRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/sessions/': {
@@ -256,6 +276,7 @@ const rootRouteChildren: RootRouteChildren = {
   GroupsIndexRoute: GroupsIndexRoute,
   MessagesIndexRoute: MessagesIndexRoute,
   SessionsIndexRoute: SessionsIndexRoute,
+  SettingsIndexRoute: SettingsIndexRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
