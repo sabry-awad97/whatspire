@@ -56,7 +56,7 @@ function NewSessionPage() {
       messageLogging: true,
       readMessages: false,
       autoRejectCalls: false,
-      alwaysOnline: false,
+      alwaysOnline: true,
       ignoreGroups: false,
       ignoreBroadcasts: false,
       ignoreChannels: false,
@@ -64,7 +64,7 @@ function NewSessionPage() {
       webhookUrl: "",
     },
     onSubmit: async ({ value }) => {
-      // Create session via hooks
+      // Create session via hooks - backend will auto-generate UUID
       createSession.mutate({
         name: value.sessionName,
       });

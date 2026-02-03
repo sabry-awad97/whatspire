@@ -85,7 +85,7 @@
   },
   "database": {
     "driver": "sqlite",
-    "dsn": "/data/whatsmeow.db",
+    "dsn": "/data/application.db",
     "max_idle_conns": 10,
     "max_open_conns": 100,
     "conn_max_lifetime": "1h",

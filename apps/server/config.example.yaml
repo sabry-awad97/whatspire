@@ -8,7 +8,7 @@ server:
 
 # WhatsApp client configuration
 whatsapp:
-  db_path: "/data/whatsmeow.db"
+  db_path: "/data/whatsmeow.db" # WhatsApp protocol database (managed by whatsmeow library)
   qr_timeout: "2m"
   reconnect_delay: "5s"
   max_reconnects: 10
@@ -108,7 +108,7 @@ webhook:
 # Database configuration
 database:
   driver: "sqlite" # sqlite or postgres
-  dsn: "/data/whatsmeow.db"
+  dsn: "/data/application.db" # Application database (sessions, events, reactions, etc.)
   max_idle_conns: 10
   max_open_conns: 100
   conn_max_lifetime: "1h"

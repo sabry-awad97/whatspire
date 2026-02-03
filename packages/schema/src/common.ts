@@ -32,14 +32,14 @@ export type ApiResponse<T> = {
  * Common field schemas
  */
 export const jidSchema = z.string().min(1).describe("WhatsApp JID");
-export const sessionIdSchema = z.string().min(1).describe("Session ID");
+export const sessionIdSchema = z.string().uuid().describe("Session ID (UUID)");
 export const phoneNumberSchema = z
   .string()
   .regex(/^\+?[1-9]\d{1,14}$/)
   .describe("E.164 phone number");
 export const timestampSchema = z
   .string()
-  .datetime()
+  .datetime({ offset: true })
   .describe("ISO 8601 timestamp");
 export const urlSchema = z.string().url().describe("Valid URL");
 

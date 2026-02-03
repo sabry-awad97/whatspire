@@ -626,7 +626,7 @@ func setDefaults(v *viper.Viper) {
 
 	// Database defaults
 	v.SetDefault("database.driver", "sqlite")
-	v.SetDefault("database.dsn", "/data/whatsmeow.db")
+	v.SetDefault("database.dsn", "/data/application.db")
 	v.SetDefault("database.max_idle_conns", 10)
 	v.SetDefault("database.max_open_conns", 100)
 	v.SetDefault("database.conn_max_lifetime", time.Hour)
