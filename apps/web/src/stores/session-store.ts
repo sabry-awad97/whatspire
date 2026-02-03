@@ -1,7 +1,7 @@
 import { create } from "zustand";
 import { devtools, persist } from "zustand/middleware";
 
-import type { Session } from "@/lib/api-client";
+import { apiClient, type Session } from "@/lib/api-client";
 
 // ============================================================================
 // Types
@@ -18,6 +18,10 @@ export interface SessionState {
   sessions: Session[];
   activeSessions: Set<string>;
 
+  // Loading and error state
+  isLoading: boolean;
+  error: string | null;
+
   // QR Codes
   qrCodes: Map<string, QRCodeData>;
 
@@ -25,10 +29,12 @@ export interface SessionState {
   wsConnected: boolean;
 
   // Actions
+  fetchSessions: () => Promise<void>;
   addSession: (session: Session) => void;
   updateSession: (sessionId: string, updates: Partial<Session>) => void;
   removeSession: (sessionId: string) => void;
   setActiveSessions: (sessionIds: string[]) => void;
+  setSessions: (sessions: Session[]) => void;
 
   // QR Code actions
   setQRCode: (sessionId: string, qrCode: string) => void;
@@ -41,40 +47,8 @@ export interface SessionState {
   getSession: (sessionId: string) => Session | undefined;
   isSessionActive: (sessionId: string) => boolean;
   clearAll: () => void;
+  setError: (error: string | null) => void;
 }
-
-// ============================================================================
-// Mock Data
-// ============================================================================
-
-const MOCK_SESSIONS: Session[] = [
-  {
-    id: "business-account",
-    status: "connected",
-    jid: "1234567890@s.whatsapp.net",
-    created_at: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString(), // 7 days ago
-    updated_at: new Date().toISOString(),
-  },
-  {
-    id: "personal-account",
-    status: "connected",
-    jid: "9876543210@s.whatsapp.net",
-    created_at: new Date(Date.now() - 3 * 24 * 60 * 60 * 1000).toISOString(), // 3 days ago
-    updated_at: new Date().toISOString(),
-  },
-  {
-    id: "support-team",
-    status: "disconnected",
-    created_at: new Date(Date.now() - 1 * 24 * 60 * 60 * 1000).toISOString(), // 1 day ago
-    updated_at: new Date(Date.now() - 2 * 60 * 60 * 1000).toISOString(), // 2 hours ago
-  },
-  {
-    id: "test-session",
-    status: "pending",
-    created_at: new Date(Date.now() - 30 * 60 * 1000).toISOString(), // 30 minutes ago
-    updated_at: new Date(Date.now() - 30 * 60 * 1000).toISOString(),
-  },
-];
 
 // ============================================================================
 // Store
@@ -84,11 +58,45 @@ export const useSessionStore = create<SessionState>()(
   devtools(
     persist(
       (set, get) => ({
-        // Initial state with mock sessions
-        sessions: MOCK_SESSIONS,
-        activeSessions: new Set(["business-account", "personal-account"]),
+        // Initial state - empty, will fetch from API
+        sessions: [],
+        activeSessions: new Set(),
         qrCodes: new Map(),
         wsConnected: false,
+        isLoading: false,
+        error: null,
+
+        // Fetch sessions from API
+        fetchSessions: async () => {
+          set({ isLoading: true, error: null });
+          try {
+            const response = await apiClient.listSessions();
+            const activeSessions = new Set(
+              response.sessions
+                .filter((s) => s.status === "connected")
+                .map((s) => s.id),
+            );
+            set({
+              sessions: response.sessions,
+              activeSessions,
+              isLoading: false,
+            });
+          } catch (error) {
+            const message =
+              error instanceof Error
+                ? error.message
+                : "Failed to fetch sessions";
+            set({ error: message, isLoading: false });
+          }
+        },
+
+        // Set sessions directly
+        setSessions: (sessions) => {
+          const activeSessions = new Set(
+            sessions.filter((s) => s.status === "connected").map((s) => s.id),
+          );
+          set({ sessions, activeSessions });
+        },
 
         // Session actions
         addSession: (session) =>
@@ -166,11 +174,14 @@ export const useSessionStore = create<SessionState>()(
             activeSessions: new Set(),
             qrCodes: new Map(),
             wsConnected: false,
+            error: null,
           }),
+
+        setError: (error) => set({ error }),
       }),
       {
         name: "session-storage",
-        // Only persist sessions, not QR codes or WebSocket status
+        // Only persist sessions, not QR codes, loading, or WebSocket status
         partialize: (state) => ({
           sessions: state.sessions,
         }),

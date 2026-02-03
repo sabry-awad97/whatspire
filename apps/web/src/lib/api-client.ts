@@ -271,6 +271,24 @@ export class ApiClient {
     });
   }
 
+  async listSessions(): Promise<{ sessions: Session[] }> {
+    return this.executeWithRetry(async () => {
+      const response = await this.client.get<{ sessions: Session[] }>(
+        "/api/sessions",
+      );
+      return response.data;
+    });
+  }
+
+  async getSession(sessionId: string): Promise<Session> {
+    return this.executeWithRetry(async () => {
+      const response = await this.client.get<Session>(
+        `/api/sessions/${sessionId}`,
+      );
+      return response.data;
+    });
+  }
+
   // ==========================================================================
   // Messages
   // ==========================================================================

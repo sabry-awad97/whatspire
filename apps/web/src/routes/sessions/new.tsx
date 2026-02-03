@@ -20,6 +20,7 @@ import {
 } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 import { useSessionStore } from "@/stores/session-store";
+import { apiClient } from "@/lib/api-client";
 
 export const Route = createFileRoute("/sessions/new")({
   component: NewSessionPage,
@@ -50,24 +51,25 @@ function NewSessionPage() {
     },
     onSubmit: async ({ value }) => {
       try {
-        // Create new session
-        const newSession = {
-          id: value.sessionName,
-          status: "pending" as const,
-          created_at: new Date().toISOString(),
-          updated_at: new Date().toISOString(),
-        };
+        // Register session via API
+        const session = await apiClient.registerSession({
+          session_id: value.sessionName,
+          name: value.sessionName,
+        });
 
-        addSession(newSession);
+        // Add to local store
+        addSession(session);
         toast.success("Session created successfully");
 
         // Navigate to the session details page to scan QR code
         navigate({
           to: "/sessions/$sessionId",
-          params: { sessionId: newSession.id },
+          params: { sessionId: session.id },
         });
       } catch (error) {
-        toast.error("Failed to create session");
+        const message =
+          error instanceof Error ? error.message : "Failed to create session";
+        toast.error(message);
       }
     },
   });

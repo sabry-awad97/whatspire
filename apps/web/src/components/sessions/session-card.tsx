@@ -12,7 +12,7 @@ import { useState } from "react";
 import { useNavigate } from "@tanstack/react-router";
 import { toast } from "sonner";
 
-import type { Session } from "@/lib/api-client";
+import { apiClient, type Session } from "@/lib/api-client";
 import { cn } from "@/lib/utils";
 import { useSessionStore } from "@/stores/session-store";
 
@@ -51,7 +51,7 @@ export function SessionCard({ session, onSelect }: SessionCardProps) {
   const [isLoading, setIsLoading] = useState(false);
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
   const navigate = useNavigate();
-  const { updateSession, removeSession } = useSessionStore();
+  const { updateSession, removeSession, fetchSessions } = useSessionStore();
 
   const statusConfig = {
     connected: {
@@ -87,15 +87,18 @@ export function SessionCard({ session, onSelect }: SessionCardProps) {
     e.stopPropagation();
     setIsLoading(true);
     try {
-      // Mock reconnection - just update status locally
-      await new Promise((resolve) => setTimeout(resolve, 1000));
+      await apiClient.reconnectSession(session.id);
       updateSession(session.id, {
         status: "connected",
         updated_at: new Date().toISOString(),
       });
       toast.success("Session reconnected successfully");
+      // Refresh sessions to get latest state
+      await fetchSessions();
     } catch (error) {
-      toast.error("Failed to reconnect session");
+      const message =
+        error instanceof Error ? error.message : "Failed to reconnect session";
+      toast.error(message);
     } finally {
       setIsLoading(false);
     }
@@ -105,15 +108,18 @@ export function SessionCard({ session, onSelect }: SessionCardProps) {
     e.stopPropagation();
     setIsLoading(true);
     try {
-      // Mock disconnection - just update status locally
-      await new Promise((resolve) => setTimeout(resolve, 1000));
+      await apiClient.disconnectSession(session.id);
       updateSession(session.id, {
         status: "disconnected",
         updated_at: new Date().toISOString(),
       });
       toast.success("Session disconnected");
+      // Refresh sessions to get latest state
+      await fetchSessions();
     } catch (error) {
-      toast.error("Failed to disconnect session");
+      const message =
+        error instanceof Error ? error.message : "Failed to disconnect session";
+      toast.error(message);
     } finally {
       setIsLoading(false);
     }
@@ -127,12 +133,13 @@ export function SessionCard({ session, onSelect }: SessionCardProps) {
   const confirmDelete = async () => {
     setIsLoading(true);
     try {
-      // Mock deletion - just remove from store
-      await new Promise((resolve) => setTimeout(resolve, 500));
+      await apiClient.unregisterSession(session.id);
       removeSession(session.id);
       toast.success("Session deleted");
     } catch (error) {
-      toast.error("Failed to delete session");
+      const message =
+        error instanceof Error ? error.message : "Failed to delete session";
+      toast.error(message);
     } finally {
       setIsLoading(false);
       setShowDeleteDialog(false);
@@ -156,7 +163,6 @@ export function SessionCard({ session, onSelect }: SessionCardProps) {
   };
 
   const handleCardClick = () => {
-    // Removed auto-navigation on card click
     if (onSelect) {
       onSelect(session);
     }

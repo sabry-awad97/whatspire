@@ -1,3 +1,6 @@
+import { useEffect } from "react";
+import { Loader2 } from "lucide-react";
+
 import type { Session } from "@/lib/api-client";
 import { useSessionStore } from "@/stores/session-store";
 
@@ -16,7 +19,39 @@ interface SessionListProps {
 // ============================================================================
 
 export function SessionList({ onSelectSession }: SessionListProps) {
-  const { sessions } = useSessionStore();
+  const { sessions, isLoading, error, fetchSessions } = useSessionStore();
+
+  useEffect(() => {
+    fetchSessions();
+  }, [fetchSessions]);
+
+  if (isLoading) {
+    return (
+      <div className="flex flex-col items-center justify-center py-12 space-y-4">
+        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+        <p className="text-sm text-muted-foreground">Loading sessions...</p>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="flex flex-col items-center justify-center py-12 space-y-4">
+        <div className="glass-card p-6 text-center max-w-md">
+          <p className="text-destructive font-medium mb-2">
+            Failed to load sessions
+          </p>
+          <p className="text-sm text-muted-foreground mb-4">{error}</p>
+          <button
+            onClick={() => fetchSessions()}
+            className="text-sm text-primary hover:underline"
+          >
+            Try again
+          </button>
+        </div>
+      </div>
+    );
+  }
 
   if (sessions.length === 0) {
     return (

@@ -170,3 +170,56 @@ func (h *Handler) ConfigureHistorySync(c *gin.Context) {
 		"message": "History sync configured successfully",
 	})
 }
+
+// ListSessions handles GET /api/sessions
+// Returns all sessions with their current status
+func (h *Handler) ListSessions(c *gin.Context) {
+	sessions, err := h.sessionUC.ListSessions(c.Request.Context())
+	if err != nil {
+		handleDomainError(c, err)
+		return
+	}
+
+	// Convert to response DTOs
+	sessionResponses := make([]map[string]any, 0, len(sessions))
+	for _, s := range sessions {
+		sessionResponses = append(sessionResponses, map[string]any{
+			"id":         s.ID,
+			"name":       s.Name,
+			"status":     s.Status.String(),
+			"jid":        s.JID,
+			"created_at": s.CreatedAt.Format("2006-01-02T15:04:05Z07:00"),
+			"updated_at": s.UpdatedAt.Format("2006-01-02T15:04:05Z07:00"),
+		})
+	}
+
+	respondWithSuccess(c, http.StatusOK, map[string]any{
+		"sessions": sessionResponses,
+	})
+}
+
+// GetSession handles GET /api/sessions/:id
+// Returns a single session by ID
+func (h *Handler) GetSession(c *gin.Context) {
+	id := c.Param("id")
+	if id == "" {
+		respondWithError(c, http.StatusBadRequest, "INVALID_ID", "Session ID is required", nil)
+		return
+	}
+
+	session, err := h.sessionUC.GetSession(c.Request.Context(), id)
+	if err != nil {
+		handleDomainError(c, err)
+		return
+	}
+
+	respondWithSuccess(c, http.StatusOK, map[string]any{
+		"id":         session.ID,
+		"name":       session.Name,
+		"status":     session.Status.String(),
+		"jid":        session.JID,
+		"created_at": session.CreatedAt.Format("2006-01-02T15:04:05Z07:00"),
+		"updated_at": session.UpdatedAt.Format("2006-01-02T15:04:05Z07:00"),
+	})
+}
+

@@ -305,3 +305,21 @@ func (uc *SessionUseCase) ConfigureHistorySync(ctx context.Context, sessionID st
 
 	return nil
 }
+
+// ListSessions returns all sessions from the repository
+func (uc *SessionUseCase) ListSessions(ctx context.Context) ([]*entity.Session, error) {
+	sessions, err := uc.repo.GetAll(ctx)
+	if err != nil {
+		return nil, errors.ErrDatabaseError.WithCause(err)
+	}
+	return sessions, nil
+}
+
+// GetSession retrieves a single session by ID
+func (uc *SessionUseCase) GetSession(ctx context.Context, id string) (*entity.Session, error) {
+	session, err := uc.repo.GetByID(ctx, id)
+	if err != nil {
+		return nil, err
+	}
+	return session, nil
+}
