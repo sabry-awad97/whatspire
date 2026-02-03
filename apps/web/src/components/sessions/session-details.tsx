@@ -17,6 +17,8 @@ import {
   Webhook,
   Wifi,
   WifiOff,
+  Send,
+  Loader2,
 } from "lucide-react";
 import { useState } from "react";
 import { useNavigate } from "@tanstack/react-router";
@@ -24,6 +26,20 @@ import { toast } from "sonner";
 
 import type { Session } from "@whatspire/schema";
 import { cn } from "@/lib/utils";
+import {
+  formatPhoneNumber,
+  formatPhoneNumberReadable,
+  formatJID,
+} from "@/lib/jid";
+import {
+  useApiClient,
+  useContacts,
+  useEvents,
+  useSendMessage,
+  useReconnectSession,
+  useDisconnectSession,
+  useDeleteSession,
+} from "@whatspire/hooks";
 
 import { Button } from "../ui/button";
 import { Input } from "../ui/input";
@@ -45,15 +61,86 @@ interface SessionDetailsProps {
 
 export function SessionDetails({ session, onBack }: SessionDetailsProps) {
   const navigate = useNavigate();
+  const client = useApiClient();
+
   const [showQRCode, setShowQRCode] = useState(
     session.status === "pending" ||
       session.status === "disconnected" ||
       session.status === "logged_out",
   );
   const [showApiToken, setShowApiToken] = useState(false);
+  const [testPhone, setTestPhone] = useState("");
+  const [testMessage, setTestMessage] = useState("Hello!");
 
-  // Mock API token for demonstration
-  const apiToken = "b295ef...438d";
+  // Fetch real data
+  const { data: contacts, isLoading: contactsLoading } = useContacts(
+    client,
+    session.id,
+    {
+      enabled: session.status === "connected",
+      staleTime: 1000 * 60 * 5, // 5 minutes
+    },
+  );
+
+  const { data: eventsData, isLoading: eventsLoading } = useEvents(
+    client,
+    {
+      session_id: session.id,
+      limit: 50,
+      offset: 0,
+    },
+    {
+      enabled: session.status === "connected",
+      staleTime: 1000 * 30, // 30 seconds
+    },
+  );
+
+  // Mutations
+  const sendMessage = useSendMessage(client, {
+    onSuccess: () => {
+      toast.success("Message sent successfully!");
+      setTestPhone("");
+      setTestMessage("Hello!");
+    },
+    onError: (error) => {
+      toast.error(error.message || "Failed to send message");
+    },
+  });
+
+  const reconnectSession = useReconnectSession(client, {
+    onSuccess: () => {
+      toast.success("Session reconnected successfully");
+    },
+    onError: (error) => {
+      toast.error(error.message || "Failed to reconnect session");
+    },
+  });
+
+  const disconnectSession = useDisconnectSession(client, {
+    onSuccess: () => {
+      toast.success("Session disconnected");
+    },
+    onError: (error) => {
+      toast.error(error.message || "Failed to disconnect session");
+    },
+  });
+
+  const deleteSession = useDeleteSession(client, {
+    onSuccess: () => {
+      toast.success("Session deleted");
+      navigate({ to: "/sessions" });
+    },
+    onError: (error) => {
+      toast.error(error.message || "Failed to delete session");
+    },
+  });
+
+  // Mock API token for demonstration (in production, this should come from backend)
+  const apiToken =
+    "wsp_" +
+    session.id.substring(0, 16) +
+    "..." +
+    session.id.substring(session.id.length - 4);
 
   const statusConfig = {
     connected: {
@@ -114,6 +201,50 @@ export function SessionDetails({ session, onBack }: SessionDetailsProps) {
     toast.success("API token copied to clipboard");
   };
 
+  const handleSendTestMessage = () => {
+    if (!testPhone || !testMessage) {
+      toast.error("Please enter both phone number and message");
+      return;
+    }
+
+    sendMessage.mutate({
+      session_id: session.id,
+      to: testPhone,
+      type: "text",
+      content: {
+        text: testMessage,
+      },
+    });
+  };
+
+  const handleCopyCurlCommand = () => {
+    const baseURL =
+      import.meta.env.VITE_API_BASE_URL || "http://localhost:8080";
+    const code = `curl -X POST "${baseURL}/api/messages" \\
+  -H "Authorization: Bearer ${apiToken}" \\
+  -H "Content-Type: application/json" \\
+  -d '{"session_id": "${session.id}", "to": "${testPhone || "+1234567890"}", "type": "text", "content": {"text": "${testMessage}"}}'`;
+    navigator.clipboard.writeText(code);
+    toast.success("Command copied to clipboard");
+  };
+
+  const contactCount = contacts?.length || 0;
+  const messageEvents =
+    eventsData?.events?.filter((e) => e.type === "message") || [];
+  const statusEvents =
+    eventsData?.events?.filter((e) => e.type === "status_change") || [];
+
+  // Helper to parse event data
+  const parseEventData = (data: Uint8Array | undefined): any => {
+    if (!data) return {};
+    try {
+      const text = new TextDecoder().decode(data);
+      return JSON.parse(text);
+    } catch {
+      return {};
+    }
+  };
+
   const lastActive = session.updated_at
     ? new Date(session.updated_at).toLocaleString("en-US", {
         month: "numeric",
@@ -142,13 +273,23 @@ export function SessionDetails({ session, onBack }: SessionDetailsProps) {
               </Button>
             )}
             <div>
-              <h1 className="text-2xl font-bold">{session.id}</h1>
+              <h1 className="text-2xl font-bold">
+                {session.name || session.id}
+              </h1>
               <div className="flex items-center gap-2 mt-1">
                 <span className="text-sm text-muted-foreground">
                   {session.jid
-                    ? `+${session.jid.split("@")[0]}`
-                    : "+201091921210"}
+                    ? formatPhoneNumber(session.jid)
+                    : "Not connected"}
                 </span>
+                {contactCount > 0 && (
+                  <>
+                    <span className="text-muted-foreground">•</span>
+                    <span className="text-sm text-muted-foreground">
+                      {contactCount} contact{contactCount !== 1 ? "s" : ""}
+                    </span>
+                  </>
+                )}
               </div>
             </div>
           </div>
@@ -158,8 +299,18 @@ export function SessionDetails({ session, onBack }: SessionDetailsProps) {
               variant="outline"
               size="icon"
               className="glass-card hover-glow-teal"
+              onClick={() => window.location.reload()}
+              disabled={
+                reconnectSession.isPending || disconnectSession.isPending
+              }
             >
-              <RefreshCw className="h-4 w-4" />
+              <RefreshCw
+                className={cn(
+                  "h-4 w-4",
+                  (reconnectSession.isPending || disconnectSession.isPending) &&
+                    "animate-spin",
+                )}
+              />
             </Button>
             <Button
               variant="outline"
@@ -174,8 +325,20 @@ export function SessionDetails({ session, onBack }: SessionDetailsProps) {
               <Webhook className="mr-2 h-4 w-4" />
               Manage Webhook
             </Button>
-            <Button variant="destructive" className="glass-card">
-              Delete
+            <Button
+              variant="destructive"
+              className="glass-card"
+              onClick={() => deleteSession.mutate(session.id)}
+              disabled={deleteSession.isPending}
+            >
+              {deleteSession.isPending ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  Deleting...
+                </>
+              ) : (
+                "Delete"
+              )}
             </Button>
           </div>
         </div>
@@ -200,7 +363,7 @@ export function SessionDetails({ session, onBack }: SessionDetailsProps) {
                   <p className="text-sm text-muted-foreground mb-1">
                     Session Name
                   </p>
-                  <p className="font-medium">{session.id}</p>
+                  <p className="font-medium">{session.name || session.id}</p>
                 </div>
 
                 {/* Phone Number */}
@@ -212,8 +375,8 @@ export function SessionDetails({ session, onBack }: SessionDetailsProps) {
                     <Phone className="h-4 w-4 text-muted-foreground" />
                     <p className="font-medium">
                       {session.jid
-                        ? `+${session.jid.split("@")[0]}`
-                        : "+201091921210"}
+                        ? formatPhoneNumberReadable(session.jid)
+                        : "Not connected"}
                     </p>
                   </div>
                 </div>
@@ -252,16 +415,38 @@ export function SessionDetails({ session, onBack }: SessionDetailsProps) {
                       <Button
                         variant="outline"
                         className="w-full glass-card hover-glow-amber"
+                        onClick={() => disconnectSession.mutate(session.id)}
+                        disabled={disconnectSession.isPending}
                       >
-                        <WifiOff className="mr-2 h-4 w-4" />
-                        Disconnect
+                        {disconnectSession.isPending ? (
+                          <>
+                            <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                            Disconnecting...
+                          </>
+                        ) : (
+                          <>
+                            <WifiOff className="mr-2 h-4 w-4" />
+                            Disconnect
+                          </>
+                        )}
                       </Button>
                       <Button
                         variant="outline"
                         className="w-full glass-card hover-glow-teal"
+                        onClick={() => reconnectSession.mutate(session.id)}
+                        disabled={reconnectSession.isPending}
                       >
-                        <RefreshCw className="mr-2 h-4 w-4" />
-                        Restart
+                        {reconnectSession.isPending ? (
+                          <>
+                            <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                            Restarting...
+                          </>
+                        ) : (
+                          <>
+                            <RefreshCw className="mr-2 h-4 w-4" />
+                            Restart
+                          </>
+                        )}
                       </Button>
                     </>
                   )}
@@ -474,7 +659,7 @@ export function SessionDetails({ session, onBack }: SessionDetailsProps) {
                               WhatsApp JID
                             </p>
                             <p className="font-medium break-all">
-                              {session.jid}
+                              {formatJID(session.jid)}
                             </p>
                           </div>
                         </div>
@@ -531,6 +716,9 @@ export function SessionDetails({ session, onBack }: SessionDetailsProps) {
                           type="tel"
                           placeholder="e.g. +1234567890 (with country code)"
                           className="glass-card"
+                          value={testPhone}
+                          onChange={(e) => setTestPhone(e.target.value)}
+                          disabled={sendMessage.isPending}
                         />
                         <p className="text-xs text-muted-foreground mt-1">
                           Enter the full phone number with country code (e.g.,
@@ -547,26 +735,31 @@ export function SessionDetails({ session, onBack }: SessionDetailsProps) {
                           placeholder="Hello!"
                           rows={6}
                           className="w-full glass-card rounded-lg px-3 py-2 text-sm bg-background border border-border focus:outline-none focus:ring-2 focus:ring-teal resize-none"
-                          defaultValue="Hello!"
+                          value={testMessage}
+                          onChange={(e) => setTestMessage(e.target.value)}
+                          disabled={sendMessage.isPending}
                         />
                       </div>
 
                       {/* Send Button */}
-                      <Button className="glass-card hover-glow-teal">
-                        <svg
-                          className="mr-2 h-4 w-4"
-                          fill="none"
-                          stroke="currentColor"
-                          viewBox="0 0 24 24"
-                        >
-                          <path
-                            strokeLinecap="round"
-                            strokeLinejoin="round"
-                            strokeWidth={2}
-                            d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8"
-                          />
-                        </svg>
-                        Send Test Message
+                      <Button
+                        className="glass-card hover-glow-teal"
+                        onClick={handleSendTestMessage}
+                        disabled={
+                          sendMessage.isPending || !testPhone || !testMessage
+                        }
+                      >
+                        {sendMessage.isPending ? (
+                          <>
+                            <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                            Sending...
+                          </>
+                        ) : (
+                          <>
+                            <Send className="mr-2 h-4 w-4" />
+                            Send Test Message
+                          </>
+                        )}
                       </Button>
                     </div>
 
@@ -581,24 +774,20 @@ export function SessionDetails({ session, onBack }: SessionDetailsProps) {
                           variant="ghost"
                           size="icon"
                           className="absolute top-2 right-2 glass-card hover-glow-teal h-8 w-8"
-                          onClick={() => {
-                            const code = `curl -X POST "https://wasenderapi.com/api/send-message" \\
-  -H "Authorization: Bearer ${apiToken}" \\
-  -H "Content-Type: application/json" \\
-  -d '{"to": "+1234567890", "text": "Hello!"}'`;
-                            navigator.clipboard.writeText(code);
-                            toast.success("Command copied to clipboard");
-                          }}
+                          onClick={handleCopyCurlCommand}
                         >
                           <Copy className="h-4 w-4" />
                         </Button>
 
-                        <pre className="text-xs font-mono overflow-x-auto">
+                        <pre className="text-xs font-mono overflow-x-auto pr-10">
                           <code className="text-muted-foreground">
                             <span className="text-teal">curl</span>{" "}
                             <span className="text-amber">-X</span> POST{" "}
                             <span className="text-emerald">
-                              "https://wasenderapi.com/api/send-message"
+                              "
+                              {import.meta.env.VITE_API_BASE_URL ||
+                                "http://localhost:8080"}
+                              /api/messages"
                             </span>{" "}
                             \{"\n"}
                             {"  "}
@@ -617,8 +806,9 @@ export function SessionDetails({ session, onBack }: SessionDetailsProps) {
                             <span className="text-amber">-d</span>{" "}
                             <span className="text-emerald">
                               '{"{"}
-                              "to": "+1234567890", "text": "Hello!"
-                              {"}"}'
+                              "session_id": "{session.id}", "to": "
+                              {testPhone || "+1234567890"}", "text": "
+                              {testMessage}"{"}"}'
                             </span>
                           </code>
                         </pre>
@@ -799,7 +989,10 @@ export function SessionDetails({ session, onBack }: SessionDetailsProps) {
                     {/* Message Activity Table Header */}
                     <div className="flex items-center justify-between mb-4">
                       <div className="text-sm text-muted-foreground">
-                        <span className="font-medium">0</span> total messages
+                        <span className="font-medium">
+                          {messageEvents.length}
+                        </span>{" "}
+                        total messages
                       </div>
                       <div className="flex items-center gap-2">
                         <select className="glass-card px-3 py-1.5 rounded-lg text-sm bg-background border border-border">
@@ -817,28 +1010,73 @@ export function SessionDetails({ session, onBack }: SessionDetailsProps) {
                       </div>
                     </div>
 
-                    {/* Empty State */}
-                    <div className="glass-card rounded-lg p-12 text-center">
-                      <svg
-                        className="h-16 w-16 text-muted-foreground mx-auto mb-4"
-                        fill="none"
-                        stroke="currentColor"
-                        viewBox="0 0 24 24"
-                      >
-                        <path
-                          strokeLinecap="round"
-                          strokeLinejoin="round"
-                          strokeWidth={1.5}
-                          d="M8 10h.01M12 10h.01M16 10h.01M9 16H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-5l-5 5v-5z"
-                        />
-                      </svg>
-                      <h4 className="text-lg font-semibold mb-2">
-                        No messages yet
-                      </h4>
-                      <p className="text-sm text-muted-foreground">
-                        Send messages through the API to see them appear here.
-                      </p>
-                    </div>
+                    {/* Messages List or Empty State */}
+                    {eventsLoading ? (
+                      <div className="glass-card rounded-lg p-12 text-center">
+                        <Loader2 className="h-16 w-16 text-muted-foreground mx-auto mb-4 animate-spin" />
+                        <h4 className="text-lg font-semibold mb-2">
+                          Loading messages...
+                        </h4>
+                      </div>
+                    ) : messageEvents.length === 0 ? (
+                      <div className="glass-card rounded-lg p-12 text-center">
+                        <svg
+                          className="h-16 w-16 text-muted-foreground mx-auto mb-4"
+                          fill="none"
+                          stroke="currentColor"
+                          viewBox="0 0 24 24"
+                        >
+                          <path
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                            strokeWidth={1.5}
+                            d="M8 10h.01M12 10h.01M16 10h.01M9 16H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-5l-5 5v-5z"
+                          />
+                        </svg>
+                        <h4 className="text-lg font-semibold mb-2">
+                          No messages yet
+                        </h4>
+                        <p className="text-sm text-muted-foreground">
+                          Send messages through the API to see them appear here.
+                        </p>
+                      </div>
+                    ) : (
+                      <div className="space-y-3">
+                        {messageEvents.slice(0, 10).map((event) => {
+                          const eventData = parseEventData(event.data);
+                          return (
+                            <div
+                              key={event.id}
+                              className="glass-card p-4 rounded-lg hover-lift transition-all"
+                            >
+                              <div className="flex items-start gap-4">
+                                <div className="shrink-0 w-10 h-10 rounded-full bg-teal/10 flex items-center justify-center">
+                                  <Send className="h-5 w-5 text-teal" />
+                                </div>
+                                <div className="flex-1 min-w-0">
+                                  <div className="flex items-start justify-between gap-4 mb-1">
+                                    <h4 className="font-medium">
+                                      Message Sent
+                                    </h4>
+                                    <span className="shrink-0 text-xs px-2 py-1 rounded-full bg-emerald/10 text-emerald font-medium">
+                                      {eventData.status || "sent"}
+                                    </span>
+                                  </div>
+                                  <p className="text-sm text-muted-foreground mb-2 truncate">
+                                    {eventData.text ||
+                                      eventData.content?.text ||
+                                      "Message content"}
+                                  </p>
+                                  <p className="text-xs text-muted-foreground">
+                                    {new Date(event.timestamp).toLocaleString()}
+                                  </p>
+                                </div>
+                              </div>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    )}
                   </div>
                 </TabsContent>
 
@@ -874,83 +1112,94 @@ export function SessionDetails({ session, onBack }: SessionDetailsProps) {
                     </div>
 
                     <div className="text-sm text-muted-foreground mb-4">
-                      <span className="font-medium">3</span> total logs
+                      <span className="font-medium">{statusEvents.length}</span>{" "}
+                      total logs
                     </div>
 
                     {/* Log Entries */}
-                    <div className="space-y-3">
-                      {/* Connected Status */}
-                      <div className="glass-card p-4 rounded-lg hover-lift transition-all">
-                        <div className="flex items-start gap-4">
-                          <div className="shrink-0 w-10 h-10 rounded-full bg-emerald/10 flex items-center justify-center">
-                            <CheckCircle2 className="h-5 w-5 text-emerald" />
-                          </div>
-                          <div className="flex-1 min-w-0">
-                            <div className="flex items-start justify-between gap-4 mb-1">
-                              <h4 className="font-medium">Status Change</h4>
-                              <span className="shrink-0 text-xs px-2 py-1 rounded-full bg-emerald/10 text-emerald font-medium">
-                                Connected
-                              </span>
-                            </div>
-                            <p className="text-sm text-muted-foreground mb-2">
-                              The WhatsApp session is connected and ready to
-                              use.
-                            </p>
-                            <p className="text-xs text-muted-foreground">
-                              2/3/2026, 5:33:14 PM
-                            </p>
-                          </div>
-                        </div>
+                    {eventsLoading ? (
+                      <div className="glass-card rounded-lg p-12 text-center">
+                        <Loader2 className="h-16 w-16 text-muted-foreground mx-auto mb-4 animate-spin" />
+                        <h4 className="text-lg font-semibold mb-2">
+                          Loading logs...
+                        </h4>
                       </div>
+                    ) : statusEvents.length === 0 ? (
+                      <div className="glass-card rounded-lg p-12 text-center">
+                        <svg
+                          className="h-16 w-16 text-muted-foreground mx-auto mb-4"
+                          fill="none"
+                          stroke="currentColor"
+                          viewBox="0 0 24 24"
+                        >
+                          <path
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                            strokeWidth={1.5}
+                            d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
+                          />
+                        </svg>
+                        <h4 className="text-lg font-semibold mb-2">
+                          No logs yet
+                        </h4>
+                        <p className="text-sm text-muted-foreground">
+                          Session activity will appear here.
+                        </p>
+                      </div>
+                    ) : (
+                      <div className="space-y-3">
+                        {statusEvents.map((event) => {
+                          const eventData = parseEventData(event.data);
+                          const statusInfo =
+                            statusConfig[
+                              eventData.status as keyof typeof statusConfig
+                            ] || statusConfig.pending;
+                          const StatusIconComponent = statusInfo.icon;
 
-                      {/* Connecting Status */}
-                      <div className="glass-card p-4 rounded-lg hover-lift transition-all">
-                        <div className="flex items-start gap-4">
-                          <div className="shrink-0 w-10 h-10 rounded-full bg-purple-500/10 flex items-center justify-center">
-                            <Circle className="h-5 w-5 text-purple-400" />
-                          </div>
-                          <div className="flex-1 min-w-0">
-                            <div className="flex items-start justify-between gap-4 mb-1">
-                              <h4 className="font-medium">Status Change</h4>
-                              <span className="shrink-0 text-xs px-2 py-1 rounded-full bg-purple-500/10 text-purple-400 font-medium">
-                                Connecting
-                              </span>
+                          return (
+                            <div
+                              key={event.id}
+                              className="glass-card p-4 rounded-lg hover-lift transition-all"
+                            >
+                              <div className="flex items-start gap-4">
+                                <div
+                                  className={cn(
+                                    "shrink-0 w-10 h-10 rounded-full flex items-center justify-center",
+                                    statusInfo.bgColor,
+                                  )}
+                                >
+                                  <StatusIconComponent
+                                    className={cn("h-5 w-5", statusInfo.color)}
+                                  />
+                                </div>
+                                <div className="flex-1 min-w-0">
+                                  <div className="flex items-start justify-between gap-4 mb-1">
+                                    <h4 className="font-medium">
+                                      Status Change
+                                    </h4>
+                                    <span
+                                      className={cn(
+                                        "shrink-0 text-xs px-2 py-1 rounded-full font-medium",
+                                        statusInfo.bgColor,
+                                        statusInfo.color,
+                                      )}
+                                    >
+                                      {statusInfo.label}
+                                    </span>
+                                  </div>
+                                  <p className="text-sm text-muted-foreground mb-2">
+                                    {statusInfo.description}
+                                  </p>
+                                  <p className="text-xs text-muted-foreground">
+                                    {new Date(event.timestamp).toLocaleString()}
+                                  </p>
+                                </div>
+                              </div>
                             </div>
-                            <p className="text-sm text-muted-foreground mb-2">
-                              The WhatsApp session is in the process of
-                              connecting.
-                            </p>
-                            <p className="text-xs text-muted-foreground">
-                              2/3/2026, 5:33:10 PM
-                            </p>
-                          </div>
-                        </div>
+                          );
+                        })}
                       </div>
-
-                      {/* Needs QR Scan Status */}
-                      <div className="glass-card p-4 rounded-lg hover-lift transition-all">
-                        <div className="flex items-start gap-4">
-                          <div className="shrink-0 w-10 h-10 rounded-full bg-blue-500/10 flex items-center justify-center">
-                            <QrCode className="h-5 w-5 text-blue-400" />
-                          </div>
-                          <div className="flex-1 min-w-0">
-                            <div className="flex items-start justify-between gap-4 mb-1">
-                              <h4 className="font-medium">Status Change</h4>
-                              <span className="shrink-0 text-xs px-2 py-1 rounded-full bg-blue-500/10 text-blue-400 font-medium">
-                                Needs QR Scan
-                              </span>
-                            </div>
-                            <p className="text-sm text-muted-foreground mb-2">
-                              The WhatsApp session needs QR code scanning to
-                              connect.
-                            </p>
-                            <p className="text-xs text-muted-foreground">
-                              2/3/2026, 5:32:21 PM
-                            </p>
-                          </div>
-                        </div>
-                      </div>
-                    </div>
+                    )}
                   </div>
                 </TabsContent>
               </Tabs>

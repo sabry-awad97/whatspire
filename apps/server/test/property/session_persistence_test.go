@@ -114,7 +114,7 @@ func TestSessionPersistenceRoundTrip_Property2(t *testing.T) {
 		func(id, name1, name2, jid1, jid2 string) bool {
 			// Create initial session
 			session := entity.NewSession(id, name1)
-			session.JID = jid1
+			session.SetJID(jid1)
 
 			// Clean up any existing session
 			_ = repo.Delete(ctx, id)
@@ -127,7 +127,7 @@ func TestSessionPersistenceRoundTrip_Property2(t *testing.T) {
 
 			// Update session
 			session.Name = name2
-			session.JID = jid2
+			session.SetJID(jid2)
 			session.SetStatus(entity.StatusConnected)
 
 			err = repo.Update(ctx, session)
@@ -253,7 +253,7 @@ func TestSessionPersistenceRoundTrip_Property2(t *testing.T) {
 
 			// Create session with initial status
 			session := entity.NewSession(id, name)
-			session.JID = jid
+			session.SetJID(jid)
 			session.Status = entity.StatusPending
 
 			err := repo.Create(ctx, session)

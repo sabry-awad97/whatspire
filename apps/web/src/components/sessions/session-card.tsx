@@ -20,6 +20,7 @@ import {
 } from "@whatspire/hooks";
 
 import { cn } from "@/lib/utils";
+import { formatPhoneNumber } from "@/lib/jid";
 
 import {
   AlertDialog,
@@ -194,7 +195,7 @@ export function SessionCard({ session, onSelect }: SessionCardProps) {
 
             {session.jid && (
               <p className="text-sm text-muted-foreground truncate">
-                {session.jid}
+                {formatPhoneNumber(session.jid)}
               </p>
             )}
 
