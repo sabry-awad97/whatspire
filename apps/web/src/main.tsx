@@ -1,6 +1,7 @@
 import { RouterProvider, createRouter } from "@tanstack/react-router";
 import ReactDOM from "react-dom/client";
 
+import { ErrorFallback } from "./components/error-fallback";
 import Loader from "./components/loader";
 import { routeTree } from "./routeTree.gen";
 
@@ -8,6 +9,9 @@ const router = createRouter({
   routeTree,
   defaultPreload: "intent",
   defaultPendingComponent: () => <Loader />,
+  defaultErrorComponent: ({ error }) => (
+    <ErrorFallback error={error} onReset={() => window.location.reload()} />
+  ),
   context: {},
 });
 
