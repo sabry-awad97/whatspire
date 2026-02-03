@@ -94,7 +94,6 @@ var Module = fx.Module("infrastructure",
 	// Wire EventHub to WhatsApp client events
 	fx.Invoke(WireEventHubToWhatsAppClient),
 	fx.Invoke(WireMessageHandler),
-	fx.Invoke(WireReactionHandler),
 	fx.Invoke(RunMigrations),
 	fx.Invoke(StartEventCleanupJob),
 	fx.Invoke(StartAutoReconnect),
@@ -513,16 +512,6 @@ func WireMessageHandler(
 	waClient.SetPresenceRepository(presenceRepo)
 
 	log.Println("✅ Message handler and reaction handler wired to WhatsApp client")
-}
-
-// WireReactionHandler is deprecated - reaction handler is now wired in WireMessageHandler
-func WireReactionHandler(
-	waClient *whatsapp.WhatsmeowClient,
-	reactionRepo repository.ReactionRepository,
-	publisher repository.EventPublisher,
-) {
-	// This function is kept for backward compatibility but does nothing
-	// The reaction handler is now wired in WireMessageHandler
 }
 
 // RunMigrations runs GORM auto-migration on startup with version tracking
