@@ -352,6 +352,7 @@ func WireEventHubToWhatsAppClient(
 	hub *websocket.EventHub,
 	publisher repository.EventPublisher, // This is now the CompositeEventPublisher
 	eventRepo repository.EventRepository,
+	sessionRepo repository.SessionRepository,
 	cfg *config.Config,
 ) {
 	// Register an event handler that broadcasts events to the EventHub (for frontend WebSocket clients)
@@ -384,6 +385,34 @@ func WireEventHubToWhatsAppClient(
 		})
 		log.Println("✅ Event persistence enabled")
 	}
+
+	// Register an event handler that updates session status based on connection events
+	waClient.RegisterEventHandler(func(event *entity.Event) {
+		go func() {
+			ctx := context.Background()
+			var status entity.Status
+
+			switch event.Type {
+			case entity.EventTypeConnected:
+				status = entity.StatusConnected
+				log.Printf("📱 Session %s connected - updating status to 'connected'", event.SessionID)
+			case entity.EventTypeDisconnected:
+				status = entity.StatusDisconnected
+				log.Printf("📱 Session %s disconnected - updating status to 'disconnected'", event.SessionID)
+			case entity.EventTypeLoggedOut:
+				status = entity.StatusLoggedOut
+				log.Printf("📱 Session %s logged out - updating status to 'logged_out'", event.SessionID)
+			default:
+				return // Ignore other event types
+			}
+
+			// Update session status in database
+			if err := sessionRepo.UpdateStatus(ctx, event.SessionID, status); err != nil {
+				log.Printf("⚠️  Failed to update session status for %s: %v", event.SessionID, err)
+			}
+		}()
+	})
+	log.Println("✅ Session status auto-update handler registered")
 }
 
 // NewEventHub creates a new WebSocket event hub for broadcasting events to connected clients

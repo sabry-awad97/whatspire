@@ -807,8 +807,10 @@ export function SessionDetails({ session, onBack }: SessionDetailsProps) {
                             <span className="text-emerald">
                               '{"{"}
                               "session_id": "{session.id}", "to": "
-                              {testPhone || "+1234567890"}", "text": "
-                              {testMessage}"{"}"}'
+                              {testPhone || "+1234567890"}", "type": "text",
+                              "content": {"{"}
+                              "text": "{testMessage}"{"}"}
+                              {"}"}'
                             </span>
                           </code>
                         </pre>
