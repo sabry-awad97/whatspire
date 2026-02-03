@@ -44,6 +44,39 @@ export interface SessionState {
 }
 
 // ============================================================================
+// Mock Data
+// ============================================================================
+
+const MOCK_SESSIONS: Session[] = [
+  {
+    id: "business-account",
+    status: "connected",
+    jid: "1234567890@s.whatsapp.net",
+    created_at: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString(), // 7 days ago
+    updated_at: new Date().toISOString(),
+  },
+  {
+    id: "personal-account",
+    status: "connected",
+    jid: "9876543210@s.whatsapp.net",
+    created_at: new Date(Date.now() - 3 * 24 * 60 * 60 * 1000).toISOString(), // 3 days ago
+    updated_at: new Date().toISOString(),
+  },
+  {
+    id: "support-team",
+    status: "disconnected",
+    created_at: new Date(Date.now() - 1 * 24 * 60 * 60 * 1000).toISOString(), // 1 day ago
+    updated_at: new Date(Date.now() - 2 * 60 * 60 * 1000).toISOString(), // 2 hours ago
+  },
+  {
+    id: "test-session",
+    status: "pending",
+    created_at: new Date(Date.now() - 30 * 60 * 1000).toISOString(), // 30 minutes ago
+    updated_at: new Date(Date.now() - 30 * 60 * 1000).toISOString(),
+  },
+];
+
+// ============================================================================
 // Store
 // ============================================================================
 
@@ -51,9 +84,9 @@ export const useSessionStore = create<SessionState>()(
   devtools(
     persist(
       (set, get) => ({
-        // Initial state
-        sessions: [],
-        activeSessions: new Set(),
+        // Initial state with mock sessions
+        sessions: MOCK_SESSIONS,
+        activeSessions: new Set(["business-account", "personal-account"]),
         qrCodes: new Map(),
         wsConnected: false,
 

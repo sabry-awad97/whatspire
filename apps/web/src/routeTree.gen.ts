@@ -11,6 +11,10 @@
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as SessionsIndexRouteImport } from './routes/sessions/index'
+import { Route as SessionsNewRouteImport } from './routes/sessions/new'
+import { Route as SessionsSessionIdRouteImport } from './routes/sessions/$sessionId'
+import { Route as SessionsSessionIdWebhooksRouteImport } from './routes/sessions/$sessionId/webhooks'
+import { Route as SessionsSessionIdEditRouteImport } from './routes/sessions/$sessionId/edit'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
@@ -22,30 +26,84 @@ const SessionsIndexRoute = SessionsIndexRouteImport.update({
   path: '/sessions/',
   getParentRoute: () => rootRouteImport,
 } as any)
+const SessionsNewRoute = SessionsNewRouteImport.update({
+  id: '/sessions/new',
+  path: '/sessions/new',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const SessionsSessionIdRoute = SessionsSessionIdRouteImport.update({
+  id: '/sessions/$sessionId',
+  path: '/sessions/$sessionId',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const SessionsSessionIdWebhooksRoute =
+  SessionsSessionIdWebhooksRouteImport.update({
+    id: '/webhooks',
+    path: '/webhooks',
+    getParentRoute: () => SessionsSessionIdRoute,
+  } as any)
+const SessionsSessionIdEditRoute = SessionsSessionIdEditRouteImport.update({
+  id: '/edit',
+  path: '/edit',
+  getParentRoute: () => SessionsSessionIdRoute,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
+  '/sessions/$sessionId': typeof SessionsSessionIdRouteWithChildren
+  '/sessions/new': typeof SessionsNewRoute
   '/sessions/': typeof SessionsIndexRoute
+  '/sessions/$sessionId/edit': typeof SessionsSessionIdEditRoute
+  '/sessions/$sessionId/webhooks': typeof SessionsSessionIdWebhooksRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
+  '/sessions/$sessionId': typeof SessionsSessionIdRouteWithChildren
+  '/sessions/new': typeof SessionsNewRoute
   '/sessions': typeof SessionsIndexRoute
+  '/sessions/$sessionId/edit': typeof SessionsSessionIdEditRoute
+  '/sessions/$sessionId/webhooks': typeof SessionsSessionIdWebhooksRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
+  '/sessions/$sessionId': typeof SessionsSessionIdRouteWithChildren
+  '/sessions/new': typeof SessionsNewRoute
   '/sessions/': typeof SessionsIndexRoute
+  '/sessions/$sessionId/edit': typeof SessionsSessionIdEditRoute
+  '/sessions/$sessionId/webhooks': typeof SessionsSessionIdWebhooksRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/' | '/sessions/'
+  fullPaths:
+    | '/'
+    | '/sessions/$sessionId'
+    | '/sessions/new'
+    | '/sessions/'
+    | '/sessions/$sessionId/edit'
+    | '/sessions/$sessionId/webhooks'
   fileRoutesByTo: FileRoutesByTo
-  to: '/' | '/sessions'
-  id: '__root__' | '/' | '/sessions/'
+  to:
+    | '/'
+    | '/sessions/$sessionId'
+    | '/sessions/new'
+    | '/sessions'
+    | '/sessions/$sessionId/edit'
+    | '/sessions/$sessionId/webhooks'
+  id:
+    | '__root__'
+    | '/'
+    | '/sessions/$sessionId'
+    | '/sessions/new'
+    | '/sessions/'
+    | '/sessions/$sessionId/edit'
+    | '/sessions/$sessionId/webhooks'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
+  SessionsSessionIdRoute: typeof SessionsSessionIdRouteWithChildren
+  SessionsNewRoute: typeof SessionsNewRoute
   SessionsIndexRoute: typeof SessionsIndexRoute
 }
 
@@ -65,11 +123,54 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof SessionsIndexRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/sessions/new': {
+      id: '/sessions/new'
+      path: '/sessions/new'
+      fullPath: '/sessions/new'
+      preLoaderRoute: typeof SessionsNewRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/sessions/$sessionId': {
+      id: '/sessions/$sessionId'
+      path: '/sessions/$sessionId'
+      fullPath: '/sessions/$sessionId'
+      preLoaderRoute: typeof SessionsSessionIdRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/sessions/$sessionId/webhooks': {
+      id: '/sessions/$sessionId/webhooks'
+      path: '/webhooks'
+      fullPath: '/sessions/$sessionId/webhooks'
+      preLoaderRoute: typeof SessionsSessionIdWebhooksRouteImport
+      parentRoute: typeof SessionsSessionIdRoute
+    }
+    '/sessions/$sessionId/edit': {
+      id: '/sessions/$sessionId/edit'
+      path: '/edit'
+      fullPath: '/sessions/$sessionId/edit'
+      preLoaderRoute: typeof SessionsSessionIdEditRouteImport
+      parentRoute: typeof SessionsSessionIdRoute
+    }
   }
 }
 
+interface SessionsSessionIdRouteChildren {
+  SessionsSessionIdEditRoute: typeof SessionsSessionIdEditRoute
+  SessionsSessionIdWebhooksRoute: typeof SessionsSessionIdWebhooksRoute
+}
+
+const SessionsSessionIdRouteChildren: SessionsSessionIdRouteChildren = {
+  SessionsSessionIdEditRoute: SessionsSessionIdEditRoute,
+  SessionsSessionIdWebhooksRoute: SessionsSessionIdWebhooksRoute,
+}
+
+const SessionsSessionIdRouteWithChildren =
+  SessionsSessionIdRoute._addFileChildren(SessionsSessionIdRouteChildren)
+
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
+  SessionsSessionIdRoute: SessionsSessionIdRouteWithChildren,
+  SessionsNewRoute: SessionsNewRoute,
   SessionsIndexRoute: SessionsIndexRoute,
 }
 export const routeTree = rootRouteImport

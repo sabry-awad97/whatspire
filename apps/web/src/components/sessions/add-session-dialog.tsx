@@ -5,7 +5,7 @@ import { useForm } from "react-hook-form";
 import { toast } from "sonner";
 import { z } from "zod";
 
-import { apiClient } from "@/lib/api-client";
+import type { Session } from "@/lib/api-client";
 import { useSessionStore } from "@/stores/session-store";
 
 import { Button } from "../ui/button";
@@ -140,12 +140,17 @@ export function AddSessionDialog() {
 
     setIsLoading(true);
     try {
-      const session = await apiClient.registerSession({
-        session_id: generatedSessionId,
-        name: data.sessionName.trim(),
-      });
+      // Mock session creation - just add to store
+      await new Promise((resolve) => setTimeout(resolve, 1000));
 
-      addSession(session);
+      const newSession: Session = {
+        id: generatedSessionId,
+        status: "pending",
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
+      };
+
+      addSession(newSession);
       toast.success("Session created successfully");
 
       // Store session ID and move to QR step

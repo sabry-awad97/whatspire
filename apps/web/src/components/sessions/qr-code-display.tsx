@@ -1,11 +1,10 @@
-import { CheckCircle2, Loader2, QrCode, XCircle } from "lucide-react";
+import { CheckCircle2, Loader2, QrCode, RefreshCw } from "lucide-react";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
 
-import { createQRWebSocket, type QRWebSocketEvent } from "@/lib/websocket";
 import { useSessionStore } from "@/stores/session-store";
 
-import { Card } from "../ui/card";
+import { Button } from "../ui/button";
 
 // ============================================================================
 // Types
@@ -13,16 +12,11 @@ import { Card } from "../ui/card";
 
 interface QRCodeDisplayProps {
   sessionId: string;
-  onAuthenticated?: (jid: string) => void;
+  onAuthenticated?: (jid?: string) => void;
   onError?: (message: string) => void;
 }
 
-type QRStatus =
-  | "connecting"
-  | "waiting"
-  | "authenticated"
-  | "error"
-  | "timeout";
+type QRStatus = "loading" | "ready" | "authenticated" | "expired";
 
 // ============================================================================
 // Component
@@ -33,161 +27,157 @@ export function QRCodeDisplay({
   onAuthenticated,
   onError,
 }: QRCodeDisplayProps) {
-  const [status, setStatus] = useState<QRStatus>("connecting");
-  const [errorMessage, setErrorMessage] = useState<string>("");
-  const { qrCodes, setQRCode, clearQRCode, updateSession } = useSessionStore();
+  const [status, setStatus] = useState<QRStatus>("loading");
+  const [countdown, setCountdown] = useState(60);
+  const { updateSession } = useSessionStore();
 
-  const qrData = qrCodes.get(sessionId);
+  // Mock QR code - in real implementation this would come from WebSocket
+  const mockQRCode =
+    "data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAyOTAgMjkwIj48cmVjdCB3aWR0aD0iMjkwIiBoZWlnaHQ9IjI5MCIgZmlsbD0iI2ZmZmZmZiIvPjxwYXRoIGQ9Ik0xMCAxMGgzMHYzMEgxMHpNNTAgMTBoMzB2MzBINTB6TTkwIDEwaDMwdjMwSDkwek0xMzAgMTBoMzB2MzBIMTMwek0xNzAgMTBoMzB2MzBIMTcwek0yMTAgMTBoMzB2MzBIMjEwek0yNTAgMTBoMzB2MzBIMjUwek0xMCA1MGgzMHYzMEgxMHpNMjUwIDUwaDMwdjMwSDI1MHpNMTAgOTBoMzB2MzBIMTB6TTkwIDkwaDMwdjMwSDkwek0xNzAgOTBoMzB2MzBIMTcwek0yNTAgOTBoMzB2MzBIMjUwek0xMCAxMzBoMzB2MzBIMTB6TTkwIDEzMGgzMHYzMEg5MHpNMTcwIDEzMGgzMHYzMEgxNzB6TTI1MCAxMzBoMzB2MzBIMjUwek0xMCAxNzBoMzB2MzBIMTB6TTkwIDE3MGgzMHYzMEg5MHpNMTcwIDE3MGgzMHYzMEgxNzB6TTI1MCAxNzBoMzB2MzBIMjUwek0xMCAyMTBoMzB2MzBIMTB6TTUwIDIxMGgzMHYzMEg1MHpNOTAgMjEwaDMwdjMwSDkwek0xMzAgMjEwaDMwdjMwSDEzMHpNMTcwIDIxMGgzMHYzMEgxNzB6TTIxMCAyMTBoMzB2MzBIMjEwek0yNTAgMjEwaDMwdjMwSDI1MHpNMTAgMjUwaDMwdjMwSDEwek0yNTAgMjUwaDMwdjMwSDI1MHoiIGZpbGw9IiMwMDAwMDAiLz48L3N2Zz4=";
 
   useEffect(() => {
-    const ws = createQRWebSocket(sessionId);
+    // Simulate loading
+    const loadTimer = setTimeout(() => {
+      setStatus("ready");
+    }, 1000);
 
-    // Handle WebSocket events
-    const unsubscribe = ws.subscribe((event: QRWebSocketEvent) => {
-      switch (event.type) {
-        case "qr":
-          setStatus("waiting");
-          setQRCode(sessionId, event.data);
-          break;
+    return () => clearTimeout(loadTimer);
+  }, []);
 
-        case "authenticated":
-          setStatus("authenticated");
-          clearQRCode(sessionId);
-          updateSession(sessionId, {
-            status: "connected",
-            jid: event.data,
-          });
-          toast.success("Session authenticated successfully!");
-          onAuthenticated?.(event.data);
-          break;
+  useEffect(() => {
+    if (status !== "ready") return;
 
-        case "error":
-          setStatus("error");
-          setErrorMessage(event.message);
-          toast.error(event.message);
-          onError?.(event.message);
-          break;
-
-        case "timeout":
-          setStatus("timeout");
-          setErrorMessage("QR code expired. Please try again.");
+    // Countdown timer
+    const timer = setInterval(() => {
+      setCountdown((prev) => {
+        if (prev <= 1) {
+          setStatus("expired");
           toast.error("QR code expired");
-          onError?.("QR code expired");
-          break;
-      }
+          return 0;
+        }
+        return prev - 1;
+      });
+    }, 1000);
+
+    return () => clearInterval(timer);
+  }, [status]);
+
+  const handleRefresh = () => {
+    setStatus("loading");
+    setCountdown(60);
+    setTimeout(() => {
+      setStatus("ready");
+    }, 1000);
+  };
+
+  const handleSimulateConnect = () => {
+    setStatus("authenticated");
+    const mockJid = `${Math.floor(Math.random() * 9000000000) + 1000000000}@s.whatsapp.net`;
+
+    // Update session in store
+    updateSession(sessionId, {
+      status: "connected",
+      jid: mockJid,
+      updated_at: new Date().toISOString(),
     });
 
-    // Handle connection events
-    const unsubscribeOpen = ws.onOpen(() => {
-      console.log("QR WebSocket connected");
-    });
-
-    const unsubscribeClose = ws.onClose(() => {
-      console.log("QR WebSocket closed");
-    });
-
-    const unsubscribeError = ws.onError((error) => {
-      console.error("QR WebSocket error:", error);
-      setStatus("error");
-      setErrorMessage("Connection error. Please try again.");
-    });
-
-    // Connect
-    ws.connect();
-
-    // Cleanup
-    return () => {
-      unsubscribe();
-      unsubscribeOpen();
-      unsubscribeClose();
-      unsubscribeError();
-      ws.disconnect();
-      clearQRCode(sessionId);
-    };
-  }, [
-    sessionId,
-    setQRCode,
-    clearQRCode,
-    updateSession,
-    onAuthenticated,
-    onError,
-  ]);
+    toast.success("Session authenticated successfully!");
+    onAuthenticated?.(mockJid);
+  };
 
   const renderContent = () => {
     switch (status) {
-      case "connecting":
+      case "loading":
         return (
-          <div className="flex flex-col items-center justify-center p-8 space-y-4">
-            <Loader2 className="h-12 w-12 animate-spin text-primary" />
+          <div className="flex flex-col items-center justify-center p-12 space-y-4">
+            <Loader2 className="h-12 w-12 animate-spin text-teal" />
             <p className="text-sm text-muted-foreground">
-              Connecting to server...
+              Generating QR code...
             </p>
           </div>
         );
 
-      case "waiting":
+      case "ready":
         return (
-          <div className="flex flex-col items-center justify-center p-8 space-y-4">
-            {qrData ? (
-              <>
-                <img
-                  src={`data:image/png;base64,${qrData.qrCode}`}
-                  alt="QR Code"
-                  className="w-64 h-64 border-4 border-primary rounded-lg"
-                />
-                <div className="text-center space-y-2">
-                  <p className="text-sm font-medium">Scan with WhatsApp</p>
-                  <p className="text-xs text-muted-foreground">
-                    Open WhatsApp on your phone → Settings → Linked Devices →
-                    Link a Device
-                  </p>
-                </div>
-              </>
-            ) : (
-              <>
-                <QrCode className="h-12 w-12 text-muted-foreground" />
-                <p className="text-sm text-muted-foreground">
-                  Waiting for QR code...
-                </p>
-              </>
-            )}
+          <div className="flex flex-col items-center justify-center space-y-6">
+            <div className="relative">
+              <img
+                src={mockQRCode}
+                alt="QR Code"
+                className="w-80 h-80 border-4 border-teal rounded-2xl glass-card p-4 glow-teal"
+              />
+            </div>
+            <div className="text-center space-y-2">
+              <p className="text-sm font-medium">
+                Expires in {countdown} seconds
+              </p>
+              <p className="text-xs text-muted-foreground max-w-md">
+                Open WhatsApp on your phone → Settings → Linked Devices → Link a
+                Device
+              </p>
+            </div>
+            <Button
+              onClick={handleRefresh}
+              variant="outline"
+              className="glass-card hover-glow-teal"
+            >
+              <RefreshCw className="mr-2 h-4 w-4" />
+              Refresh QR Code
+            </Button>
+
+            {/* Mock connect button for testing */}
+            <Button
+              onClick={handleSimulateConnect}
+              className="glass-card hover-glow-emerald"
+            >
+              <CheckCircle2 className="mr-2 h-4 w-4" />
+              Simulate Connection (Dev Only)
+            </Button>
           </div>
         );
 
       case "authenticated":
         return (
-          <div className="flex flex-col items-center justify-center p-8 space-y-4">
-            <CheckCircle2 className="h-12 w-12 text-green-500" />
-            <p className="text-sm font-medium text-green-500">
+          <div className="flex flex-col items-center justify-center p-12 space-y-4">
+            <CheckCircle2 className="h-16 w-16 text-emerald glow-emerald" />
+            <p className="text-lg font-semibold text-emerald">
               Successfully authenticated!
+            </p>
+            <p className="text-sm text-muted-foreground">
+              Your WhatsApp session is now connected
             </p>
           </div>
         );
 
-      case "error":
-      case "timeout":
+      case "expired":
         return (
-          <div className="flex flex-col items-center justify-center p-8 space-y-4">
-            <XCircle className="h-12 w-12 text-destructive" />
+          <div className="flex flex-col items-center justify-center p-12 space-y-4">
+            <QrCode className="h-16 w-16 text-muted-foreground" />
             <div className="text-center space-y-2">
-              <p className="text-sm font-medium text-destructive">
-                {status === "timeout" ? "QR Code Expired" : "Error"}
+              <p className="text-lg font-semibold text-muted-foreground">
+                QR Code Expired
               </p>
-              <p className="text-xs text-muted-foreground">{errorMessage}</p>
+              <p className="text-sm text-muted-foreground">
+                Click refresh to generate a new QR code
+              </p>
             </div>
+            <Button
+              onClick={handleRefresh}
+              className="glass-card hover-glow-teal"
+            >
+              <RefreshCw className="mr-2 h-4 w-4" />
+              Refresh QR Code
+            </Button>
           </div>
         );
     }
   };
 
   return (
-    <Card className="w-full max-w-md mx-auto">
-      <div className="p-6">
-        <h3 className="text-lg font-semibold mb-4 text-center">
-          WhatsApp Authentication
-        </h3>
+    <div className="w-full">
+      <div className="glass-card-enhanced p-8 rounded-2xl">
         {renderContent()}
       </div>
-    </Card>
+    </div>
   );
 }

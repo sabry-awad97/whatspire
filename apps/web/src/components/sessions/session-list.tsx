@@ -1,6 +1,3 @@
-import { useQuery } from "@tanstack/react-query";
-import { AlertCircle, Loader2 } from "lucide-react";
-
 import type { Session } from "@/lib/api-client";
 import { useSessionStore } from "@/stores/session-store";
 
@@ -20,36 +17,6 @@ interface SessionListProps {
 
 export function SessionList({ onSelectSession }: SessionListProps) {
   const { sessions } = useSessionStore();
-
-  // Note: In a real implementation, you would fetch sessions from the API
-  // For now, we're using the local store
-  const { isLoading, error } = useQuery({
-    queryKey: ["sessions"],
-    queryFn: async () => {
-      // Placeholder for API call
-      // const response = await apiClient.getSessions();
-      // return response.sessions;
-      return sessions;
-    },
-    enabled: false, // Disable for now since we don't have a getSessions endpoint
-  });
-
-  if (isLoading) {
-    return (
-      <div className="flex items-center justify-center py-12">
-        <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
-      </div>
-    );
-  }
-
-  if (error) {
-    return (
-      <div className="flex flex-col items-center justify-center py-12 space-y-2">
-        <AlertCircle className="h-8 w-8 text-destructive" />
-        <p className="text-sm text-muted-foreground">Failed to load sessions</p>
-      </div>
-    );
-  }
 
   if (sessions.length === 0) {
     return (

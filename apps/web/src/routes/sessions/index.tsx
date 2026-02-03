@@ -1,17 +1,15 @@
-import { createFileRoute } from "@tanstack/react-router";
-import { useState } from "react";
+import { createFileRoute, useNavigate } from "@tanstack/react-router";
+import { Plus } from "lucide-react";
 
-import { AddSessionDialog } from "@/components/sessions/add-session-dialog";
-import { SessionDetails } from "@/components/sessions/session-details";
+import { Button } from "@/components/ui/button";
 import { SessionList } from "@/components/sessions/session-list";
-import type { Session } from "@/lib/api-client";
 
 export const Route = createFileRoute("/sessions/")({
   component: SessionsComponent,
 });
 
 function SessionsComponent() {
-  const [selectedSession, setSelectedSession] = useState<Session | null>(null);
+  const navigate = useNavigate();
 
   return (
     <div className="min-h-screen network-bg p-6">
@@ -24,21 +22,17 @@ function SessionsComponent() {
               Manage your WhatsApp sessions
             </p>
           </div>
-          <AddSessionDialog />
+          <Button
+            onClick={() => navigate({ to: "/sessions/new" })}
+            className="glass-card hover-glow-teal"
+          >
+            <Plus className="mr-2 h-4 w-4" />
+            Add Session
+          </Button>
         </div>
 
         {/* Content */}
-        <div className="grid gap-6 lg:grid-cols-3">
-          <div className="lg:col-span-2">
-            <SessionList onSelectSession={setSelectedSession} />
-          </div>
-
-          {selectedSession && (
-            <div className="lg:col-span-1 animate-scale-in">
-              <SessionDetails session={selectedSession} />
-            </div>
-          )}
-        </div>
+        <SessionList />
       </div>
     </div>
   );
