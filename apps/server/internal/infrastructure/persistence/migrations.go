@@ -22,6 +22,7 @@ func RunAutoMigration(db *gorm.DB) error {
 		&models.Presence{},
 		&models.APIKey{},
 		&models.AuditLog{},
+		&models.Event{},
 	}
 
 	// Run auto-migration
@@ -43,6 +44,7 @@ func VerifySchema(db *gorm.DB) error {
 		"presence",
 		"api_keys",
 		"audit_logs",
+		"events",
 	}
 
 	for _, table := range tables {

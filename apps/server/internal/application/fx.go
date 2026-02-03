@@ -22,6 +22,7 @@ var Module = fx.Module("application",
 		NewReceiptUseCase,
 		NewPresenceUseCase,
 		NewContactUseCase,
+		NewEventUseCase,
 	),
 )
 
@@ -110,4 +111,12 @@ func NewContactUseCase(
 	waClient repository.WhatsAppClient,
 ) *usecase.ContactUseCase {
 	return usecase.NewContactUseCase(waClient)
+}
+
+// NewEventUseCase creates a new event use case
+func NewEventUseCase(
+	eventRepo repository.EventRepository,
+	publisher repository.EventPublisher,
+) *usecase.EventUseCase {
+	return usecase.NewEventUseCase(eventRepo, publisher)
 }
