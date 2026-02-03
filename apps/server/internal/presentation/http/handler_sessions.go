@@ -10,6 +10,47 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
+// CreateSession handles POST /api/sessions
+// Public endpoint for creating a new WhatsApp session
+func (h *Handler) CreateSession(c *gin.Context) {
+	var req struct {
+		SessionID string `json:"session_id" binding:"required"`
+		Name      string `json:"name" binding:"required"`
+	}
+	if err := c.ShouldBindJSON(&req); err != nil {
+		respondWithError(c, http.StatusBadRequest, "INVALID_JSON", "Invalid request body", nil)
+		return
+	}
+
+	// Validate session_id format (alphanumeric + hyphens + underscores)
+	if !isValidSessionID(req.SessionID) {
+		respondWithError(c, http.StatusBadRequest, "INVALID_SESSION_ID", "Session ID must contain only alphanumeric characters, hyphens, and underscores", nil)
+		return
+	}
+
+	// Validate name length (1-100 characters)
+	if len(req.Name) < 1 || len(req.Name) > 100 {
+		respondWithError(c, http.StatusBadRequest, "INVALID_NAME", "Name must be between 1 and 100 characters", nil)
+		return
+	}
+
+	// Create session in local repository for WhatsApp client tracking
+	session, err := h.sessionUC.CreateSessionWithID(c.Request.Context(), req.SessionID, req.Name)
+	if err != nil {
+		// Check if session already exists
+		if errors.IsDuplicate(err) {
+			respondWithError(c, http.StatusConflict, "SESSION_EXISTS", "A session with this session_id already exists", map[string]string{
+				"session_id": req.SessionID,
+			})
+			return
+		}
+		handleDomainError(c, err)
+		return
+	}
+
+	respondWithSuccess(c, http.StatusCreated, dto.NewSessionResponse(session))
+}
+
 // RegisterSession handles POST /api/internal/sessions/register
 // Called by Node.js API when a new session is created
 func (h *Handler) RegisterSession(c *gin.Context) {
@@ -223,3 +264,15 @@ func (h *Handler) GetSession(c *gin.Context) {
 	})
 }
 
+// isValidSessionID validates that a session ID contains only alphanumeric characters, hyphens, and underscores
+func isValidSessionID(sessionID string) bool {
+	if sessionID == "" {
+		return false
+	}
+	for _, char := range sessionID {
+		if !((char >= 'a' && char <= 'z') || (char >= 'A' && char <= 'Z') || (char >= '0' && char <= '9') || char == '-' || char == '_') {
+			return false
+		}
+	}
+	return true
+}

@@ -2,7 +2,10 @@ package infrastructure
 
 import (
 	"context"
+	"fmt"
 	"log"
+	"os"
+	"path/filepath"
 	"time"
 
 	"whatspire/internal/domain/entity"
@@ -23,11 +26,20 @@ import (
 	"gorm.io/gorm"
 )
 
+// ensureDir creates a directory if it doesn't exist
+// Returns the directory path and any error encountered
+func ensureDir(path string) (string, error) {
+	dir := filepath.Dir(path)
+	if err := os.MkdirAll(dir, 0755); err != nil {
+		return "", fmt.Errorf("failed to create directory %s: %w", dir, err)
+	}
+	return dir, nil
+}
+
 // Module provides all infrastructure layer dependencies
 var Module = fx.Module("infrastructure",
 	fx.Provide(
 		NewDB,
-		NewSessionRepository,
 		fx.Annotate(
 			NewSessionRepository,
 			fx.As(new(repository.SessionRepository)),
@@ -41,39 +53,37 @@ var Module = fx.Module("infrastructure",
 			func(c *whatsapp.WhatsmeowClient) *whatsapp.WhatsmeowClient { return c },
 			fx.As(new(repository.GroupFetcher)),
 		),
-		NewGorillaEventPublisher,
+		fx.Annotate(
+			NewGorillaEventPublisher,
+			fx.ResultTags(`name:"websocket"`),
+		),
 		NewAuditLogger,
 		NewAuditLogRepository,
-		fx.Annotate(
-			NewAuditLogRepository,
-			fx.As(new(repository.AuditLogger)),
-		),
 		NewWebhookPublisher,
-		NewCompositeEventPublisher,
+		fx.Annotate(
+			NewCompositeEventPublisher,
+			fx.ParamTags(`name:"websocket"`),
+			fx.As(new(repository.EventPublisher)),
+		),
 		NewEventHub,
 		NewHealthCheckers,
 		NewMediaUploader,
-		NewReactionRepository,
 		fx.Annotate(
 			NewReactionRepository,
 			fx.As(new(repository.ReactionRepository)),
 		),
-		NewReceiptRepository,
 		fx.Annotate(
 			NewReceiptRepository,
 			fx.As(new(repository.ReceiptRepository)),
 		),
-		NewPresenceRepository,
 		fx.Annotate(
 			NewPresenceRepository,
 			fx.As(new(repository.PresenceRepository)),
 		),
-		NewAPIKeyRepository,
 		fx.Annotate(
 			NewAPIKeyRepository,
 			fx.As(new(repository.APIKeyRepository)),
 		),
-		NewEventRepository,
 		fx.Annotate(
 			NewEventRepository,
 			fx.As(new(repository.EventRepository)),
@@ -91,6 +101,15 @@ var Module = fx.Module("infrastructure",
 
 // NewDB creates a new GORM database connection using the configured driver
 func NewDB(lc fx.Lifecycle, cfg *config.Config) (*gorm.DB, error) {
+	// Ensure the data directory exists for SQLite databases
+	if cfg.Database.Driver == "sqlite" {
+		dbDir, err := ensureDir(cfg.Database.DSN)
+		if err != nil {
+			return nil, err
+		}
+		log.Printf("✅ Database directory ensured: %s", dbDir)
+	}
+
 	// Create database factory
 	factory := persistence.NewDatabaseFactory()
 
@@ -151,6 +170,13 @@ func NewAuditLogRepository(db *gorm.DB) *persistence.AuditLogRepository {
 
 // NewWhatsmeowClient creates a new WhatsApp client
 func NewWhatsmeowClient(lc fx.Lifecycle, cfg *config.Config) (*whatsapp.WhatsmeowClient, error) {
+	// Ensure the data directory exists for WhatsApp database
+	dbDir, err := ensureDir(cfg.WhatsApp.DBPath)
+	if err != nil {
+		return nil, err
+	}
+	log.Printf("✅ WhatsApp database directory ensured: %s", dbDir)
+
 	clientConfig := whatsapp.ClientConfig{
 		DBPath:           cfg.WhatsApp.DBPath,
 		QRTimeout:        cfg.WhatsApp.QRTimeout,

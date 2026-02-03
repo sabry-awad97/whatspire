@@ -51,8 +51,8 @@ function NewSessionPage() {
     },
     onSubmit: async ({ value }) => {
       try {
-        // Register session via API
-        const session = await apiClient.registerSession({
+        // Create session via API
+        const session = await apiClient.createSession({
           session_id: value.sessionName,
           name: value.sessionName,
         });

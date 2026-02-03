@@ -237,6 +237,13 @@ export class ApiClient {
   // Session Management
   // ==========================================================================
 
+  async createSession(data: RegisterSessionRequest): Promise<Session> {
+    return this.executeWithRetry(async () => {
+      const response = await this.client.post<Session>("/api/sessions", data);
+      return response.data;
+    });
+  }
+
   async registerSession(data: RegisterSessionRequest): Promise<Session> {
     return this.executeWithRetry(async () => {
       const response = await this.client.post<Session>(

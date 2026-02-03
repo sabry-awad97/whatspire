@@ -44,9 +44,8 @@ func (r *GORMMigrationRunner) Down(ctx context.Context) error {
 // Version returns the current migration version
 // For GORM auto-migration, we return a timestamp-based version
 func (r *GORMMigrationRunner) Version(ctx context.Context) (int, error) {
-	// Check if migration_versions table exists
-	var count int64
-	if err := r.db.WithContext(ctx).Raw("SELECT COUNT(*) FROM migration_versions").Scan(&count).Error; err != nil {
+	// Check if migration_versions table exists using Migrator
+	if !r.db.Migrator().HasTable("migration_versions") {
 		// Table doesn't exist, return version 0
 		return 0, nil
 	}

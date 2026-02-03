@@ -36,6 +36,9 @@ func main() {
 
 		// Configure graceful shutdown timeout
 		fx.StopTimeout(45*time.Second), // Allow 45 seconds for graceful shutdown
+
+		// Suppress Fx verbose logging
+		fx.NopLogger,
 	)
 
 	// Start the application

@@ -123,12 +123,14 @@ func registerRoutes(router *gin.Engine, handler *Handler, routerConfig RouterCon
 	// Session routes (groups sync) - require write role for sync, read for list
 	sessions := api.Group("/sessions")
 	if routerConfig.APIKeyConfig != nil && routerConfig.APIKeyConfig.Enabled {
+		sessions.POST("", handler.CreateSession) // Public endpoint - no auth required in development
 		sessions.GET("", RoleAuthorizationMiddleware(config.RoleRead, routerConfig.APIKeyConfig), handler.ListSessions)
 		sessions.GET("/:id", RoleAuthorizationMiddleware(config.RoleRead, routerConfig.APIKeyConfig), handler.GetSession)
 		sessions.POST("/:id/groups/sync", RoleAuthorizationMiddleware(config.RoleWrite, routerConfig.APIKeyConfig), handler.SyncGroups)
 		sessions.GET("/:id/contacts", RoleAuthorizationMiddleware(config.RoleRead, routerConfig.APIKeyConfig), handler.ListContacts)
 		sessions.GET("/:id/chats", RoleAuthorizationMiddleware(config.RoleRead, routerConfig.APIKeyConfig), handler.ListChats)
 	} else {
+		sessions.POST("", handler.CreateSession) // Public endpoint - no auth required in development
 		sessions.GET("", handler.ListSessions)
 		sessions.GET("/:id", handler.GetSession)
 		sessions.POST("/:id/groups/sync", handler.SyncGroups)
