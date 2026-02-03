@@ -333,3 +333,310 @@ curl http://localhost:8080/ready
 - Use **single replica** per WhatsApp session
 - Session state is stored in SQLite (local to instance)
 - For multi-session scaling, use session affinity
+
+---
+
+## Database Configuration
+
+### SQLite (Development/Small Scale)
+
+SQLite is the default database and suitable for:
+
+- Development environments
+- Small deployments (< 1000 sessions)
+- Single-server setups
+
+**Configuration:**
+
+```bash
+export WHATSAPP_DATABASE_DRIVER=sqlite
+export WHATSAPP_DATABASE_DSN=/data/whatspire.db
+```
+
+**Advantages:**
+
+- No separate database server required
+- Simple setup and maintenance
+- Single file for easy backups
+
+**Limitations:**
+
+- Limited concurrent write performance
+- Not suitable for distributed deployments
+- File-based storage
+
+### PostgreSQL (Production/Large Scale)
+
+PostgreSQL is recommended for:
+
+- Production environments
+- Large deployments (> 1000 sessions)
+- High-availability setups
+- Distributed architectures
+
+**Configuration:**
+
+```bash
+export WHATSAPP_DATABASE_DRIVER=postgres
+export WHATSAPP_DATABASE_DSN="host=postgres user=whatspire password=secret dbname=whatspire port=5432 sslmode=require"
+```
+
+**Docker Image:**
+
+The service uses `pgvector/pgvector:pg18-trixie` which includes:
+
+- PostgreSQL 18 (latest stable version)
+- pgvector extension for vector similarity search
+- Debian Trixie base for stability
+- Future-ready for AI/ML features
+
+**Advantages:**
+
+- Better concurrent performance
+- Advanced indexing and query optimization
+- Replication and high availability
+- Better monitoring and management tools
+- Vector similarity search support (pgvector extension)
+
+**Setup with Docker Compose:**
+
+```yaml
+name: whatspire
+
+services:
+  postgres:
+    image: pgvector/pgvector:pg18-trixie
+    environment:
+      POSTGRES_USER: whatspire
+      POSTGRES_PASSWORD: ${DB_PASSWORD}
+      POSTGRES_DB: whatspire
+    volumes:
+      - postgres_data:/var/lib/postgresql
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U whatspire"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+
+  whatsapp:
+    build: .
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      WHATSAPP_DATABASE_DRIVER: postgres
+      WHATSAPP_DATABASE_DSN: "host=postgres user=whatspire password=${DB_PASSWORD} dbname=whatspire port=5432 sslmode=disable"
+      WHATSAPP_DATABASE_MAX_IDLE_CONNS: 10
+      WHATSAPP_DATABASE_MAX_OPEN_CONNS: 100
+      WHATSAPP_DATABASE_CONN_MAX_LIFETIME: 1h
+    volumes:
+      - whatsapp_data:/data
+    restart: unless-stopped
+
+volumes:
+  postgres_data:
+  whatsapp_data:
+```
+
+### Database Configuration Options
+
+| Variable                              | Default | Description                       |
+| ------------------------------------- | ------- | --------------------------------- |
+| `WHATSAPP_DATABASE_DRIVER`            | sqlite  | Database driver (sqlite/postgres) |
+| `WHATSAPP_DATABASE_DSN`               | -       | Database connection string        |
+| `WHATSAPP_DATABASE_MAX_IDLE_CONNS`    | 10      | Maximum idle connections          |
+| `WHATSAPP_DATABASE_MAX_OPEN_CONNS`    | 100     | Maximum open connections          |
+| `WHATSAPP_DATABASE_CONN_MAX_LIFETIME` | 1h      | Connection maximum lifetime       |
+| `WHATSAPP_DATABASE_LOG_LEVEL`         | warn    | GORM log level                    |
+
+### PostgreSQL Connection String Format
+
+**Standard format:**
+
+```
+host=localhost user=username password=secret dbname=database port=5432 sslmode=require
+```
+
+**Connection URI format:**
+
+```
+postgres://username:password@localhost:5432/database?sslmode=require
+```
+
+**SSL Modes:**
+
+- `disable`: No SSL (development only)
+- `require`: Require SSL (recommended)
+- `verify-ca`: Verify CA certificate
+- `verify-full`: Verify CA and hostname
+
+### Database Migrations
+
+Migrations run automatically on startup. See [Database Migrations Guide](database_migrations.md) for details.
+
+**Migration logs:**
+
+```
+🔄 Running database migrations...
+📊 Current migration version: 1707123456
+✅ Migration recorded: version 1707123457
+✅ Database migrations completed
+```
+
+### Backup and Recovery
+
+#### SQLite Backup
+
+```bash
+# Backup
+cp /data/whatspire.db /backup/whatspire-$(date +%Y%m%d).db
+
+# Restore
+cp /backup/whatspire-20240203.db /data/whatspire.db
+```
+
+#### PostgreSQL Backup
+
+```bash
+# Backup
+pg_dump -h localhost -U whatspire whatspire > backup-$(date +%Y%m%d).sql
+
+# Restore
+psql -h localhost -U whatspire whatspire < backup-20240203.sql
+```
+
+### Monitoring
+
+#### Database Health Check
+
+The service includes database health checks:
+
+```bash
+curl http://localhost:8080/ready
+```
+
+Response:
+
+```json
+{
+  "success": true,
+  "data": {
+    "status": "ready",
+    "components": {
+      "database": "healthy",
+      "whatsapp_client": "healthy"
+    }
+  }
+}
+```
+
+#### PostgreSQL Monitoring
+
+Monitor connection pool usage:
+
+```sql
+SELECT
+    count(*) as total_connections,
+    count(*) FILTER (WHERE state = 'active') as active,
+    count(*) FILTER (WHERE state = 'idle') as idle
+FROM pg_stat_activity
+WHERE datname = 'whatspire';
+```
+
+### Performance Tuning
+
+#### PostgreSQL Configuration
+
+For production deployments, tune PostgreSQL settings:
+
+```ini
+# postgresql.conf
+max_connections = 200
+shared_buffers = 256MB
+effective_cache_size = 1GB
+maintenance_work_mem = 64MB
+checkpoint_completion_target = 0.9
+wal_buffers = 16MB
+default_statistics_target = 100
+random_page_cost = 1.1
+effective_io_concurrency = 200
+work_mem = 2621kB
+min_wal_size = 1GB
+max_wal_size = 4GB
+```
+
+#### Connection Pool Tuning
+
+Adjust based on your workload:
+
+```bash
+# For high-concurrency workloads
+export WHATSAPP_DATABASE_MAX_OPEN_CONNS=200
+export WHATSAPP_DATABASE_MAX_IDLE_CONNS=50
+
+# For low-latency requirements
+export WHATSAPP_DATABASE_CONN_MAX_LIFETIME=30m
+```
+
+---
+
+## Migration from SQLite to PostgreSQL
+
+### Step 1: Backup SQLite Database
+
+```bash
+cp /data/whatspire.db /backup/whatspire-migration.db
+```
+
+### Step 2: Export Data
+
+```bash
+sqlite3 /data/whatspire.db .dump > export.sql
+```
+
+### Step 3: Convert SQL (if needed)
+
+SQLite and PostgreSQL have some syntax differences. Review and adjust:
+
+- `AUTOINCREMENT` → `SERIAL`
+- `TEXT` → `VARCHAR` or `TEXT`
+- Date/time formats
+- Boolean values
+
+### Step 4: Import to PostgreSQL
+
+```bash
+psql -h localhost -U whatspire whatspire < export.sql
+```
+
+### Step 5: Update Configuration
+
+```bash
+export WHATSAPP_DATABASE_DRIVER=postgres
+export WHATSAPP_DATABASE_DSN="host=localhost user=whatspire password=secret dbname=whatspire port=5432 sslmode=require"
+```
+
+### Step 6: Restart Service
+
+```bash
+docker-compose restart whatsapp
+```
+
+### Step 7: Verify
+
+```bash
+# Check logs
+docker-compose logs whatsapp | grep migration
+
+# Test API
+curl http://localhost:8080/health
+```
+
+---
+
+## See Also
+
+- [Database Migrations Guide](database_migrations.md)
+- [Configuration Guide](configuration.md)
+- [API Specification](api_specification.md)
