@@ -306,7 +306,8 @@ func extractRateLimitKey(r *http.Request, config ratelimit.Config) string {
 }
 
 // APIKeyMiddleware provides API key authentication for protected routes.
-// It validates the API key from the configured header against the list of valid keys.
+// It validates the API key from the configured header or Authorization Bearer token against the list of valid keys.
+// Supports both X-API-Key header and Authorization: Bearer <token> formats.
 func APIKeyMiddleware(apiKeyConfig config.APIKeyConfig, auditLogger repository.AuditLogger) gin.HandlerFunc {
 	headerName := apiKeyConfig.Header
 	if headerName == "" {
@@ -320,8 +321,21 @@ func APIKeyMiddleware(apiKeyConfig config.APIKeyConfig, auditLogger repository.A
 			return
 		}
 
-		// Get API key from header
+		// Try to get API key from configured header first
 		apiKey := c.GetHeader(headerName)
+
+		// If not found, try Authorization Bearer token
+		if apiKey == "" {
+			authHeader := c.GetHeader("Authorization")
+			if authHeader != "" {
+				// Check if it's a Bearer token
+				parts := strings.SplitN(authHeader, " ", 2)
+				if len(parts) == 2 && strings.ToLower(parts[0]) == "bearer" {
+					apiKey = strings.TrimSpace(parts[1])
+				}
+			}
+		}
+
 		if apiKey == "" {
 			// Log authentication failure
 			if auditLogger != nil {
@@ -336,7 +350,7 @@ func APIKeyMiddleware(apiKeyConfig config.APIKeyConfig, auditLogger repository.A
 
 			c.JSON(http.StatusUnauthorized, dto.NewErrorResponse[interface{}](
 				"MISSING_API_KEY",
-				fmt.Sprintf("API key is required in %s header", headerName),
+				fmt.Sprintf("API key is required in %s header or Authorization: Bearer <token>", headerName),
 				nil,
 			))
 			c.Abort()

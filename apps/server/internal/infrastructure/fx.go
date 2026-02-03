@@ -97,6 +97,7 @@ var Module = fx.Module("infrastructure",
 	fx.Invoke(WireReactionHandler),
 	fx.Invoke(RunMigrations),
 	fx.Invoke(StartEventCleanupJob),
+	fx.Invoke(StartAutoReconnect),
 )
 
 // NewDB creates a new GORM database connection using the configured driver
@@ -581,6 +582,39 @@ func StartEventCleanupJob(lc fx.Lifecycle, job *jobs.EventCleanupJob, cfg *confi
 		OnStop: func(ctx context.Context) error {
 			log.Println("🛑 Stopping event cleanup job...")
 			return job.Stop()
+		},
+	})
+}
+
+// StartAutoReconnect starts the auto-reconnect process for stored WhatsApp sessions
+func StartAutoReconnect(
+	lc fx.Lifecycle,
+	waClient *whatsapp.WhatsmeowClient,
+	sessionRepo repository.SessionRepository,
+) {
+	lc.Append(fx.Hook{
+		OnStart: func(ctx context.Context) error {
+			// Run auto-reconnect in background to not block startup
+			go func() {
+				log.Println("🔄 Auto-reconnecting stored WhatsApp sessions...")
+				results := waClient.AutoReconnect(ctx, sessionRepo)
+
+				successCount := 0
+				failCount := 0
+				for sessionID, err := range results {
+					if err == nil {
+						successCount++
+					} else {
+						failCount++
+						log.Printf("⚠️  Session %s failed to reconnect: %v", sessionID, err)
+					}
+				}
+
+				if len(results) > 0 {
+					log.Printf("📊 Auto-reconnect summary: %d successful, %d failed", successCount, failCount)
+				}
+			}()
+			return nil
 		},
 	})
 }
