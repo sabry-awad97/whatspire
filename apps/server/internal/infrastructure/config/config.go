@@ -484,12 +484,38 @@ func (c *Config) Validate() error {
 
 // Load loads configuration from environment variables with defaults
 func Load() (*Config, error) {
+	return LoadWithConfigFile("")
+}
+
+// LoadWithConfigFile loads configuration from a file (if provided) and environment variables
+func LoadWithConfigFile(configFile string) (*Config, error) {
 	v := viper.New()
 
 	// Set default values
 	setDefaults(v)
 
-	// Enable reading from environment variables
+	// Load from config file if provided
+	if configFile != "" {
+		v.SetConfigFile(configFile)
+
+		// Read config file
+		if err := v.ReadInConfig(); err != nil {
+			return nil, fmt.Errorf("failed to read config file: %w", err)
+		}
+	} else {
+		// Try to find config file in standard locations
+		v.SetConfigName("config")
+		v.SetConfigType("yaml")
+		v.AddConfigPath(".")
+		v.AddConfigPath("./config")
+		v.AddConfigPath("/etc/whatspire")
+		v.AddConfigPath("$HOME/.whatspire")
+
+		// Read config file (ignore error if not found)
+		_ = v.ReadInConfig()
+	}
+
+	// Enable reading from environment variables (overrides file config)
 	v.SetEnvPrefix("WHATSAPP")
 	v.SetEnvKeyReplacer(strings.NewReplacer(".", "_"))
 	v.AutomaticEnv()
@@ -702,7 +728,12 @@ func bindEnvVars(v *viper.Viper) {
 
 // MustLoad loads configuration and panics on error (for use in main)
 func MustLoad() *Config {
-	cfg, err := Load()
+	return MustLoadWithConfigFile("")
+}
+
+// MustLoadWithConfigFile loads configuration from a file and panics on error
+func MustLoadWithConfigFile(configFile string) *Config {
+	cfg, err := LoadWithConfigFile(configFile)
 	if err != nil {
 		panic(fmt.Sprintf("failed to load configuration: %v", err))
 	}
