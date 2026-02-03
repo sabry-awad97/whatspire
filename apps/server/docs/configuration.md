@@ -1,8 +1,91 @@
 # Configuration Reference
 
-> Complete environment variable reference for Whatspire WhatsApp Service
+> Complete configuration reference for Whatspire WhatsApp Service
 
-## Server Configuration
+## Configuration Methods
+
+The service supports three configuration methods with the following precedence:
+
+1. **Environment Variables** (highest priority)
+2. **Configuration Files** (YAML or JSON)
+3. **Default Values** (lowest priority)
+
+### File-Based Configuration
+
+The service can load configuration from YAML or JSON files. Configuration files are searched in the following locations (in order):
+
+1. File specified via `--config` flag (if provided)
+2. `./config.yaml` or `./config.json` (current directory)
+3. `./config/config.yaml` or `./config/config.json`
+4. `/etc/whatspire/config.yaml` or `/etc/whatspire/config.json`
+5. `$HOME/.whatspire/config.yaml` or `$HOME/.whatspire/config.json`
+
+**Example: Using a config file**
+
+```bash
+# Start with specific config file
+./whatsapp --config /path/to/config.yaml
+
+# Or place config.yaml in current directory
+./whatsapp
+```
+
+**Example config files:**
+
+- See `config.example.yaml` for YAML format
+- See `config.example.json` for JSON format
+
+### Hot Reload
+
+The service supports hot reload for non-critical configuration changes. When a configuration file is modified, the service automatically reloads the configuration without requiring a restart.
+
+**Non-Critical Settings** (can be hot-reloaded):
+
+- Log level and format
+- Rate limiting settings
+- CORS configuration
+- Webhook settings
+- Event retention settings
+- Circuit breaker settings
+
+**Critical Settings** (require restart):
+
+- Server host and port
+- Database connection (driver, DSN)
+- WhatsApp database path
+- WebSocket URL
+
+When critical settings are changed, the service will log a warning indicating that a restart is required.
+
+### Configuration Precedence Example
+
+Given the following configurations:
+
+**config.yaml:**
+
+```yaml
+server:
+  port: 8080
+log:
+  level: "info"
+```
+
+**Environment variable:**
+
+```bash
+export WHATSAPP_LOG_LEVEL=debug
+```
+
+**Result:**
+
+- `server.port` = 8080 (from file)
+- `log.level` = "debug" (from environment, overrides file)
+
+---
+
+## Configuration Reference
+
+### Server Configuration
 
 | Variable               | Type   | Default   | Description    |
 | ---------------------- | ------ | --------- | -------------- |
