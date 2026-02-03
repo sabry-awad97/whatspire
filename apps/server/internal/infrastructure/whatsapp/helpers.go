@@ -8,6 +8,7 @@ import (
 	"whatspire/internal/domain/errors"
 
 	"github.com/skip2/go-qrcode"
+	"go.mau.fi/whatsmeow/proto/waCommon"
 	waE2E "go.mau.fi/whatsmeow/proto/waE2E"
 	"google.golang.org/protobuf/proto"
 )
@@ -118,6 +119,21 @@ func BuildTextMessage(msg *entity.Message) (*waE2E.Message, error) {
 	return &waE2E.Message{
 		Conversation: proto.String(*msg.Content.Text),
 	}, nil
+}
+
+// BuildReactionMessage builds a WhatsApp reaction message
+func BuildReactionMessage(chatJID, messageID, emoji string) *waE2E.Message {
+	return &waE2E.Message{
+		ReactionMessage: &waE2E.ReactionMessage{
+			Key: &waCommon.MessageKey{
+				RemoteJID: proto.String(chatJID),
+				FromMe:    proto.Bool(false),
+				ID:        proto.String(messageID),
+			},
+			Text:              proto.String(emoji),
+			SenderTimestampMS: proto.Int64(time.Now().UnixMilli()),
+		},
+	}
 }
 
 // generateEventID generates a unique event ID

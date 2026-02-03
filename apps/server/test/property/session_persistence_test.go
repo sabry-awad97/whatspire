@@ -2,6 +2,8 @@ package property
 
 import (
 	"context"
+	"fmt"
+	"math/rand"
 	"testing"
 	"time"
 
@@ -28,6 +30,13 @@ func TestSessionPersistenceRoundTrip_Property2(t *testing.T) {
 	repo := persistence.NewSessionRepository(db)
 
 	ctx := context.Background()
+
+	// Clean up all existing sessions before starting tests
+	if existing, err := repo.GetAll(ctx); err == nil {
+		for _, s := range existing {
+			_ = repo.Delete(ctx, s.ID)
+		}
+	}
 
 	// Property 2.1: Create and retrieve session preserves all fields
 	properties.Property("create and retrieve session preserves all fields", prop.ForAll(
@@ -280,13 +289,20 @@ func TestSessionPersistenceRoundTrip_Property2(t *testing.T) {
 // Generator functions
 func genSessionID() gopter.Gen {
 	return gen.Identifier().Map(func(s string) string {
-		if len(s) > 36 {
-			return s[:36]
+		// Make IDs unique by adding timestamp and random suffix
+		timestamp := time.Now().UnixNano()
+		randomSuffix := rand.Int63()
+		uniqueID := fmt.Sprintf("%s_%d_%d", s, timestamp, randomSuffix)
+		if len(uniqueID) > 36 {
+			uniqueID = uniqueID[:36]
 		}
 		if s == "" {
-			return "session_default"
+			uniqueID = fmt.Sprintf("sess_%d_%d", timestamp, randomSuffix)
+			if len(uniqueID) > 36 {
+				uniqueID = uniqueID[:36]
+			}
 		}
-		return s
+		return uniqueID
 	})
 }
 
@@ -315,5 +331,5 @@ func genJID() gopter.Gen {
 }
 
 func generateUniqueID(index int) string {
-	return time.Now().Format("20060102150405") + "_" + string(rune('a'+index))
+	return fmt.Sprintf("%d_%d_%d", time.Now().UnixNano(), rand.Int63(), index)
 }

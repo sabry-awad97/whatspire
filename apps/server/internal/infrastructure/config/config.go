@@ -42,6 +42,12 @@ type Config struct {
 
 	// Webhook configuration
 	Webhook WebhookConfig `mapstructure:"webhook"`
+
+	// Database configuration
+	Database DatabaseConfig `mapstructure:"database"`
+
+	// Event storage configuration
+	Events EventsConfig `mapstructure:"events"`
 }
 
 // CircuitBreakerConfig holds circuit breaker configuration
@@ -67,6 +73,24 @@ type WebhookConfig struct {
 	URL     string   `mapstructure:"url"`     // Webhook endpoint URL
 	Secret  string   `mapstructure:"secret"`  // Secret for HMAC signing (optional)
 	Events  []string `mapstructure:"events"`  // Event types to deliver (empty = all events)
+}
+
+// DatabaseConfig holds database configuration
+type DatabaseConfig struct {
+	Driver          string        `mapstructure:"driver"`            // Database driver: "sqlite" or "postgres"
+	DSN             string        `mapstructure:"dsn"`               // Data Source Name (connection string)
+	MaxIdleConns    int           `mapstructure:"max_idle_conns"`    // Maximum idle connections
+	MaxOpenConns    int           `mapstructure:"max_open_conns"`    // Maximum open connections
+	ConnMaxLifetime time.Duration `mapstructure:"conn_max_lifetime"` // Connection maximum lifetime
+	LogLevel        string        `mapstructure:"log_level"`         // GORM log level: "silent", "error", "warn", "info"
+}
+
+// EventsConfig holds event storage and retention configuration
+type EventsConfig struct {
+	Enabled         bool          `mapstructure:"enabled"`          // Enable event storage
+	RetentionDays   int           `mapstructure:"retention_days"`   // Days to retain events (0 = forever)
+	CleanupTime     string        `mapstructure:"cleanup_time"`     // Daily cleanup time in UTC (HH:MM format, e.g., "02:00")
+	CleanupInterval time.Duration `mapstructure:"cleanup_interval"` // Cleanup check interval (default: 1 hour)
 }
 
 // MetricsConfig holds Prometheus metrics configuration
@@ -390,6 +414,68 @@ func (c *Config) Validate() error {
 		}
 	}
 
+	// Validate Database config
+	validDrivers := map[string]bool{
+		"sqlite":   true,
+		"postgres": true,
+	}
+	if !validDrivers[c.Database.Driver] {
+		errs = append(errs, ValidationError{
+			Field:   "database.driver",
+			Message: "must be one of: sqlite, postgres",
+		})
+	}
+	if c.Database.DSN == "" {
+		errs = append(errs, ValidationError{
+			Field:   "database.dsn",
+			Message: "is required",
+		})
+	}
+	if c.Database.MaxIdleConns < 0 {
+		errs = append(errs, ValidationError{
+			Field:   "database.max_idle_conns",
+			Message: "must be non-negative",
+		})
+	}
+	if c.Database.MaxOpenConns < 0 {
+		errs = append(errs, ValidationError{
+			Field:   "database.max_open_conns",
+			Message: "must be non-negative",
+		})
+	}
+	if c.Database.ConnMaxLifetime < 0 {
+		errs = append(errs, ValidationError{
+			Field:   "database.conn_max_lifetime",
+			Message: "must be non-negative",
+		})
+	}
+
+	// Validate Events config
+	if c.Events.Enabled {
+		if c.Events.RetentionDays < 0 {
+			errs = append(errs, ValidationError{
+				Field:   "events.retention_days",
+				Message: "must be non-negative (0 = forever)",
+			})
+		}
+		if c.Events.CleanupTime != "" {
+			// Validate HH:MM format
+			parts := strings.Split(c.Events.CleanupTime, ":")
+			if len(parts) != 2 {
+				errs = append(errs, ValidationError{
+					Field:   "events.cleanup_time",
+					Message: "must be in HH:MM format (e.g., 02:00)",
+				})
+			}
+		}
+		if c.Events.CleanupInterval <= 0 {
+			errs = append(errs, ValidationError{
+				Field:   "events.cleanup_interval",
+				Message: "must be positive",
+			})
+		}
+	}
+
 	if len(errs) > 0 {
 		return errs
 	}
@@ -511,6 +597,20 @@ func setDefaults(v *viper.Viper) {
 	v.SetDefault("webhook.url", "")
 	v.SetDefault("webhook.secret", "")
 	v.SetDefault("webhook.events", []string{}) // Empty = all events
+
+	// Database defaults
+	v.SetDefault("database.driver", "sqlite")
+	v.SetDefault("database.dsn", "/data/whatsmeow.db")
+	v.SetDefault("database.max_idle_conns", 10)
+	v.SetDefault("database.max_open_conns", 100)
+	v.SetDefault("database.conn_max_lifetime", time.Hour)
+	v.SetDefault("database.log_level", "warn")
+
+	// Events defaults
+	v.SetDefault("events.enabled", false)
+	v.SetDefault("events.retention_days", 30)
+	v.SetDefault("events.cleanup_time", "02:00")
+	v.SetDefault("events.cleanup_interval", time.Hour)
 }
 
 func bindEnvVars(v *viper.Viper) {
@@ -584,6 +684,20 @@ func bindEnvVars(v *viper.Viper) {
 	_ = v.BindEnv("webhook.url", "WHATSAPP_WEBHOOK_URL")
 	_ = v.BindEnv("webhook.secret", "WHATSAPP_WEBHOOK_SECRET")
 	_ = v.BindEnv("webhook.events", "WHATSAPP_WEBHOOK_EVENTS")
+
+	// Database
+	_ = v.BindEnv("database.driver", "WHATSAPP_DATABASE_DRIVER")
+	_ = v.BindEnv("database.dsn", "WHATSAPP_DATABASE_DSN")
+	_ = v.BindEnv("database.max_idle_conns", "WHATSAPP_DATABASE_MAX_IDLE_CONNS")
+	_ = v.BindEnv("database.max_open_conns", "WHATSAPP_DATABASE_MAX_OPEN_CONNS")
+	_ = v.BindEnv("database.conn_max_lifetime", "WHATSAPP_DATABASE_CONN_MAX_LIFETIME")
+	_ = v.BindEnv("database.log_level", "WHATSAPP_DATABASE_LOG_LEVEL")
+
+	// Events
+	_ = v.BindEnv("events.enabled", "WHATSAPP_EVENTS_ENABLED")
+	_ = v.BindEnv("events.retention_days", "WHATSAPP_EVENTS_RETENTION_DAYS")
+	_ = v.BindEnv("events.cleanup_time", "WHATSAPP_EVENTS_CLEANUP_TIME")
+	_ = v.BindEnv("events.cleanup_interval", "WHATSAPP_EVENTS_CLEANUP_INTERVAL")
 }
 
 // MustLoad loads configuration and panics on error (for use in main)
