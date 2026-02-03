@@ -7,13 +7,17 @@ import { TanStackRouterDevtools } from "@tanstack/react-router-devtools";
 
 import { ErrorBoundary } from "@/components/error-boundary";
 import { ErrorFallback } from "@/components/error-fallback";
-import Header from "@/components/header";
+import { Sidebar } from "@/components/sidebar";
 import { ThemeProvider } from "@/components/theme-provider";
 import { Toaster } from "@/components/ui/sonner";
 
 import "../index.css";
 
-export interface RouterAppContext {}
+import type { QueryClient } from "@tanstack/react-query";
+
+export interface RouterAppContext {
+  queryClient: QueryClient;
+}
 
 export const Route = createRootRouteWithContext<RouterAppContext>()({
   component: RootComponent,
@@ -57,9 +61,14 @@ function RootComponent() {
             // TODO: Add production error logging (e.g., Sentry)
           }}
         >
-          <div className="grid grid-rows-[auto_1fr] h-svh">
-            <Header />
-            <Outlet />
+          <div className="flex h-screen bg-background">
+            {/* Glassmorphic Sidebar */}
+            <Sidebar />
+
+            {/* Main Content Area */}
+            <main className="flex-1 ml-64 overflow-auto">
+              <Outlet />
+            </main>
           </div>
         </ErrorBoundary>
         <Toaster richColors />
