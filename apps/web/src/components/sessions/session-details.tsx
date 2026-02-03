@@ -22,7 +22,7 @@ import { useState } from "react";
 import { useNavigate } from "@tanstack/react-router";
 import { toast } from "sonner";
 
-import type { Session } from "@/lib/api-client";
+import type { Session } from "@whatspire/schema";
 import { cn } from "@/lib/utils";
 
 import { Button } from "../ui/button";
@@ -46,7 +46,9 @@ interface SessionDetailsProps {
 export function SessionDetails({ session, onBack }: SessionDetailsProps) {
   const navigate = useNavigate();
   const [showQRCode, setShowQRCode] = useState(
-    session.status === "pending" || session.status === "disconnected",
+    session.status === "pending" ||
+      session.status === "disconnected" ||
+      session.status === "logged_out",
   );
   const [showApiToken, setShowApiToken] = useState(false);
 
@@ -78,13 +80,21 @@ export function SessionDetails({ session, onBack }: SessionDetailsProps) {
       icon: WifiOff,
       description: "Session is disconnected. Scan QR code to reconnect",
     },
-    error: {
-      label: "Error",
-      color: "text-destructive",
-      bgColor: "bg-destructive/10",
+    connecting: {
+      label: "Connecting",
+      color: "text-blue-500",
+      bgColor: "bg-blue-500/10",
+      glowClass: "glow-blue",
+      icon: Circle,
+      description: "Session is connecting to WhatsApp",
+    },
+    logged_out: {
+      label: "Logged Out",
+      color: "text-muted-foreground",
+      bgColor: "bg-muted/10",
       glowClass: "",
       icon: WifiOff,
-      description: "An error occurred with this session",
+      description: "Session has been logged out",
     },
   };
 
@@ -256,7 +266,8 @@ export function SessionDetails({ session, onBack }: SessionDetailsProps) {
                     </>
                   )}
                   {(session.status === "pending" ||
-                    session.status === "disconnected") && (
+                    session.status === "disconnected" ||
+                    session.status === "logged_out") && (
                     <Button
                       onClick={() => setShowQRCode(true)}
                       className="w-full glass-card hover-glow-teal"

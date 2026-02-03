@@ -11,10 +11,15 @@ import {
 import { useState } from "react";
 import { useNavigate } from "@tanstack/react-router";
 import { toast } from "sonner";
+import type { Session } from "@whatspire/schema";
+import {
+  useApiClient,
+  useReconnectSession,
+  useDisconnectSession,
+  useDeleteSession,
+} from "@whatspire/hooks";
 
-import { apiClient, type Session } from "@/lib/api-client";
 import { cn } from "@/lib/utils";
-import { useSessionStore } from "@/stores/session-store";
 
 import {
   AlertDialog,
@@ -48,10 +53,44 @@ interface SessionCardProps {
 // ============================================================================
 
 export function SessionCard({ session, onSelect }: SessionCardProps) {
-  const [isLoading, setIsLoading] = useState(false);
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
   const navigate = useNavigate();
-  const { updateSession, removeSession, fetchSessions } = useSessionStore();
+  const client = useApiClient();
+
+  // Use hooks for mutations
+  const reconnectSession = useReconnectSession(client, {
+    onSuccess: () => {
+      toast.success("Session reconnected successfully");
+    },
+    onError: (error) => {
+      toast.error(error.message || "Failed to reconnect session");
+    },
+  });
+
+  const disconnectSession = useDisconnectSession(client, {
+    onSuccess: () => {
+      toast.success("Session disconnected");
+    },
+    onError: (error) => {
+      toast.error(error.message || "Failed to disconnect session");
+    },
+  });
+
+  const deleteSession = useDeleteSession(client, {
+    onSuccess: () => {
+      toast.success("Session deleted");
+      setShowDeleteDialog(false);
+    },
+    onError: (error) => {
+      toast.error(error.message || "Failed to delete session");
+      setShowDeleteDialog(false);
+    },
+  });
+
+  const isLoading =
+    reconnectSession.isPending ||
+    disconnectSession.isPending ||
+    deleteSession.isPending;
 
   const statusConfig = {
     connected: {
@@ -72,9 +111,15 @@ export function SessionCard({ session, onSelect }: SessionCardProps) {
       glowClass: "",
       icon: WifiOff,
     },
-    error: {
-      label: "Error",
-      color: "text-destructive",
+    connecting: {
+      label: "Connecting",
+      color: "text-blue-500",
+      glowClass: "glow-blue",
+      icon: Circle,
+    },
+    logged_out: {
+      label: "Logged Out",
+      color: "text-muted-foreground",
       glowClass: "",
       icon: WifiOff,
     },
@@ -83,67 +128,23 @@ export function SessionCard({ session, onSelect }: SessionCardProps) {
   const config = statusConfig[session.status];
   const StatusIcon = config.icon;
 
-  const handleReconnect = async (e: React.MouseEvent) => {
+  const handleReconnect = (e: React.MouseEvent) => {
     e.stopPropagation();
-    setIsLoading(true);
-    try {
-      await apiClient.reconnectSession(session.id);
-      updateSession(session.id, {
-        status: "connected",
-        updated_at: new Date().toISOString(),
-      });
-      toast.success("Session reconnected successfully");
-      // Refresh sessions to get latest state
-      await fetchSessions();
-    } catch (error) {
-      const message =
-        error instanceof Error ? error.message : "Failed to reconnect session";
-      toast.error(message);
-    } finally {
-      setIsLoading(false);
-    }
+    reconnectSession.mutate(session.id);
   };
 
-  const handleDisconnect = async (e: React.MouseEvent) => {
+  const handleDisconnect = (e: React.MouseEvent) => {
     e.stopPropagation();
-    setIsLoading(true);
-    try {
-      await apiClient.disconnectSession(session.id);
-      updateSession(session.id, {
-        status: "disconnected",
-        updated_at: new Date().toISOString(),
-      });
-      toast.success("Session disconnected");
-      // Refresh sessions to get latest state
-      await fetchSessions();
-    } catch (error) {
-      const message =
-        error instanceof Error ? error.message : "Failed to disconnect session";
-      toast.error(message);
-    } finally {
-      setIsLoading(false);
-    }
+    disconnectSession.mutate(session.id);
   };
 
-  const handleDelete = async (e: React.MouseEvent) => {
+  const handleDelete = (e: React.MouseEvent) => {
     e.stopPropagation();
     setShowDeleteDialog(true);
   };
 
-  const confirmDelete = async () => {
-    setIsLoading(true);
-    try {
-      await apiClient.unregisterSession(session.id);
-      removeSession(session.id);
-      toast.success("Session deleted");
-    } catch (error) {
-      const message =
-        error instanceof Error ? error.message : "Failed to delete session";
-      toast.error(message);
-    } finally {
-      setIsLoading(false);
-      setShowDeleteDialog(false);
-    }
+  const confirmDelete = () => {
+    deleteSession.mutate(session.id);
   };
 
   const handleManage = (e: React.MouseEvent) => {

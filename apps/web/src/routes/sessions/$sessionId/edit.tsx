@@ -1,8 +1,9 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useForm } from "@tanstack/react-form";
-import { z } from "zod";
 import { ArrowLeft, Save } from "lucide-react";
 import { toast } from "sonner";
+import { useApiClient, useSession } from "@whatspire/hooks";
+import { Loader2 } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -19,7 +20,6 @@ import {
   FieldSet,
 } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
-import { useSessionStore } from "@/stores/session-store";
 
 export const Route = createFileRoute("/sessions/$sessionId/edit")({
   component: EditSessionPage,
@@ -32,19 +32,15 @@ export const Route = createFileRoute("/sessions/$sessionId/edit")({
 function EditSessionPage() {
   const navigate = useNavigate();
   const { sessionId } = Route.useParams();
-  const { getSession, updateSession } = useSessionStore();
+  const client = useApiClient();
 
-  const session = getSession(sessionId);
-
-  if (!session) {
-    navigate({ to: "/sessions" });
-    return null;
-  }
+  // Use hooks package to fetch session
+  const { data: session, isLoading } = useSession(client, sessionId);
 
   const form = useForm({
     defaultValues: {
-      sessionName: session.id,
-      phoneNumber: session.jid ? session.jid.split("@")[0] : "",
+      sessionName: session?.id || "",
+      phoneNumber: session?.jid ? session.jid.split("@")[0] : "",
       accountProtection: true,
       messageLogging: true,
       readMessages: false,
@@ -58,12 +54,7 @@ function EditSessionPage() {
     },
     onSubmit: async ({ value }) => {
       try {
-        // Update session (in real app, this would call API)
-        updateSession(sessionId, {
-          id: value.sessionName,
-          updated_at: new Date().toISOString(),
-        });
-
+        // TODO: Implement update session API endpoint
         toast.success("Session updated successfully");
 
         // Navigate back to session details
@@ -76,6 +67,22 @@ function EditSessionPage() {
       }
     },
   });
+
+  if (isLoading) {
+    return (
+      <div className="min-h-screen network-bg flex items-center justify-center">
+        <div className="flex flex-col items-center space-y-4">
+          <Loader2 className="h-8 w-8 animate-spin text-primary" />
+          <p className="text-sm text-muted-foreground">Loading session...</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (!session) {
+    navigate({ to: "/sessions" });
+    return null;
+  }
 
   return (
     <div className="min-h-screen network-bg">

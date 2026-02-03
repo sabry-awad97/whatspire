@@ -1,6 +1,7 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { RouterProvider, createRouter } from "@tanstack/react-router";
 import ReactDOM from "react-dom/client";
+import { WhatspireProvider } from "@whatspire/hooks";
 
 import { ErrorFallback } from "./components/error-fallback";
 import Loader from "./components/loader";
@@ -49,7 +50,13 @@ if (!rootElement.innerHTML) {
   const root = ReactDOM.createRoot(rootElement);
   root.render(
     <QueryClientProvider client={queryClient}>
-      <RouterProvider router={router} />
+      <WhatspireProvider
+        config={{
+          baseURL: import.meta.env.VITE_SERVER_URL || "http://localhost:8080",
+        }}
+      >
+        <RouterProvider router={router} />
+      </WhatspireProvider>
     </QueryClientProvider>,
   );
 }

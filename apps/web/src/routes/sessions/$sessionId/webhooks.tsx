@@ -2,8 +2,8 @@ import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { ArrowLeft, Eye, EyeOff, Save, X } from "lucide-react";
 import { useState } from "react";
 import { toast } from "sonner";
-
-import { useSessionStore } from "@/stores/session-store";
+import { useApiClient, useSession } from "@whatspire/hooks";
+import { Loader2 } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -64,9 +64,10 @@ const WEBHOOK_EVENTS = [
 function WebhookConfigurationPage() {
   const { sessionId } = Route.useParams();
   const navigate = useNavigate();
-  const { getSession } = useSessionStore();
+  const client = useApiClient();
 
-  const session = getSession(sessionId);
+  // Use hooks package to fetch session
+  const { data: session, isLoading } = useSession(client, sessionId);
 
   const [endpointEnabled, setEndpointEnabled] = useState(false);
   const [webhookUrl, setWebhookUrl] = useState(
@@ -82,6 +83,17 @@ function WebhookConfigurationPage() {
   const [ignoreGroups, setIgnoreGroups] = useState(false);
   const [ignoreBroadcasts, setIgnoreBroadcasts] = useState(false);
   const [ignoreChannels, setIgnoreChannels] = useState(false);
+
+  if (isLoading) {
+    return (
+      <div className="min-h-screen network-bg flex items-center justify-center">
+        <div className="flex flex-col items-center space-y-4">
+          <Loader2 className="h-8 w-8 animate-spin text-primary" />
+          <p className="text-sm text-muted-foreground">Loading session...</p>
+        </div>
+      </div>
+    );
+  }
 
   if (!session) {
     return (

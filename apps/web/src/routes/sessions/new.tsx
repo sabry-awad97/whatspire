@@ -1,8 +1,9 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useForm } from "@tanstack/react-form";
-import { z } from "zod";
 import { ArrowLeft, Plus } from "lucide-react";
 import { toast } from "sonner";
+import { useApiClient, useCreateSession } from "@whatspire/hooks";
+import type { Session } from "@whatspire/schema";
 
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -19,8 +20,6 @@ import {
   FieldSet,
 } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
-import { useSessionStore } from "@/stores/session-store";
-import { apiClient } from "@/lib/api-client";
 
 export const Route = createFileRoute("/sessions/new")({
   component: NewSessionPage,
@@ -32,7 +31,22 @@ export const Route = createFileRoute("/sessions/new")({
 
 function NewSessionPage() {
   const navigate = useNavigate();
-  const { addSession } = useSessionStore();
+  const client = useApiClient();
+
+  // Use hooks package for session creation
+  const createSession = useCreateSession(client, {
+    onSuccess: (session: Session) => {
+      toast.success("Session created successfully");
+      // Navigate to the session details page to scan QR code
+      navigate({
+        to: "/sessions/$sessionId",
+        params: { sessionId: session.id },
+      });
+    },
+    onError: (error: Error) => {
+      toast.error(error.message || "Failed to create session");
+    },
+  });
 
   const form = useForm({
     defaultValues: {
@@ -50,27 +64,10 @@ function NewSessionPage() {
       webhookUrl: "",
     },
     onSubmit: async ({ value }) => {
-      try {
-        // Create session via API
-        const session = await apiClient.createSession({
-          session_id: value.sessionName,
-          name: value.sessionName,
-        });
-
-        // Add to local store
-        addSession(session);
-        toast.success("Session created successfully");
-
-        // Navigate to the session details page to scan QR code
-        navigate({
-          to: "/sessions/$sessionId",
-          params: { sessionId: session.id },
-        });
-      } catch (error) {
-        const message =
-          error instanceof Error ? error.message : "Failed to create session";
-        toast.error(message);
-      }
+      // Create session via hooks
+      createSession.mutate({
+        name: value.sessionName,
+      });
     },
   });
 
@@ -500,11 +497,13 @@ function NewSessionPage() {
               </Button>
               <Button
                 type="submit"
-                disabled={form.state.isSubmitting}
+                disabled={form.state.isSubmitting || createSession.isPending}
                 className="glass-card hover-glow-emerald"
               >
                 <Plus className="mr-2 h-4 w-4" />
-                {form.state.isSubmitting ? "Creating..." : "Create Session"}
+                {form.state.isSubmitting || createSession.isPending
+                  ? "Creating..."
+                  : "Create Session"}
               </Button>
             </div>
           </div>
