@@ -161,3 +161,31 @@ type GroupFetcher interface {
 	// GetJoinedGroups fetches all groups the session is a member of from WhatsApp
 	GetJoinedGroups(ctx context.Context, sessionID string) ([]*entity.Group, error)
 }
+
+// EventRepository defines event persistence operations for debugging and audit
+type EventRepository interface {
+	// Create stores a new event in the repository
+	Create(ctx context.Context, event *entity.Event) error
+
+	// GetByID retrieves an event by its ID
+	GetByID(ctx context.Context, id string) (*entity.Event, error)
+
+	// List retrieves events with optional filters
+	List(ctx context.Context, filter EventFilter) ([]*entity.Event, error)
+
+	// DeleteOlderThan removes events older than the specified timestamp
+	DeleteOlderThan(ctx context.Context, timestamp string) (int64, error)
+
+	// Count returns the total number of events matching the filter
+	Count(ctx context.Context, filter EventFilter) (int64, error)
+}
+
+// EventFilter defines filtering options for event queries
+type EventFilter struct {
+	SessionID *string           // Filter by session ID
+	EventType *entity.EventType // Filter by event type
+	Since     *string           // Filter events after this timestamp (RFC3339)
+	Until     *string           // Filter events before this timestamp (RFC3339)
+	Limit     int               // Maximum number of results (0 = no limit)
+	Offset    int               // Number of results to skip
+}
