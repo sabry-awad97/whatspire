@@ -340,9 +340,8 @@ func WireEventHubToWhatsAppClient(
 		// Publish the event (non-blocking)
 		go func() {
 			ctx := context.Background()
-			if err := publisher.Publish(ctx, event); err != nil {
-				// Log error but don't block (events are queued internally)
-			}
+			_ = publisher.Publish(ctx, event)
+			// Ignore error - events are queued internally
 		}()
 	})
 

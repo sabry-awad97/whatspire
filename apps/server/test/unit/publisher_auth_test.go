@@ -55,7 +55,7 @@ func (m *MockAPIServer) handleWebSocket(w http.ResponseWriter, r *http.Request) 
 	defer conn.Close()
 
 	// Wait for auth message
-	conn.SetReadDeadline(time.Now().Add(5 * time.Second))
+	_ = conn.SetReadDeadline(time.Now().Add(5 * time.Second))
 	_, message, err := conn.ReadMessage()
 	if err != nil {
 		return
@@ -83,14 +83,14 @@ func (m *MockAPIServer) handleWebSocket(w http.ResponseWriter, r *http.Request) 
 		response["message"] = "Invalid API key"
 	}
 	responseData, _ := json.Marshal(response)
-	conn.WriteMessage(websocket.TextMessage, responseData)
+	_ = conn.WriteMessage(websocket.TextMessage, responseData)
 
 	if !m.authSuccess {
 		return
 	}
 
 	// Listen for events
-	conn.SetReadDeadline(time.Time{})
+	_ = conn.SetReadDeadline(time.Time{})
 	for {
 		_, message, err := conn.ReadMessage()
 		if err != nil {
@@ -158,7 +158,7 @@ func TestPublisher_SendsAuthMessageOnConnect(t *testing.T) {
 
 	err := publisher.Connect(ctx)
 	require.NoError(t, err)
-	defer publisher.Disconnect(context.Background())
+	defer func() { _ = publisher.Disconnect(context.Background()) }()
 
 	// Wait for auth to be processed
 	time.Sleep(100 * time.Millisecond)
@@ -215,7 +215,7 @@ func TestPublisher_AuthSucceedsWithEmptyExpectedKey(t *testing.T) {
 
 	err := publisher.Connect(ctx)
 	require.NoError(t, err)
-	defer publisher.Disconnect(context.Background())
+	defer func() { _ = publisher.Disconnect(context.Background()) }()
 
 	time.Sleep(100 * time.Millisecond)
 
@@ -245,7 +245,7 @@ func TestPublisher_EventsOnlySentAfterAuth(t *testing.T) {
 
 	err := publisher.Connect(ctx)
 	require.NoError(t, err)
-	defer publisher.Disconnect(context.Background())
+	defer func() { _ = publisher.Disconnect(context.Background()) }()
 
 	// Wait for auth
 	time.Sleep(100 * time.Millisecond)
@@ -288,7 +288,7 @@ func TestPublisher_ReauthenticatesOnReconnect(t *testing.T) {
 		defer conn.Close()
 
 		// Wait for auth
-		conn.SetReadDeadline(time.Now().Add(5 * time.Second))
+		_ = conn.SetReadDeadline(time.Now().Add(5 * time.Second))
 		_, message, err := conn.ReadMessage()
 		if err != nil {
 			return
@@ -298,7 +298,7 @@ func TestPublisher_ReauthenticatesOnReconnect(t *testing.T) {
 			Type   string `json:"type"`
 			APIKey string `json:"api_key"`
 		}
-		json.Unmarshal(message, &authMsg)
+		_ = json.Unmarshal(message, &authMsg)
 
 		if authMsg.Type == "auth" && authMsg.APIKey == expectedKey {
 			mu.Lock()
@@ -310,7 +310,7 @@ func TestPublisher_ReauthenticatesOnReconnect(t *testing.T) {
 				"success": true,
 			}
 			responseData, _ := json.Marshal(response)
-			conn.WriteMessage(websocket.TextMessage, responseData)
+			_ = conn.WriteMessage(websocket.TextMessage, responseData)
 		}
 
 		// Keep connection alive briefly
@@ -339,7 +339,7 @@ func TestPublisher_ReauthenticatesOnReconnect(t *testing.T) {
 
 	err := publisher.Connect(ctx)
 	require.NoError(t, err)
-	defer publisher.Disconnect(context.Background())
+	defer func() { _ = publisher.Disconnect(context.Background()) }()
 
 	// Wait for initial auth
 	time.Sleep(200 * time.Millisecond)

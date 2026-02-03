@@ -75,10 +75,8 @@ func (uc *ReactionUseCase) SendReaction(ctx context.Context, req dto.SendReactio
 
 	// Save reaction to repository
 	if uc.reactionRepo != nil {
-		if err := uc.reactionRepo.Save(ctx, reaction); err != nil {
-			// Log error but don't fail the request
-			// The reaction was sent successfully
-		}
+		_ = uc.reactionRepo.Save(ctx, reaction)
+		// Ignore error - reaction was sent successfully
 	}
 
 	// Publish reaction event
@@ -124,9 +122,8 @@ func (uc *ReactionUseCase) RemoveReaction(ctx context.Context, req dto.RemoveRea
 
 	// Delete reaction from repository
 	if uc.reactionRepo != nil {
-		if err := uc.reactionRepo.DeleteByMessageIDAndFrom(ctx, req.MessageID, fromJID); err != nil {
-			// Log error but don't fail the request
-		}
+		_ = uc.reactionRepo.DeleteByMessageIDAndFrom(ctx, req.MessageID, fromJID)
+		// Ignore error - reaction removal was sent successfully
 	}
 
 	// Publish reaction removal event

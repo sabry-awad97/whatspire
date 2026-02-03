@@ -162,7 +162,6 @@ func (m *Message) MarshalJSON() ([]byte, error) {
 	status := m.Status
 	m.mu.RUnlock()
 
-	type Alias Message
 	return json.Marshal(&struct {
 		ID        string         `json:"id"`
 		SessionID string         `json:"session_id"`

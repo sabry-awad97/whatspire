@@ -293,7 +293,7 @@ log:
 		case <-timeout:
 			// Timeout - file watching can be flaky in test environments
 			t.Log("Callbacks not received within timeout (this may be expected on some systems)")
-			watcher.Stop()
+			_ = watcher.Stop()
 			return
 		}
 	}

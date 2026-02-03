@@ -298,7 +298,9 @@ func (p *GorillaEventPublisher) sendAuth() error {
 	}
 
 	// Wait for auth response with timeout
-	conn.SetReadDeadline(time.Now().Add(10 * time.Second))
+	if err := conn.SetReadDeadline(time.Now().Add(10 * time.Second)); err != nil {
+		return errors.ErrConnectionFailed.WithMessage("failed to set read deadline").WithCause(err)
+	}
 	_, message, err := conn.ReadMessage()
 	if err != nil {
 		return errors.ErrConnectionFailed.WithMessage("failed to read auth response")
@@ -321,8 +323,8 @@ func (p *GorillaEventPublisher) sendAuth() error {
 	p.authenticated = true
 	p.mu.Unlock()
 
-	// Clear read deadline
-	conn.SetReadDeadline(time.Time{})
+	// Clear read deadline (ignore error - connection is already authenticated)
+	_ = conn.SetReadDeadline(time.Time{})
 
 	return nil
 }

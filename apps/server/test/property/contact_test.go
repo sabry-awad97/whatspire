@@ -47,7 +47,8 @@ func TestProperty12_PhoneNumberValidation(t *testing.T) {
 		if contact == nil {
 			t.Fatalf("Expected contact result for phone number %s", e164Phone)
 		}
-		if contact.JID == "" {
+		// Check for nil pointer before accessing JID
+		if contact != nil && contact.JID == "" {
 			t.Fatalf("Expected non-empty JID for phone number %s", e164Phone)
 		}
 	})
@@ -253,6 +254,7 @@ func TestContactOperations_ValidJIDAcceptance(t *testing.T) {
 		}
 		if contact == nil {
 			t.Fatalf("Expected contact result for JID %s", validJID)
+			return // Satisfy linter - unreachable but prevents nil pointer warning
 		}
 		if contact.JID == "" {
 			t.Fatalf("Expected non-empty JID in result")
