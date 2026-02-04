@@ -538,7 +538,7 @@ func setDefaults(v *viper.Viper) {
 	v.SetDefault("cors.max_age", 86400) // 24 hours
 
 	// APIKey defaults
-	v.SetDefault("apikey.enabled", false)
+	v.SetDefault("apikey.enabled", true)
 	v.SetDefault("apikey.header", "X-API-Key")
 
 	// Metrics defaults
