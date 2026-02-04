@@ -53,7 +53,7 @@ tasks:
     cmds:
       - echo "🔨 Building backend..."
       - go build -o ../../bin/whatsapp-server cmd/whatsapp/main.go
-      - echo "✅ Backend built successfully: bin/whatsapp-server"
+      - echo "✅ Backend built successfully bin/whatsapp-server"
 
   build:frontend:
     desc: "Build React frontend for production"
@@ -61,7 +61,7 @@ tasks:
     cmds:
       - echo "🔨 Building frontend..."
       - npm run build
-      - echo "✅ Frontend built successfully: apps/web/dist"
+      - echo "✅ Frontend built successfully in apps/web/dist"
 
   # ============================================================================
   # Install Dependencies
@@ -114,7 +114,7 @@ tasks:
       - echo "🧪 Running backend tests with coverage..."
       - go test ./... -coverprofile=coverage.out
       - go tool cover -html=coverage.out -o coverage.html
-      - echo "✅ Coverage report generated: apps/server/coverage.html"
+      - echo "✅ Coverage report generated in apps/server/coverage.html"
 
   test:frontend:
     desc: "Run frontend tests"
@@ -166,7 +166,7 @@ tasks:
     desc: "Reset database (WARNING: Deletes all data)"
     dir: "{{.SERVER_DIR}}"
     cmds:
-      - echo "⚠️  WARNING: This will delete all data!"
+      - echo "⚠️  WARNING - This will delete all data"
       - cmd: |
           read -p "Are you sure? (yes/no): " confirm
           if [ "$confirm" = "yes" ]; then
@@ -181,7 +181,7 @@ tasks:
     desc: "Reset database on Windows (WARNING: Deletes all data)"
     dir: "{{.SERVER_DIR}}"
     cmds:
-      - echo "⚠️  WARNING: This will delete all data!"
+      - echo "⚠️  WARNING - This will delete all data"
       - cmd: |
           $confirm = Read-Host "Are you sure? (yes/no)"
           if ($confirm -eq "yes") {
@@ -300,10 +300,10 @@ tasks:
     cmds:
       - echo "📊 Checking service status..."
       - cmd: |
-          echo "Backend (port {{.SERVER_PORT}}):"
+          echo "Backend (port {{.SERVER_PORT}})"
           curl -s http://localhost:{{.SERVER_PORT}}/health || echo "  ❌ Not running"
           echo ""
-          echo "Frontend (port {{.WEB_PORT}}):"
+          echo "Frontend (port {{.WEB_PORT}})"
           curl -s http://localhost:{{.WEB_PORT}} > /dev/null && echo "  ✅ Running" || echo "  ❌ Not running"
 
   logs:
@@ -326,7 +326,7 @@ tasks:
     cmds:
       - echo "📚 WhatsApp API Taskfile Help"
       - echo ""
-      - echo "Common Commands:"
+      - echo "Common Commands"
       - echo "  task dev              - Start both backend and frontend in dev mode"
       - echo "  task dev:backend      - Start only backend server"
       - echo "  task dev:frontend     - Start only frontend server"
@@ -336,4 +336,4 @@ tasks:
       - echo "  task setup            - Initial project setup"
       - echo "  task check            - Run all checks (lint, test, build)"
       - echo ""
-      - echo "For full list of tasks, run: task --list"
+      - echo "For full list of tasks, run task --list"
