@@ -6,6 +6,7 @@ import (
 	"crypto/sha256"
 	"encoding/base64"
 	"fmt"
+	"time"
 
 	"whatspire/internal/domain/entity"
 	"whatspire/internal/domain/errors"
@@ -14,20 +15,29 @@ import (
 	"github.com/google/uuid"
 )
 
+// AuditLogRepository defines methods for querying audit logs
+type AuditLogRepository interface {
+	CountAPIKeyUsage(ctx context.Context, apiKeyID string) (int64, error)
+	CountAPIKeyUsageSince(ctx context.Context, apiKeyID string, since time.Time) (int64, error)
+}
+
 // APIKeyUseCase handles API key operations (create, revoke, list, details)
 type APIKeyUseCase struct {
-	repo        repository.APIKeyRepository
-	auditLogger repository.AuditLogger
+	repo         repository.APIKeyRepository
+	auditLogger  repository.AuditLogger
+	auditLogRepo AuditLogRepository
 }
 
 // NewAPIKeyUseCase creates a new APIKeyUseCase
 func NewAPIKeyUseCase(
 	repo repository.APIKeyRepository,
 	auditLogger repository.AuditLogger,
+	auditLogRepo AuditLogRepository,
 ) *APIKeyUseCase {
 	return &APIKeyUseCase{
-		repo:        repo,
-		auditLogger: auditLogger,
+		repo:         repo,
+		auditLogger:  auditLogger,
+		auditLogRepo: auditLogRepo,
 	}
 }
 
@@ -202,18 +212,32 @@ func (uc *APIKeyUseCase) GetAPIKeyDetails(ctx context.Context, id string) (*enti
 		return nil, 0, 0, err
 	}
 
-	// Calculate usage statistics
-	// Note: This is a simplified implementation. In production, you would query
-	// the audit_logs table to get actual usage counts.
-	// For now, we'll return placeholder values that can be enhanced later.
+	// Calculate usage statistics from audit logs
 	totalRequests := 0
 	last7DaysRequests := 0
 
-	// TODO: Query audit_logs table for actual usage statistics
-	// Example query:
-	// SELECT COUNT(*) FROM audit_logs
-	// WHERE api_key_id = ? AND event_type = 'api_key_usage'
-	// AND created_at >= NOW() - INTERVAL '7 days'
+	if uc.auditLogRepo != nil {
+		// Get total usage count
+		totalCount, err := uc.auditLogRepo.CountAPIKeyUsage(ctx, id)
+		if err != nil {
+			// Log error but don't fail the request
+			// Usage stats are supplementary information
+			totalRequests = 0
+		} else {
+			totalRequests = int(totalCount)
+		}
+
+		// Get usage count for last 7 days
+		// Calculate timestamp for 7 days ago
+		sevenDaysAgo := time.Now().AddDate(0, 0, -7)
+		recentCount, err := uc.auditLogRepo.CountAPIKeyUsageSince(ctx, id, sevenDaysAgo)
+		if err != nil {
+			// Log error but don't fail the request
+			last7DaysRequests = 0
+		} else {
+			last7DaysRequests = int(recentCount)
+		}
+	}
 
 	return apiKey, totalRequests, last7DaysRequests, nil
 }

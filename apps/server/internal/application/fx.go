@@ -7,6 +7,7 @@ import (
 	"whatspire/internal/domain/repository"
 	"whatspire/internal/infrastructure"
 	"whatspire/internal/infrastructure/config"
+	"whatspire/internal/infrastructure/persistence"
 
 	"go.uber.org/fx"
 )
@@ -126,6 +127,7 @@ func NewEventUseCase(
 func NewAPIKeyUseCase(
 	repo repository.APIKeyRepository,
 	auditLogger repository.AuditLogger,
+	auditLogRepo *persistence.AuditLogRepository,
 ) *usecase.APIKeyUseCase {
-	return usecase.NewAPIKeyUseCase(repo, auditLogger)
+	return usecase.NewAPIKeyUseCase(repo, auditLogger, auditLogRepo)
 }

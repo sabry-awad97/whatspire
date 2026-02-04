@@ -3,6 +3,7 @@ package unit
 import (
 	"context"
 	"testing"
+	"time"
 
 	"whatspire/internal/application/usecase"
 	"whatspire/internal/domain/entity"
@@ -217,12 +218,51 @@ func (m *AuditLoggerMock) LogWebhookDelivery(ctx context.Context, event reposito
 	}
 }
 
+// ==================== Mock AuditLogRepository ====================
+
+type AuditLogRepositoryMock struct {
+	CountAPIKeyUsageFn      func(ctx context.Context, apiKeyID string) (int64, error)
+	CountAPIKeyUsageSinceFn func(ctx context.Context, apiKeyID string, since time.Time) (int64, error)
+	UsageCounts             map[string]int64 // apiKeyID -> count
+	RecentUsageCounts       map[string]int64 // apiKeyID -> recent count
+}
+
+func NewAuditLogRepositoryMock() *AuditLogRepositoryMock {
+	return &AuditLogRepositoryMock{
+		UsageCounts:       make(map[string]int64),
+		RecentUsageCounts: make(map[string]int64),
+	}
+}
+
+func (m *AuditLogRepositoryMock) CountAPIKeyUsage(ctx context.Context, apiKeyID string) (int64, error) {
+	if m.CountAPIKeyUsageFn != nil {
+		return m.CountAPIKeyUsageFn(ctx, apiKeyID)
+	}
+	count, exists := m.UsageCounts[apiKeyID]
+	if !exists {
+		return 0, nil
+	}
+	return count, nil
+}
+
+func (m *AuditLogRepositoryMock) CountAPIKeyUsageSince(ctx context.Context, apiKeyID string, since time.Time) (int64, error) {
+	if m.CountAPIKeyUsageSinceFn != nil {
+		return m.CountAPIKeyUsageSinceFn(ctx, apiKeyID, since)
+	}
+	count, exists := m.RecentUsageCounts[apiKeyID]
+	if !exists {
+		return 0, nil
+	}
+	return count, nil
+}
+
 // ==================== CreateAPIKey Tests ====================
 
 func TestAPIKeyUseCase_CreateAPIKey_Success(t *testing.T) {
 	repo := NewAPIKeyRepositoryMock()
 	auditLogger := NewAuditLoggerMock()
-	uc := usecase.NewAPIKeyUseCase(repo, auditLogger)
+	auditLogRepo := NewAuditLogRepositoryMock()
+	uc := usecase.NewAPIKeyUseCase(repo, auditLogger, auditLogRepo)
 
 	description := "Test API Key"
 	plainKey, apiKey, err := uc.CreateAPIKey(context.Background(), "read", &description, "admin@example.com")
@@ -247,7 +287,8 @@ func TestAPIKeyUseCase_CreateAPIKey_Success(t *testing.T) {
 func TestAPIKeyUseCase_CreateAPIKey_InvalidRole(t *testing.T) {
 	repo := NewAPIKeyRepositoryMock()
 	auditLogger := NewAuditLoggerMock()
-	uc := usecase.NewAPIKeyUseCase(repo, auditLogger)
+	auditLogRepo := NewAuditLogRepositoryMock()
+	uc := usecase.NewAPIKeyUseCase(repo, auditLogger, auditLogRepo)
 
 	plainKey, apiKey, err := uc.CreateAPIKey(context.Background(), "invalid", nil, "admin@example.com")
 
@@ -264,7 +305,8 @@ func TestAPIKeyUseCase_CreateAPIKey_InvalidRole(t *testing.T) {
 func TestAPIKeyUseCase_CreateAPIKey_AllRoles(t *testing.T) {
 	repo := NewAPIKeyRepositoryMock()
 	auditLogger := NewAuditLoggerMock()
-	uc := usecase.NewAPIKeyUseCase(repo, auditLogger)
+	auditLogRepo := NewAuditLogRepositoryMock()
+	uc := usecase.NewAPIKeyUseCase(repo, auditLogger, auditLogRepo)
 
 	roles := []string{"read", "write", "admin"}
 
@@ -283,7 +325,8 @@ func TestAPIKeyUseCase_CreateAPIKey_AllRoles(t *testing.T) {
 func TestAPIKeyUseCase_CreateAPIKey_NilDescription(t *testing.T) {
 	repo := NewAPIKeyRepositoryMock()
 	auditLogger := NewAuditLoggerMock()
-	uc := usecase.NewAPIKeyUseCase(repo, auditLogger)
+	auditLogRepo := NewAuditLogRepositoryMock()
+	uc := usecase.NewAPIKeyUseCase(repo, auditLogger, auditLogRepo)
 
 	plainKey, apiKey, err := uc.CreateAPIKey(context.Background(), "write", nil, "admin@example.com")
 
@@ -299,7 +342,8 @@ func TestAPIKeyUseCase_CreateAPIKey_RepositoryError(t *testing.T) {
 		return errors.ErrDatabaseError
 	}
 	auditLogger := NewAuditLoggerMock()
-	uc := usecase.NewAPIKeyUseCase(repo, auditLogger)
+	auditLogRepo := NewAuditLogRepositoryMock()
+	uc := usecase.NewAPIKeyUseCase(repo, auditLogger, auditLogRepo)
 
 	plainKey, apiKey, err := uc.CreateAPIKey(context.Background(), "read", nil, "admin@example.com")
 
@@ -311,7 +355,8 @@ func TestAPIKeyUseCase_CreateAPIKey_RepositoryError(t *testing.T) {
 func TestAPIKeyUseCase_CreateAPIKey_UniqueKeys(t *testing.T) {
 	repo := NewAPIKeyRepositoryMock()
 	auditLogger := NewAuditLoggerMock()
-	uc := usecase.NewAPIKeyUseCase(repo, auditLogger)
+	auditLogRepo := NewAuditLogRepositoryMock()
+	uc := usecase.NewAPIKeyUseCase(repo, auditLogger, auditLogRepo)
 
 	// Create multiple keys
 	keys := make(map[string]bool)
@@ -330,7 +375,8 @@ func TestAPIKeyUseCase_CreateAPIKey_UniqueKeys(t *testing.T) {
 func TestAPIKeyUseCase_RevokeAPIKey_Success(t *testing.T) {
 	repo := NewAPIKeyRepositoryMock()
 	auditLogger := NewAuditLoggerMock()
-	uc := usecase.NewAPIKeyUseCase(repo, auditLogger)
+	auditLogRepo := NewAuditLogRepositoryMock()
+	uc := usecase.NewAPIKeyUseCase(repo, auditLogger, auditLogRepo)
 
 	// Create an API key first
 	_, apiKey, err := uc.CreateAPIKey(context.Background(), "read", nil, "admin@example.com")
@@ -356,7 +402,8 @@ func TestAPIKeyUseCase_RevokeAPIKey_Success(t *testing.T) {
 func TestAPIKeyUseCase_RevokeAPIKey_NotFound(t *testing.T) {
 	repo := NewAPIKeyRepositoryMock()
 	auditLogger := NewAuditLoggerMock()
-	uc := usecase.NewAPIKeyUseCase(repo, auditLogger)
+	auditLogRepo := NewAuditLogRepositoryMock()
+	uc := usecase.NewAPIKeyUseCase(repo, auditLogger, auditLogRepo)
 
 	revokedKey, err := uc.RevokeAPIKey(context.Background(), "non-existent", "admin@example.com", nil)
 
@@ -368,7 +415,8 @@ func TestAPIKeyUseCase_RevokeAPIKey_NotFound(t *testing.T) {
 func TestAPIKeyUseCase_RevokeAPIKey_AlreadyRevoked(t *testing.T) {
 	repo := NewAPIKeyRepositoryMock()
 	auditLogger := NewAuditLoggerMock()
-	uc := usecase.NewAPIKeyUseCase(repo, auditLogger)
+	auditLogRepo := NewAuditLogRepositoryMock()
+	uc := usecase.NewAPIKeyUseCase(repo, auditLogger, auditLogRepo)
 
 	// Create and revoke an API key
 	_, apiKey, err := uc.CreateAPIKey(context.Background(), "read", nil, "admin@example.com")
@@ -391,7 +439,8 @@ func TestAPIKeyUseCase_RevokeAPIKey_AlreadyRevoked(t *testing.T) {
 func TestAPIKeyUseCase_RevokeAPIKey_NilReason(t *testing.T) {
 	repo := NewAPIKeyRepositoryMock()
 	auditLogger := NewAuditLoggerMock()
-	uc := usecase.NewAPIKeyUseCase(repo, auditLogger)
+	auditLogRepo := NewAuditLogRepositoryMock()
+	uc := usecase.NewAPIKeyUseCase(repo, auditLogger, auditLogRepo)
 
 	_, apiKey, err := uc.CreateAPIKey(context.Background(), "read", nil, "admin@example.com")
 	require.NoError(t, err)
@@ -407,7 +456,8 @@ func TestAPIKeyUseCase_RevokeAPIKey_NilReason(t *testing.T) {
 func TestAPIKeyUseCase_RevokeAPIKey_RepositoryError(t *testing.T) {
 	repo := NewAPIKeyRepositoryMock()
 	auditLogger := NewAuditLoggerMock()
-	uc := usecase.NewAPIKeyUseCase(repo, auditLogger)
+	auditLogRepo := NewAuditLogRepositoryMock()
+	uc := usecase.NewAPIKeyUseCase(repo, auditLogger, auditLogRepo)
 
 	_, apiKey, err := uc.CreateAPIKey(context.Background(), "read", nil, "admin@example.com")
 	require.NoError(t, err)
@@ -428,7 +478,8 @@ func TestAPIKeyUseCase_RevokeAPIKey_RepositoryError(t *testing.T) {
 func TestAPIKeyUseCase_ListAPIKeys_Success(t *testing.T) {
 	repo := NewAPIKeyRepositoryMock()
 	auditLogger := NewAuditLoggerMock()
-	uc := usecase.NewAPIKeyUseCase(repo, auditLogger)
+	auditLogRepo := NewAuditLogRepositoryMock()
+	uc := usecase.NewAPIKeyUseCase(repo, auditLogger, auditLogRepo)
 
 	// Create multiple API keys
 	for i := 0; i < 5; i++ {
@@ -447,7 +498,8 @@ func TestAPIKeyUseCase_ListAPIKeys_Success(t *testing.T) {
 func TestAPIKeyUseCase_ListAPIKeys_Pagination(t *testing.T) {
 	repo := NewAPIKeyRepositoryMock()
 	auditLogger := NewAuditLoggerMock()
-	uc := usecase.NewAPIKeyUseCase(repo, auditLogger)
+	auditLogRepo := NewAuditLogRepositoryMock()
+	uc := usecase.NewAPIKeyUseCase(repo, auditLogger, auditLogRepo)
 
 	// Create 10 API keys
 	for i := 0; i < 10; i++ {
@@ -477,7 +529,8 @@ func TestAPIKeyUseCase_ListAPIKeys_Pagination(t *testing.T) {
 func TestAPIKeyUseCase_ListAPIKeys_FilterByRole(t *testing.T) {
 	repo := NewAPIKeyRepositoryMock()
 	auditLogger := NewAuditLoggerMock()
-	uc := usecase.NewAPIKeyUseCase(repo, auditLogger)
+	auditLogRepo := NewAuditLogRepositoryMock()
+	uc := usecase.NewAPIKeyUseCase(repo, auditLogger, auditLogRepo)
 
 	// Create keys with different roles
 	_, _, err := uc.CreateAPIKey(context.Background(), "read", nil, "admin@example.com")
@@ -499,7 +552,8 @@ func TestAPIKeyUseCase_ListAPIKeys_FilterByRole(t *testing.T) {
 func TestAPIKeyUseCase_ListAPIKeys_FilterByStatus(t *testing.T) {
 	repo := NewAPIKeyRepositoryMock()
 	auditLogger := NewAuditLoggerMock()
-	uc := usecase.NewAPIKeyUseCase(repo, auditLogger)
+	auditLogRepo := NewAuditLogRepositoryMock()
+	uc := usecase.NewAPIKeyUseCase(repo, auditLogger, auditLogRepo)
 
 	// Create keys
 	_, key1, err := uc.CreateAPIKey(context.Background(), "read", nil, "admin@example.com")
@@ -531,7 +585,8 @@ func TestAPIKeyUseCase_ListAPIKeys_FilterByStatus(t *testing.T) {
 func TestAPIKeyUseCase_ListAPIKeys_InvalidRole(t *testing.T) {
 	repo := NewAPIKeyRepositoryMock()
 	auditLogger := NewAuditLoggerMock()
-	uc := usecase.NewAPIKeyUseCase(repo, auditLogger)
+	auditLogRepo := NewAuditLogRepositoryMock()
+	uc := usecase.NewAPIKeyUseCase(repo, auditLogger, auditLogRepo)
 
 	invalidRole := "invalid"
 	keys, total, err := uc.ListAPIKeys(context.Background(), 1, 10, &invalidRole, nil)
@@ -545,7 +600,8 @@ func TestAPIKeyUseCase_ListAPIKeys_InvalidRole(t *testing.T) {
 func TestAPIKeyUseCase_ListAPIKeys_InvalidStatus(t *testing.T) {
 	repo := NewAPIKeyRepositoryMock()
 	auditLogger := NewAuditLoggerMock()
-	uc := usecase.NewAPIKeyUseCase(repo, auditLogger)
+	auditLogRepo := NewAuditLogRepositoryMock()
+	uc := usecase.NewAPIKeyUseCase(repo, auditLogger, auditLogRepo)
 
 	invalidStatus := "invalid"
 	keys, total, err := uc.ListAPIKeys(context.Background(), 1, 10, nil, &invalidStatus)
@@ -559,7 +615,8 @@ func TestAPIKeyUseCase_ListAPIKeys_InvalidStatus(t *testing.T) {
 func TestAPIKeyUseCase_ListAPIKeys_DefaultPagination(t *testing.T) {
 	repo := NewAPIKeyRepositoryMock()
 	auditLogger := NewAuditLoggerMock()
-	uc := usecase.NewAPIKeyUseCase(repo, auditLogger)
+	auditLogRepo := NewAuditLogRepositoryMock()
+	uc := usecase.NewAPIKeyUseCase(repo, auditLogger, auditLogRepo)
 
 	// Create 5 keys
 	for range 5 {
@@ -577,7 +634,8 @@ func TestAPIKeyUseCase_ListAPIKeys_DefaultPagination(t *testing.T) {
 func TestAPIKeyUseCase_ListAPIKeys_MaxLimit(t *testing.T) {
 	repo := NewAPIKeyRepositoryMock()
 	auditLogger := NewAuditLoggerMock()
-	uc := usecase.NewAPIKeyUseCase(repo, auditLogger)
+	auditLogRepo := NewAuditLogRepositoryMock()
+	uc := usecase.NewAPIKeyUseCase(repo, auditLogger, auditLogRepo)
 
 	// Create 5 keys
 	for range 5 {
@@ -597,7 +655,8 @@ func TestAPIKeyUseCase_ListAPIKeys_MaxLimit(t *testing.T) {
 func TestAPIKeyUseCase_GetAPIKeyDetails_Success(t *testing.T) {
 	repo := NewAPIKeyRepositoryMock()
 	auditLogger := NewAuditLoggerMock()
-	uc := usecase.NewAPIKeyUseCase(repo, auditLogger)
+	auditLogRepo := NewAuditLogRepositoryMock()
+	uc := usecase.NewAPIKeyUseCase(repo, auditLogger, auditLogRepo)
 
 	// Create an API key
 	_, apiKey, err := uc.CreateAPIKey(context.Background(), "read", nil, "admin@example.com")
@@ -616,7 +675,8 @@ func TestAPIKeyUseCase_GetAPIKeyDetails_Success(t *testing.T) {
 func TestAPIKeyUseCase_GetAPIKeyDetails_NotFound(t *testing.T) {
 	repo := NewAPIKeyRepositoryMock()
 	auditLogger := NewAuditLoggerMock()
-	uc := usecase.NewAPIKeyUseCase(repo, auditLogger)
+	auditLogRepo := NewAuditLogRepositoryMock()
+	uc := usecase.NewAPIKeyUseCase(repo, auditLogger, auditLogRepo)
 
 	details, totalRequests, last7Days, err := uc.GetAPIKeyDetails(context.Background(), "non-existent")
 
@@ -629,7 +689,8 @@ func TestAPIKeyUseCase_GetAPIKeyDetails_NotFound(t *testing.T) {
 func TestAPIKeyUseCase_GetAPIKeyDetails_RevokedKey(t *testing.T) {
 	repo := NewAPIKeyRepositoryMock()
 	auditLogger := NewAuditLoggerMock()
-	uc := usecase.NewAPIKeyUseCase(repo, auditLogger)
+	auditLogRepo := NewAuditLogRepositoryMock()
+	uc := usecase.NewAPIKeyUseCase(repo, auditLogger, auditLogRepo)
 
 	// Create and revoke an API key
 	_, apiKey, err := uc.CreateAPIKey(context.Background(), "read", nil, "admin@example.com")
@@ -646,4 +707,96 @@ func TestAPIKeyUseCase_GetAPIKeyDetails_RevokedKey(t *testing.T) {
 	require.NotNil(t, details)
 	assert.True(t, details.IsRevoked())
 	assert.Equal(t, reason, *details.RevocationReason)
+}
+
+// ==================== GetAPIKeyDetails Usage Statistics Tests ====================
+
+func TestAPIKeyUseCase_GetAPIKeyDetails_WithUsageStats(t *testing.T) {
+	repo := NewAPIKeyRepositoryMock()
+	auditLogger := NewAuditLoggerMock()
+	auditLogRepo := NewAuditLogRepositoryMock()
+	uc := usecase.NewAPIKeyUseCase(repo, auditLogger, auditLogRepo)
+
+	// Create an API key
+	_, apiKey, err := uc.CreateAPIKey(context.Background(), "read", nil, "admin@example.com")
+	require.NoError(t, err)
+
+	// Set up usage statistics
+	auditLogRepo.UsageCounts[apiKey.ID] = 1523
+	auditLogRepo.RecentUsageCounts[apiKey.ID] = 342
+
+	// Get details
+	details, totalRequests, last7Days, err := uc.GetAPIKeyDetails(context.Background(), apiKey.ID)
+
+	require.NoError(t, err)
+	require.NotNil(t, details)
+	assert.Equal(t, apiKey.ID, details.ID)
+	assert.Equal(t, 1523, totalRequests)
+	assert.Equal(t, 342, last7Days)
+}
+
+func TestAPIKeyUseCase_GetAPIKeyDetails_NoUsageStats(t *testing.T) {
+	repo := NewAPIKeyRepositoryMock()
+	auditLogger := NewAuditLoggerMock()
+	auditLogRepo := NewAuditLogRepositoryMock()
+	uc := usecase.NewAPIKeyUseCase(repo, auditLogger, auditLogRepo)
+
+	// Create an API key
+	_, apiKey, err := uc.CreateAPIKey(context.Background(), "read", nil, "admin@example.com")
+	require.NoError(t, err)
+
+	// Don't set any usage statistics (should return 0)
+
+	// Get details
+	details, totalRequests, last7Days, err := uc.GetAPIKeyDetails(context.Background(), apiKey.ID)
+
+	require.NoError(t, err)
+	require.NotNil(t, details)
+	assert.Equal(t, apiKey.ID, details.ID)
+	assert.Equal(t, 0, totalRequests)
+	assert.Equal(t, 0, last7Days)
+}
+
+func TestAPIKeyUseCase_GetAPIKeyDetails_AuditLogRepoError(t *testing.T) {
+	repo := NewAPIKeyRepositoryMock()
+	auditLogger := NewAuditLoggerMock()
+	auditLogRepo := NewAuditLogRepositoryMock()
+	uc := usecase.NewAPIKeyUseCase(repo, auditLogger, auditLogRepo)
+
+	// Create an API key
+	_, apiKey, err := uc.CreateAPIKey(context.Background(), "read", nil, "admin@example.com")
+	require.NoError(t, err)
+
+	// Set up audit log repo to return error
+	auditLogRepo.CountAPIKeyUsageFn = func(ctx context.Context, apiKeyID string) (int64, error) {
+		return 0, errors.ErrDatabaseError
+	}
+
+	// Get details - should not fail even if audit log query fails
+	details, totalRequests, last7Days, err := uc.GetAPIKeyDetails(context.Background(), apiKey.ID)
+
+	require.NoError(t, err)
+	require.NotNil(t, details)
+	assert.Equal(t, apiKey.ID, details.ID)
+	assert.Equal(t, 0, totalRequests) // Should return 0 on error
+	assert.Equal(t, 0, last7Days)
+}
+
+func TestAPIKeyUseCase_GetAPIKeyDetails_NilAuditLogRepo(t *testing.T) {
+	repo := NewAPIKeyRepositoryMock()
+	auditLogger := NewAuditLoggerMock()
+	uc := usecase.NewAPIKeyUseCase(repo, auditLogger, nil) // nil audit log repo
+
+	// Create an API key
+	_, apiKey, err := uc.CreateAPIKey(context.Background(), "read", nil, "admin@example.com")
+	require.NoError(t, err)
+
+	// Get details - should work with nil audit log repo
+	details, totalRequests, last7Days, err := uc.GetAPIKeyDetails(context.Background(), apiKey.ID)
+
+	require.NoError(t, err)
+	require.NotNil(t, details)
+	assert.Equal(t, apiKey.ID, details.ID)
+	assert.Equal(t, 0, totalRequests) // Should return 0 when repo is nil
+	assert.Equal(t, 0, last7Days)
 }

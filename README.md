@@ -28,6 +28,7 @@
 ### Backend (Go)
 
 - **Multi-Session Support**: Manage multiple WhatsApp accounts simultaneously
+- **API Key Management**: Secure key generation, revocation, and role-based access control
 - **Clean Architecture**: Domain-driven design with clear separation of concerns
 - **Database Flexibility**: Support for SQLite (development) and PostgreSQL (production)
 - **Event Persistence**: Query and replay events for debugging

@@ -7,6 +7,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"testing"
+	"time"
 
 	"whatspire/internal/application/dto"
 	"whatspire/internal/application/usecase"
@@ -36,8 +37,9 @@ func setupAPIKeyCRUDTestRouter(t *testing.T) (*gin.Engine, *usecase.APIKeyUseCas
 
 	// Create repository and use case
 	repo := persistence.NewAPIKeyRepository(db)
+	auditLogRepo := persistence.NewAuditLogRepository(db)
 	auditLogger := &AuditLoggerMock{} // Mock audit logger
-	apiKeyUC := usecase.NewAPIKeyUseCase(repo, auditLogger)
+	apiKeyUC := usecase.NewAPIKeyUseCase(repo, auditLogger, auditLogRepo)
 
 	// Create handler and router
 	handler := httpHandler.NewHandler(nil, nil, nil, nil, nil, nil, nil, nil, nil, apiKeyUC)
@@ -748,4 +750,142 @@ func TestCompleteFlow_MultipleKeysWithDifferentRoles(t *testing.T) {
 	json.Unmarshal(w3.Body.Bytes(), &readResponse)
 	assert.Len(t, readResponse.Data.APIKeys, 1)
 	assert.Equal(t, "read", readResponse.Data.APIKeys[0].Role)
+}
+
+// ==================== Usage Statistics Tests ====================
+
+func TestGetAPIKeyDetails_WithUsageStatistics(t *testing.T) {
+	// Setup
+	gin.SetMode(gin.TestMode)
+	db, err := gorm.Open(sqlite.Open(":memory:"), &gorm.Config{})
+	require.NoError(t, err)
+	defer db.Exec("DELETE FROM api_keys WHERE 1=1")
+	defer db.Exec("DELETE FROM audit_logs WHERE 1=1")
+
+	// Run migrations
+	err = persistence.RunAutoMigration(db)
+	require.NoError(t, err)
+
+	repo := persistence.NewAPIKeyRepository(db)
+	auditLogRepo := persistence.NewAuditLogRepository(db)
+	auditLogger := &AuditLoggerMock{}
+	uc := usecase.NewAPIKeyUseCase(repo, auditLogger, auditLogRepo)
+
+	// Create an API key
+	description := "Test key"
+	_, apiKey, err := uc.CreateAPIKey(context.Background(), "read", &description, "admin@example.com")
+	require.NoError(t, err)
+
+	// Simulate API key usage by inserting audit log entries
+	for i := range 10 {
+		err := auditLogRepo.SaveAPIKeyUsage(context.Background(), repository.APIKeyUsageEvent{
+			APIKeyID:  apiKey.ID,
+			Endpoint:  "/api/sessions",
+			Method:    "GET",
+			IPAddress: "127.0.0.1",
+			Timestamp: time.Now().Add(-time.Duration(i) * time.Hour),
+		})
+		require.NoError(t, err)
+	}
+
+	// Get API key details
+	details, totalRequests, last7Days, err := uc.GetAPIKeyDetails(context.Background(), apiKey.ID)
+
+	// Verify
+	require.NoError(t, err)
+	require.NotNil(t, details)
+	assert.Equal(t, apiKey.ID, details.ID)
+	assert.Equal(t, 10, totalRequests, "Should count all 10 usage events")
+	assert.Equal(t, 10, last7Days, "All events are within last 7 days")
+}
+
+func TestGetAPIKeyDetails_UsageStatisticsLast7Days(t *testing.T) {
+	// Setup
+	gin.SetMode(gin.TestMode)
+	db, err := gorm.Open(sqlite.Open(":memory:"), &gorm.Config{})
+	require.NoError(t, err)
+	defer db.Exec("DELETE FROM api_keys WHERE 1=1")
+	defer db.Exec("DELETE FROM audit_logs WHERE 1=1")
+
+	// Run migrations
+	err = persistence.RunAutoMigration(db)
+	require.NoError(t, err)
+
+	repo := persistence.NewAPIKeyRepository(db)
+	auditLogRepo := persistence.NewAuditLogRepository(db)
+	auditLogger := &AuditLoggerMock{}
+	uc := usecase.NewAPIKeyUseCase(repo, auditLogger, auditLogRepo)
+
+	// Create an API key
+	description := "Test key"
+	_, apiKey, err := uc.CreateAPIKey(context.Background(), "read", &description, "admin@example.com")
+	require.NoError(t, err)
+
+	// Simulate API key usage - 5 recent, 5 old
+	for i := range 5 {
+		// Recent usage (within last 7 days)
+		err := auditLogRepo.SaveAPIKeyUsage(context.Background(), repository.APIKeyUsageEvent{
+			APIKeyID:  apiKey.ID,
+			Endpoint:  "/api/sessions",
+			Method:    "GET",
+			IPAddress: "127.0.0.1",
+			Timestamp: time.Now().Add(-time.Duration(i) * time.Hour),
+		})
+		require.NoError(t, err)
+
+		// Old usage (more than 7 days ago)
+		err = auditLogRepo.SaveAPIKeyUsage(context.Background(), repository.APIKeyUsageEvent{
+			APIKeyID:  apiKey.ID,
+			Endpoint:  "/api/sessions",
+			Method:    "GET",
+			IPAddress: "127.0.0.1",
+			Timestamp: time.Now().Add(-time.Duration(8+i) * 24 * time.Hour),
+		})
+		require.NoError(t, err)
+	}
+
+	// Get API key details
+	details, totalRequests, last7Days, err := uc.GetAPIKeyDetails(context.Background(), apiKey.ID)
+
+	// Verify
+	require.NoError(t, err)
+	require.NotNil(t, details)
+	assert.Equal(t, apiKey.ID, details.ID)
+	assert.Equal(t, 10, totalRequests, "Should count all 10 usage events")
+	assert.Equal(t, 5, last7Days, "Should only count 5 recent events")
+}
+
+func TestGetAPIKeyDetails_NoUsageStatistics(t *testing.T) {
+	// Setup
+	gin.SetMode(gin.TestMode)
+	db, err := gorm.Open(sqlite.Open(":memory:"), &gorm.Config{})
+	require.NoError(t, err)
+	defer db.Exec("DELETE FROM api_keys WHERE 1=1")
+	defer db.Exec("DELETE FROM audit_logs WHERE 1=1")
+
+	// Run migrations
+	err = persistence.RunAutoMigration(db)
+	require.NoError(t, err)
+
+	repo := persistence.NewAPIKeyRepository(db)
+	auditLogRepo := persistence.NewAuditLogRepository(db)
+	auditLogger := &AuditLoggerMock{}
+	uc := usecase.NewAPIKeyUseCase(repo, auditLogger, auditLogRepo)
+
+	// Create an API key
+	description := "Test key"
+	_, apiKey, err := uc.CreateAPIKey(context.Background(), "read", &description, "admin@example.com")
+	require.NoError(t, err)
+
+	// Don't create any usage events
+
+	// Get API key details
+	details, totalRequests, last7Days, err := uc.GetAPIKeyDetails(context.Background(), apiKey.ID)
+
+	// Verify
+	require.NoError(t, err)
+	require.NotNil(t, details)
+	assert.Equal(t, apiKey.ID, details.ID)
+	assert.Equal(t, 0, totalRequests, "Should return 0 when no usage")
+	assert.Equal(t, 0, last7Days, "Should return 0 when no usage")
 }
