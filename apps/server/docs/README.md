@@ -104,10 +104,18 @@ apps/server/
 
 ## Key Features
 
+### API Key Management
+
+- **Key Generation** - Create API keys with specific roles (read/write/admin)
+- **Key Revocation** - Immediately deactivate compromised keys
+- **Key Listing** - View all keys with filtering and pagination
+- **Audit Trail** - Track key creation, usage, and revocation
+- **Masked Display** - Secure key display (first 8 + last 4 chars)
+
 ### Message Types
 
-| Type     | Send | Receive | Description             |
-| -------- | ---- | ------- | ----------------------- |
+| Type     | Send | Receive | Description              |
+| -------- | ---- | ------- | -----------------------  |
 | Text     | ✅   | ✅      | Plain text messages     |
 | Image    | ✅   | ✅      | JPEG, PNG, WebP         |
 | Document | ✅   | ✅      | PDF, DOC, etc.          |
@@ -135,6 +143,7 @@ apps/server/
 | Document                                                        | Description                        |
 | --------------------------------------------------------------- | ---------------------------------- |
 | [API Specification](./api_specification.md)                     | Complete REST API reference        |
+| [API Key Management](./api_key_management.md)                   | API key generation and management  |
 | [Deployment Guide](./deployment_guide.md)                       | Production deployment instructions |
 | [Configuration](./configuration.md)                             | Environment variables reference    |
 | [Database Migrations](./database_migrations.md)                 | Database setup and migrations      |

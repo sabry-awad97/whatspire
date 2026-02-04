@@ -3,7 +3,6 @@ package unit
 import (
 	"context"
 	"testing"
-	"time"
 
 	"whatspire/internal/application/usecase"
 	"whatspire/internal/domain/entity"
@@ -276,9 +275,6 @@ func TestAPIKeyUseCase_CreateAPIKey_AllRoles(t *testing.T) {
 		require.NotNil(t, apiKey)
 		assert.NotEmpty(t, plainKey)
 		assert.Equal(t, role, apiKey.Role)
-
-		// Add small delay to ensure unique IDs (IDs are based on UnixNano)
-		time.Sleep(1 * time.Millisecond)
 	}
 
 	assert.Len(t, repo.APIKeys, 3)
@@ -326,9 +322,6 @@ func TestAPIKeyUseCase_CreateAPIKey_UniqueKeys(t *testing.T) {
 		// Verify key is unique
 		assert.False(t, keys[plainKey], "Generated key should be unique")
 		keys[plainKey] = true
-
-		// Add small delay to ensure unique IDs
-		time.Sleep(1 * time.Millisecond)
 	}
 }
 
@@ -441,7 +434,6 @@ func TestAPIKeyUseCase_ListAPIKeys_Success(t *testing.T) {
 	for i := 0; i < 5; i++ {
 		_, _, err := uc.CreateAPIKey(context.Background(), "read", nil, "admin@example.com")
 		require.NoError(t, err)
-		time.Sleep(1 * time.Millisecond) // Ensure unique IDs
 	}
 
 	// List all keys
@@ -461,7 +453,6 @@ func TestAPIKeyUseCase_ListAPIKeys_Pagination(t *testing.T) {
 	for i := 0; i < 10; i++ {
 		_, _, err := uc.CreateAPIKey(context.Background(), "read", nil, "admin@example.com")
 		require.NoError(t, err)
-		time.Sleep(1 * time.Millisecond) // Ensure unique IDs
 	}
 
 	// Get first page (5 items)
@@ -491,10 +482,8 @@ func TestAPIKeyUseCase_ListAPIKeys_FilterByRole(t *testing.T) {
 	// Create keys with different roles
 	_, _, err := uc.CreateAPIKey(context.Background(), "read", nil, "admin@example.com")
 	require.NoError(t, err)
-	time.Sleep(1 * time.Millisecond)
 	_, _, err = uc.CreateAPIKey(context.Background(), "write", nil, "admin@example.com")
 	require.NoError(t, err)
-	time.Sleep(1 * time.Millisecond)
 	_, _, err = uc.CreateAPIKey(context.Background(), "admin", nil, "admin@example.com")
 	require.NoError(t, err)
 
@@ -515,7 +504,6 @@ func TestAPIKeyUseCase_ListAPIKeys_FilterByStatus(t *testing.T) {
 	// Create keys
 	_, key1, err := uc.CreateAPIKey(context.Background(), "read", nil, "admin@example.com")
 	require.NoError(t, err)
-	time.Sleep(1 * time.Millisecond)
 	_, _, err = uc.CreateAPIKey(context.Background(), "write", nil, "admin@example.com")
 	require.NoError(t, err)
 
@@ -574,10 +562,9 @@ func TestAPIKeyUseCase_ListAPIKeys_DefaultPagination(t *testing.T) {
 	uc := usecase.NewAPIKeyUseCase(repo, auditLogger)
 
 	// Create 5 keys
-	for i := 0; i < 5; i++ {
+	for range 5 {
 		_, _, err := uc.CreateAPIKey(context.Background(), "read", nil, "admin@example.com")
 		require.NoError(t, err)
-		time.Sleep(1 * time.Millisecond)
 	}
 
 	// Invalid page/limit should use defaults
@@ -593,10 +580,9 @@ func TestAPIKeyUseCase_ListAPIKeys_MaxLimit(t *testing.T) {
 	uc := usecase.NewAPIKeyUseCase(repo, auditLogger)
 
 	// Create 5 keys
-	for i := 0; i < 5; i++ {
+	for range 5 {
 		_, _, err := uc.CreateAPIKey(context.Background(), "read", nil, "admin@example.com")
 		require.NoError(t, err)
-		time.Sleep(1 * time.Millisecond)
 	}
 
 	// Limit > 100 should be capped to 50 (default)

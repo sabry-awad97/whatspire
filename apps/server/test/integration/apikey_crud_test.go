@@ -7,7 +7,6 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"testing"
-	"time"
 
 	"whatspire/internal/application/dto"
 	"whatspire/internal/application/usecase"
@@ -315,10 +314,9 @@ func TestListAPIKeys_Success(t *testing.T) {
 	defer db.Exec("DELETE FROM api_keys WHERE 1=1")
 
 	// Create multiple API keys
-	for i := 0; i < 5; i++ {
+	for range 5 {
 		_, _, err := apiKeyUC.CreateAPIKey(context.Background(), "read", nil, "test-user")
 		require.NoError(t, err)
-		time.Sleep(1 * time.Millisecond) // Ensure different timestamps
 	}
 
 	req := httptest.NewRequest(http.MethodGet, "/api/apikeys", nil)
@@ -344,10 +342,9 @@ func TestListAPIKeys_WithPagination(t *testing.T) {
 	defer db.Exec("DELETE FROM api_keys WHERE 1=1")
 
 	// Create 10 API keys
-	for i := 0; i < 10; i++ {
+	for range 10 {
 		_, _, err := apiKeyUC.CreateAPIKey(context.Background(), "read", nil, "test-user")
 		require.NoError(t, err)
-		time.Sleep(1 * time.Millisecond)
 	}
 
 	// Get first page (5 items)
@@ -392,7 +389,6 @@ func TestListAPIKeys_FilterByRole(t *testing.T) {
 	for _, role := range roles {
 		_, _, err := apiKeyUC.CreateAPIKey(context.Background(), role, nil, "test-user")
 		require.NoError(t, err)
-		time.Sleep(1 * time.Millisecond)
 	}
 
 	// Filter by read role
@@ -419,11 +415,10 @@ func TestListAPIKeys_FilterByStatus(t *testing.T) {
 
 	// Create 3 keys
 	var keyIDs []string
-	for i := 0; i < 3; i++ {
+	for range 3 {
 		_, apiKey, err := apiKeyUC.CreateAPIKey(context.Background(), "read", nil, "test-user")
 		require.NoError(t, err)
 		keyIDs = append(keyIDs, apiKey.ID)
-		time.Sleep(1 * time.Millisecond)
 	}
 
 	// Revoke one key
@@ -469,9 +464,7 @@ func TestListAPIKeys_CombinedFilters(t *testing.T) {
 
 	// Create keys with different roles
 	_, key1, _ := apiKeyUC.CreateAPIKey(context.Background(), "read", nil, "test-user")
-	time.Sleep(1 * time.Millisecond)
 	_, key2, _ := apiKeyUC.CreateAPIKey(context.Background(), "read", nil, "test-user")
-	time.Sleep(1 * time.Millisecond)
 	_, _, _ = apiKeyUC.CreateAPIKey(context.Background(), "write", nil, "test-user")
 
 	// Revoke one read key
@@ -722,8 +715,6 @@ func TestCompleteFlow_MultipleKeysWithDifferentRoles(t *testing.T) {
 		var response dto.APIResponse[dto.CreateAPIKeyResponse]
 		json.Unmarshal(w.Body.Bytes(), &response)
 		createdKeys[role] = response.Data.APIKey.ID
-
-		time.Sleep(1 * time.Millisecond)
 	}
 
 	// Verify all keys exist

@@ -254,7 +254,7 @@ func TestAPIKeyRepository_List(t *testing.T) {
 		db.Exec("DELETE FROM api_keys WHERE 1=1")
 
 		// Create multiple keys
-		for i := 0; i < 5; i++ {
+		for i := range 5 {
 			apiKey := entity.NewAPIKey(
 				"key_"+string(rune('1'+i)),
 				"hash"+string(rune('1'+i)),
@@ -263,7 +263,6 @@ func TestAPIKeyRepository_List(t *testing.T) {
 			)
 			err := repo.Save(ctx, apiKey)
 			require.NoError(t, err)
-			time.Sleep(1 * time.Millisecond) // Ensure different timestamps
 		}
 
 		keys, err := repo.List(ctx, 10, 0, nil, nil)
@@ -275,7 +274,7 @@ func TestAPIKeyRepository_List(t *testing.T) {
 		db.Exec("DELETE FROM api_keys WHERE 1=1")
 
 		// Create 10 keys
-		for i := 0; i < 10; i++ {
+		for i := range 10 {
 			apiKey := entity.NewAPIKey(
 				"key_"+string(rune('0'+i)),
 				"hash"+string(rune('0'+i)),
@@ -284,7 +283,6 @@ func TestAPIKeyRepository_List(t *testing.T) {
 			)
 			err := repo.Save(ctx, apiKey)
 			require.NoError(t, err)
-			time.Sleep(1 * time.Millisecond)
 		}
 
 		// Get first page (5 items)
@@ -317,7 +315,6 @@ func TestAPIKeyRepository_List(t *testing.T) {
 			)
 			err := repo.Save(ctx, apiKey)
 			require.NoError(t, err)
-			time.Sleep(1 * time.Millisecond)
 		}
 
 		// Filter by read role
@@ -341,7 +338,7 @@ func TestAPIKeyRepository_List(t *testing.T) {
 		db.Exec("DELETE FROM api_keys WHERE 1=1")
 
 		// Create keys
-		for i := 0; i < 3; i++ {
+		for i := range 3 {
 			apiKey := entity.NewAPIKey(
 				"key_"+string(rune('1'+i)),
 				"hash"+string(rune('1'+i)),
@@ -350,7 +347,6 @@ func TestAPIKeyRepository_List(t *testing.T) {
 			)
 			err := repo.Save(ctx, apiKey)
 			require.NoError(t, err)
-			time.Sleep(1 * time.Millisecond)
 		}
 
 		// Revoke one key
@@ -422,7 +418,7 @@ func TestAPIKeyRepository_Count(t *testing.T) {
 		db.Exec("DELETE FROM api_keys WHERE 1=1")
 
 		// Create 5 keys
-		for i := 0; i < 5; i++ {
+		for i := range 5 {
 			apiKey := entity.NewAPIKey(
 				"key_"+string(rune('1'+i)),
 				"hash"+string(rune('1'+i)),
@@ -431,7 +427,6 @@ func TestAPIKeyRepository_Count(t *testing.T) {
 			)
 			err := repo.Save(ctx, apiKey)
 			require.NoError(t, err)
-			time.Sleep(1 * time.Millisecond)
 		}
 
 		count, err := repo.Count(ctx, nil, nil)
@@ -453,7 +448,6 @@ func TestAPIKeyRepository_Count(t *testing.T) {
 			)
 			err := repo.Save(ctx, apiKey)
 			require.NoError(t, err)
-			time.Sleep(1 * time.Millisecond)
 		}
 
 		// Count read keys
@@ -473,7 +467,7 @@ func TestAPIKeyRepository_Count(t *testing.T) {
 		db.Exec("DELETE FROM api_keys WHERE 1=1")
 
 		// Create 3 keys
-		for i := 0; i < 3; i++ {
+		for i := range 3 {
 			apiKey := entity.NewAPIKey(
 				"key_"+string(rune('1'+i)),
 				"hash"+string(rune('1'+i)),
@@ -482,7 +476,6 @@ func TestAPIKeyRepository_Count(t *testing.T) {
 			)
 			err := repo.Save(ctx, apiKey)
 			require.NoError(t, err)
-			time.Sleep(1 * time.Millisecond)
 		}
 
 		// Revoke one
@@ -509,11 +502,9 @@ func TestAPIKeyRepository_Count(t *testing.T) {
 		// Create keys
 		apiKey1 := entity.NewAPIKey("key_1", "hash1", "read", nil)
 		repo.Save(ctx, apiKey1)
-		time.Sleep(1 * time.Millisecond)
 
 		apiKey2 := entity.NewAPIKey("key_2", "hash2", "read", nil)
 		repo.Save(ctx, apiKey2)
-		time.Sleep(1 * time.Millisecond)
 
 		apiKey3 := entity.NewAPIKey("key_3", "hash3", "write", nil)
 		repo.Save(ctx, apiKey3)

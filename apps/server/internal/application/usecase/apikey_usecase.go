@@ -6,11 +6,12 @@ import (
 	"crypto/sha256"
 	"encoding/base64"
 	"fmt"
-	"time"
 
 	"whatspire/internal/domain/entity"
 	"whatspire/internal/domain/errors"
 	"whatspire/internal/domain/repository"
+
+	"github.com/google/uuid"
 )
 
 // APIKeyUseCase handles API key operations (create, revoke, list, details)
@@ -83,7 +84,7 @@ func (uc *APIKeyUseCase) CreateAPIKey(ctx context.Context, role string, descript
 	keyHash := uc.hashAPIKey(plainKey)
 
 	// Generate UUID for API key ID
-	id := fmt.Sprintf("key_%d", time.Now().UnixNano())
+	id := fmt.Sprintf("key_%s", uuid.New().String())
 
 	// Create entity
 	apiKey = entity.NewAPIKey(id, keyHash, role, description)
