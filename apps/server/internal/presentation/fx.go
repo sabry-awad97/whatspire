@@ -46,6 +46,7 @@ func NewRouter(
 	handler *http.Handler,
 	cfg *config.Config,
 	auditLogger repository.AuditLogger,
+	apiKeyRepo repository.APIKeyRepository,
 ) *gin.Engine {
 	// Create rate limiter if enabled
 	var rateLimiter *ratelimit.Limiter
@@ -68,6 +69,7 @@ func NewRouter(
 		RateLimiter:          rateLimiter,
 		CORSConfig:           &cfg.CORS,
 		APIKeyConfig:         &cfg.APIKey,
+		APIKeyRepository:     apiKeyRepo,
 		AuditLogger:          auditLogger,
 	}
 

@@ -105,3 +105,38 @@ func (uc *APIKeyUseCase) CreateAPIKey(ctx context.Context, role string, descript
 
 	return plainKey, apiKey, nil
 }
+
+// RevokeAPIKey revokes an API key by its ID with optional reason
+// The key will be immediately deactivated and cannot be used for authentication
+func (uc *APIKeyUseCase) RevokeAPIKey(ctx context.Context, id string, revokedBy string, reason *string) (*entity.APIKey, error) {
+	// Find the API key by ID
+	apiKey, err := uc.repo.FindByID(ctx, id)
+	if err != nil {
+		return nil, err
+	}
+
+	// Check if already revoked
+	if apiKey.IsRevoked() {
+		return nil, errors.ErrValidationFailed.WithMessage("API key is already revoked")
+	}
+
+	// Revoke the key
+	apiKey.Revoke(revokedBy, reason)
+
+	// Update in repository
+	if err := uc.repo.Update(ctx, apiKey); err != nil {
+		return nil, err
+	}
+
+	// Log API key revocation
+	if uc.auditLogger != nil {
+		uc.auditLogger.LogAPIKeyRevoked(ctx, repository.APIKeyRevokedEvent{
+			APIKeyID:         apiKey.ID,
+			RevokedBy:        revokedBy,
+			RevocationReason: reason,
+			Timestamp:        *apiKey.RevokedAt,
+		})
+	}
+
+	return apiKey, nil
+}

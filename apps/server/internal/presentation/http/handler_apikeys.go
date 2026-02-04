@@ -69,3 +69,66 @@ func (h *Handler) CreateAPIKey(c *gin.Context) {
 
 	respondWithSuccess(c, http.StatusCreated, response)
 }
+
+// RevokeAPIKey handles DELETE /api/apikeys/:id
+// Revokes an API key immediately, preventing further authentication
+//
+// @Summary Revoke an API key
+// @Description Revokes an API key by its ID. The key will be immediately deactivated and cannot be used for authentication. This action cannot be undone.
+// @Tags API Keys
+// @Accept json
+// @Produce json
+// @Param id path string true "API Key ID"
+// @Param request body dto.RevokeAPIKeyRequest false "Revocation details (optional reason)"
+// @Success 200 {object} dto.RevokeAPIKeyResponse "API key revoked successfully"
+// @Failure 400 {object} ErrorResponse "Invalid request or validation failed"
+// @Failure 401 {object} ErrorResponse "Unauthorized - invalid or missing API key"
+// @Failure 403 {object} ErrorResponse "Forbidden - insufficient permissions (admin role required)"
+// @Failure 404 {object} ErrorResponse "API key not found"
+// @Failure 500 {object} ErrorResponse "Internal server error"
+// @Security ApiKeyAuth
+// @Router /api/apikeys/{id} [delete]
+func (h *Handler) RevokeAPIKey(c *gin.Context) {
+	// Extract API key ID from URL parameter
+	id := c.Param("id")
+	if id == "" {
+		respondWithError(c, http.StatusBadRequest, "MISSING_ID", "API key ID is required", nil)
+		return
+	}
+
+	// Parse optional request body for revocation reason
+	var req dto.RevokeAPIKeyRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		// Body is optional, so ignore binding errors
+		req = dto.RevokeAPIKeyRequest{}
+	}
+
+	// Validate request if reason is provided
+	if req.Reason != nil && *req.Reason != "" {
+		if err := validator.Validate(req); err != nil {
+			details := validator.ValidationErrors(err)
+			respondWithError(c, http.StatusBadRequest, "VALIDATION_FAILED", "Validation failed", details)
+			return
+		}
+	}
+
+	// Get the authenticated user/API key ID from context (set by auth middleware)
+	// For now, we'll use a placeholder - this will be properly extracted from auth context
+	revokedBy := "system" // TODO: Extract from auth context
+
+	// Revoke API key
+	apiKey, err := h.apikeyUC.RevokeAPIKey(c.Request.Context(), id, revokedBy, req.Reason)
+	if err != nil {
+		handleDomainError(c, err)
+		return
+	}
+
+	// Build response
+	response := dto.RevokeAPIKeyResponse{
+		ID:        apiKey.ID,
+		RevokedAt: *apiKey.RevokedAt,
+		RevokedBy: *apiKey.RevokedBy,
+	}
+
+	respondWithSuccess(c, http.StatusOK, response)
+}

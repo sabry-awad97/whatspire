@@ -22,6 +22,8 @@ type RouterConfig struct {
 	CORSConfig *config.CORSConfig
 	// APIKeyConfig is the API key authentication configuration (optional)
 	APIKeyConfig *config.APIKeyConfig
+	// APIKeyRepository is the API key repository for database-backed keys (optional)
+	APIKeyRepository repository.APIKeyRepository
 	// Metrics is the metrics instance (optional)
 	Metrics *metrics.Metrics
 	// MetricsConfig is the metrics configuration (optional)
@@ -38,6 +40,7 @@ func DefaultRouterConfig() RouterConfig {
 		RateLimiter:          nil,
 		CORSConfig:           nil,
 		APIKeyConfig:         nil,
+		APIKeyRepository:     nil,
 		Metrics:              nil,
 		MetricsConfig:        nil,
 		AuditLogger:          nil,
@@ -105,7 +108,7 @@ func registerRoutes(router *gin.Engine, handler *Handler, routerConfig RouterCon
 
 	// Apply API key authentication to API routes if configured
 	if routerConfig.APIKeyConfig != nil && routerConfig.APIKeyConfig.Enabled {
-		api.Use(APIKeyMiddleware(*routerConfig.APIKeyConfig, routerConfig.AuditLogger))
+		api.Use(APIKeyMiddleware(*routerConfig.APIKeyConfig, routerConfig.AuditLogger, routerConfig.APIKeyRepository))
 	}
 
 	// Internal routes (called by Node.js API for session lifecycle) - require admin role
@@ -187,8 +190,10 @@ func registerRoutes(router *gin.Engine, handler *Handler, routerConfig RouterCon
 	apikeys := api.Group("/apikeys")
 	if routerConfig.APIKeyConfig != nil && routerConfig.APIKeyConfig.Enabled {
 		apikeys.POST("", RoleAuthorizationMiddleware(config.RoleAdmin, routerConfig.APIKeyConfig), handler.CreateAPIKey)
+		apikeys.DELETE("/:id", RoleAuthorizationMiddleware(config.RoleAdmin, routerConfig.APIKeyConfig), handler.RevokeAPIKey)
 	} else {
 		apikeys.POST("", handler.CreateAPIKey)
+		apikeys.DELETE("/:id", handler.RevokeAPIKey)
 	}
 }
 
