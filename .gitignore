@@ -74,3 +74,6 @@ coverage
 .cache
 tmp
 temp
+
+# Future Specs
+future
