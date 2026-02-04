@@ -29,6 +29,7 @@ import {
   revokeAPIKeyResponseSchema,
   listAPIKeysRequestSchema,
   listAPIKeysResponseSchema,
+  apiKeyDetailsResponseSchema,
   type ApiResponse,
   type Session,
   type CreateSessionRequest,
@@ -56,6 +57,7 @@ import {
   type RevokeAPIKeyResponse,
   type ListAPIKeysRequest,
   type ListAPIKeysResponse,
+  type APIKeyDetailsResponse,
 } from "@whatspire/schema";
 
 // ============================================================================
@@ -845,6 +847,37 @@ export class ApiClient {
         throw new ApiClientError(
           validatedResponse.error?.message || "Failed to list API keys",
           validatedResponse.error?.code || "LIST_API_KEYS_FAILED",
+          response.status,
+          validatedResponse.error?.details,
+        );
+      }
+
+      return validatedResponse.data;
+    });
+  }
+
+  /**
+   * Get detailed information about a specific API key
+   * @param id - API key ID to retrieve details for
+   * @returns API key details including metadata and usage statistics
+   * @throws ApiClientError if key not found or request fails
+   */
+  async getAPIKeyDetails(id: string): Promise<APIKeyDetailsResponse> {
+    return this.executeWithRetry(async () => {
+      // Make request
+      const response = await this.client.get<
+        ApiResponse<APIKeyDetailsResponse>
+      >(`/api/apikeys/${id}`);
+
+      // Validate response
+      const validatedResponse = apiResponseSchema(
+        apiKeyDetailsResponseSchema,
+      ).parse(response.data);
+
+      if (!validatedResponse.success || !validatedResponse.data) {
+        throw new ApiClientError(
+          validatedResponse.error?.message || "Failed to get API key details",
+          validatedResponse.error?.code || "GET_API_KEY_DETAILS_FAILED",
           response.status,
           validatedResponse.error?.details,
         );

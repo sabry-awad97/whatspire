@@ -3,7 +3,7 @@
  * Displays paginated list of API keys with filtering and actions
  */
 import { useState } from "react";
-import { Copy, Eye, EyeOff, Key, Loader2, Trash2 } from "lucide-react";
+import { Copy, Eye, EyeOff, Key, Loader2, Trash2, Info } from "lucide-react";
 import { toast } from "sonner";
 
 import { useApiClient, useAPIKeys } from "@whatspire/hooks";
@@ -37,6 +37,7 @@ import {
   TableRow,
 } from "../ui/table";
 import { RevokeAPIKeyDialog } from "./api-key-revoke-dialog";
+import { APIKeyDetailsDialog } from "./api-key-details-dialog";
 
 // ============================================================================
 // Types
@@ -77,6 +78,7 @@ export function APIKeyList({
 }: APIKeyListProps) {
   const [visibleKeys, setVisibleKeys] = useState<Set<string>>(new Set());
   const [revokeDialogOpen, setRevokeDialogOpen] = useState(false);
+  const [detailsDialogOpen, setDetailsDialogOpen] = useState(false);
   const [selectedKey, setSelectedKey] = useState<APIKey | null>(null);
 
   const apiClient = useApiClient();
@@ -124,6 +126,12 @@ export function APIKeyList({
   const handleRevokeClick = (apiKey: APIKey) => {
     setSelectedKey(apiKey);
     setRevokeDialogOpen(true);
+  };
+
+  // Open details dialog
+  const handleDetailsClick = (apiKey: APIKey) => {
+    setSelectedKey(apiKey);
+    setDetailsDialogOpen(true);
   };
 
   // Format date for display
@@ -476,21 +484,32 @@ export function APIKeyList({
 
                   {/* Actions */}
                   <TableCell className="text-right">
-                    {isActive ? (
+                    <div className="flex items-center justify-end gap-2">
                       <Button
                         variant="ghost"
                         size="sm"
-                        onClick={() => handleRevokeClick(apiKey)}
-                        className="text-destructive hover:text-destructive hover-glow-destructive"
+                        onClick={() => handleDetailsClick(apiKey)}
+                        className="text-primary hover:text-primary hover-glow"
                       >
-                        <Trash2 className="mr-2 h-3 w-3" />
-                        Revoke
+                        <Info className="mr-2 h-3 w-3" />
+                        Details
                       </Button>
-                    ) : (
-                      <span className="text-xs text-muted-foreground">
-                        Revoked {formatDate(apiKey.revoked_at)}
-                      </span>
-                    )}
+                      {isActive ? (
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => handleRevokeClick(apiKey)}
+                          className="text-destructive hover:text-destructive hover-glow-destructive"
+                        >
+                          <Trash2 className="mr-2 h-3 w-3" />
+                          Revoke
+                        </Button>
+                      ) : (
+                        <span className="text-xs text-muted-foreground">
+                          Revoked {formatDate(apiKey.revoked_at)}
+                        </span>
+                      )}
+                    </div>
                   </TableCell>
                 </TableRow>
               );
@@ -593,6 +612,15 @@ export function APIKeyList({
           open={revokeDialogOpen}
           onOpenChange={setRevokeDialogOpen}
           apiKey={selectedKey}
+        />
+      )}
+
+      {/* Details Dialog */}
+      {selectedKey && (
+        <APIKeyDetailsDialog
+          open={detailsDialogOpen}
+          onOpenChange={setDetailsDialogOpen}
+          apiKeyId={selectedKey.id}
         />
       )}
     </>

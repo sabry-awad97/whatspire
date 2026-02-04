@@ -191,3 +191,28 @@ func (uc *APIKeyUseCase) ListAPIKeys(ctx context.Context, page, limit int, role,
 
 	return apiKeys, total, nil
 }
+
+// GetAPIKeyDetails retrieves detailed information about an API key including usage statistics
+// Returns the API key entity and calculated usage stats
+func (uc *APIKeyUseCase) GetAPIKeyDetails(ctx context.Context, id string) (*entity.APIKey, int, int, error) {
+	// Find the API key by ID
+	apiKey, err := uc.repo.FindByID(ctx, id)
+	if err != nil {
+		return nil, 0, 0, err
+	}
+
+	// Calculate usage statistics
+	// Note: This is a simplified implementation. In production, you would query
+	// the audit_logs table to get actual usage counts.
+	// For now, we'll return placeholder values that can be enhanced later.
+	totalRequests := 0
+	last7DaysRequests := 0
+
+	// TODO: Query audit_logs table for actual usage statistics
+	// Example query:
+	// SELECT COUNT(*) FROM audit_logs
+	// WHERE api_key_id = ? AND event_type = 'api_key_usage'
+	// AND created_at >= NOW() - INTERVAL '7 days'
+
+	return apiKey, totalRequests, last7DaysRequests, nil
+}

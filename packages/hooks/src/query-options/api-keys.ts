@@ -48,5 +48,21 @@ export const listAPIKeysOptions = (
     staleTime: 30000, // 30 seconds
   });
 
-// Note: Additional query options will be implemented in Phase 6 (US-004)
-// when the getAPIKeyDetails endpoint is added to the API client
+/**
+ * Query options for getting API key details
+ * @param client - API client instance
+ * @param id - API key ID
+ * @returns Query options for useQuery
+ *
+ * @example
+ * ```tsx
+ * const { data } = useQuery(getAPIKeyDetailsOptions(apiClient, "key_123"));
+ * ```
+ */
+export const getAPIKeyDetailsOptions = (client: ApiClient, id: string) =>
+  queryOptions({
+    queryKey: apiKeyKeys.detail(id),
+    queryFn: () => client.getAPIKeyDetails(id),
+    staleTime: 30000, // 30 seconds
+    enabled: !!id, // Only fetch if ID is provided
+  });

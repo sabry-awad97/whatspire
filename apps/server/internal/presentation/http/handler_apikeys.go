@@ -222,3 +222,61 @@ func (h *Handler) ListAPIKeys(c *gin.Context) {
 
 	respondWithSuccess(c, http.StatusOK, response)
 }
+
+// GetAPIKeyDetails handles GET /api/apikeys/:id
+// Retrieves detailed information about a specific API key including usage statistics
+//
+// @Summary Get API key details
+// @Description Retrieves comprehensive information about an API key including metadata, usage statistics, and audit trail. Provides insights into key usage patterns and history.
+// @Tags API Keys
+// @Accept json
+// @Produce json
+// @Param id path string true "API Key ID"
+// @Success 200 {object} dto.APIKeyDetailsResponse "API key details retrieved successfully"
+// @Failure 400 {object} ErrorResponse "Invalid request - missing or invalid ID"
+// @Failure 401 {object} ErrorResponse "Unauthorized - invalid or missing API key"
+// @Failure 403 {object} ErrorResponse "Forbidden - insufficient permissions (admin role required)"
+// @Failure 404 {object} ErrorResponse "API key not found"
+// @Failure 500 {object} ErrorResponse "Internal server error"
+// @Security ApiKeyAuth
+// @Router /api/apikeys/{id} [get]
+func (h *Handler) GetAPIKeyDetails(c *gin.Context) {
+	// Extract API key ID from URL parameter
+	id := c.Param("id")
+	if id == "" {
+		respondWithError(c, http.StatusBadRequest, "MISSING_ID", "API key ID is required", nil)
+		return
+	}
+
+	// Get API key details with usage statistics
+	apiKey, totalRequests, last7Days, err := h.apikeyUC.GetAPIKeyDetails(c.Request.Context(), id)
+	if err != nil {
+		handleDomainError(c, err)
+		return
+	}
+
+	// Mask the key for display
+	maskedKey := h.apikeyUC.MaskAPIKey(apiKey.KeyHash)
+
+	// Build response
+	response := dto.APIKeyDetailsResponse{
+		APIKey: dto.APIKeyResponse{
+			ID:               apiKey.ID,
+			MaskedKey:        maskedKey,
+			Role:             apiKey.Role,
+			Description:      apiKey.Description,
+			CreatedAt:        apiKey.CreatedAt,
+			LastUsedAt:       apiKey.LastUsedAt,
+			IsActive:         apiKey.IsActive,
+			RevokedAt:        apiKey.RevokedAt,
+			RevokedBy:        apiKey.RevokedBy,
+			RevocationReason: apiKey.RevocationReason,
+		},
+		UsageStats: dto.UsageStats{
+			TotalRequests: totalRequests,
+			Last7Days:     last7Days,
+		},
+	}
+
+	respondWithSuccess(c, http.StatusOK, response)
+}

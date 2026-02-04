@@ -191,10 +191,12 @@ func registerRoutes(router *gin.Engine, handler *Handler, routerConfig RouterCon
 	if routerConfig.APIKeyConfig != nil && routerConfig.APIKeyConfig.Enabled {
 		apikeys.POST("", RoleAuthorizationMiddleware(config.RoleAdmin, routerConfig.APIKeyConfig), handler.CreateAPIKey)
 		apikeys.GET("", RoleAuthorizationMiddleware(config.RoleAdmin, routerConfig.APIKeyConfig), handler.ListAPIKeys)
+		apikeys.GET("/:id", RoleAuthorizationMiddleware(config.RoleAdmin, routerConfig.APIKeyConfig), handler.GetAPIKeyDetails)
 		apikeys.DELETE("/:id", RoleAuthorizationMiddleware(config.RoleAdmin, routerConfig.APIKeyConfig), handler.RevokeAPIKey)
 	} else {
 		apikeys.POST("", handler.CreateAPIKey)
 		apikeys.GET("", handler.ListAPIKeys)
+		apikeys.GET("/:id", handler.GetAPIKeyDetails)
 		apikeys.DELETE("/:id", handler.RevokeAPIKey)
 	}
 }
