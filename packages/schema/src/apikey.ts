@@ -33,14 +33,19 @@ export type RevokeAPIKeyRequest = z.infer<typeof revokeAPIKeySchema>;
  * Schema for API key response
  */
 export const apiKeySchema = z.object({
-  id: z.string().uuid(),
+  id: z
+    .string()
+    .regex(
+      /^key_[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}$/,
+      "Invalid API key ID format",
+    ),
   masked_key: z.string(),
   role: apiKeyRoleSchema,
   description: z.string().optional().nullable(),
-  created_at: z.string().datetime(),
-  last_used_at: z.string().datetime().optional().nullable(),
+  created_at: z.string().datetime({ offset: true }),
+  last_used_at: z.string().datetime({ offset: true }).optional().nullable(),
   is_active: z.boolean(),
-  revoked_at: z.string().datetime().optional().nullable(),
+  revoked_at: z.string().datetime({ offset: true }).optional().nullable(),
   revoked_by: z.string().optional().nullable(),
   revocation_reason: z.string().optional().nullable(),
 });
@@ -90,8 +95,13 @@ export type ListAPIKeysResponse = z.infer<typeof listAPIKeysResponseSchema>;
  * Schema for revoke API key response
  */
 export const revokeAPIKeyResponseSchema = z.object({
-  id: z.string().uuid(),
-  revoked_at: z.string().datetime(),
+  id: z
+    .string()
+    .regex(
+      /^key_[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}$/,
+      "Invalid API key ID format",
+    ),
+  revoked_at: z.string().datetime({ offset: true }),
   revoked_by: z.string(),
 });
 export type RevokeAPIKeyResponse = z.infer<typeof revokeAPIKeyResponseSchema>;

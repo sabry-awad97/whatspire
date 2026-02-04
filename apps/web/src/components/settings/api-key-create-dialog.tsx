@@ -73,6 +73,10 @@ export function CreateAPIKeyDialog({
     onSuccess: (response) => {
       setCreatedKey(response);
       setStep("display-key");
+
+      // Save the API key to localStorage for use in sessions
+      localStorage.setItem("whatspire_api_token", response.plain_key);
+
       toast.success("API Key created successfully");
     },
     onError: (error) => {

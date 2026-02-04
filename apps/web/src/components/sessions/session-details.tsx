@@ -19,8 +19,10 @@ import {
   WifiOff,
   Send,
   Loader2,
+  Terminal,
+  Code2,
 } from "lucide-react";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useNavigate } from "@tanstack/react-router";
 import { toast } from "sonner";
 
@@ -44,6 +46,14 @@ import {
 import { Button } from "../ui/button";
 import { Input } from "../ui/input";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "../ui/tabs";
+import {
+  Snippet,
+  SnippetCopyButton,
+  SnippetHeader,
+  SnippetTabsContent,
+  SnippetTabsList,
+  SnippetTabsTrigger,
+} from "../kibo-ui/snippet";
 import { QRCodeDisplay } from "./qr-code-display";
 
 // ============================================================================
@@ -71,6 +81,16 @@ export function SessionDetails({ session, onBack }: SessionDetailsProps) {
   const [showApiToken, setShowApiToken] = useState(false);
   const [testPhone, setTestPhone] = useState("");
   const [testMessage, setTestMessage] = useState("Hello!");
+  const [apiToken, setApiToken] = useState<string>("");
+  const [snippetTab, setSnippetTab] = useState("curl");
+
+  // Load API token from localStorage on mount
+  useEffect(() => {
+    const storedToken = localStorage.getItem("whatspire_api_token");
+    if (storedToken) {
+      setApiToken(storedToken);
+    }
+  }, []);
 
   // Fetch real data
   const { data: contacts, isLoading: contactsLoading } = useContacts(
@@ -135,13 +155,6 @@ export function SessionDetails({ session, onBack }: SessionDetailsProps) {
     },
   });
 
-  // Mock API token for demonstration (in production, this should come from backend)
-  const apiToken =
-    "wsp_" +
-    session.id.substring(0, 16) +
-    "..." +
-    session.id.substring(session.id.length - 4);
-
   const statusConfig = {
     connected: {
       label: "Connected",
@@ -197,6 +210,10 @@ export function SessionDetails({ session, onBack }: SessionDetailsProps) {
   };
 
   const handleCopyToken = () => {
+    if (!apiToken) {
+      toast.error("No API token configured. Please create one in Settings.");
+      return;
+    }
     navigator.clipboard.writeText(apiToken);
     toast.success("API token copied to clipboard");
   };
@@ -218,14 +235,186 @@ export function SessionDetails({ session, onBack }: SessionDetailsProps) {
   };
 
   const handleCopyCurlCommand = () => {
+    const curlCommand = generateCurlCommand();
+    navigator.clipboard.writeText(curlCommand);
+    toast.success("Command copied to clipboard");
+  };
+
+  const generateCurlCommand = () => {
     const baseURL =
       import.meta.env.VITE_API_BASE_URL || "http://localhost:8080";
-    const code = `curl -X POST "${baseURL}/api/messages" \\
+
+    // Properly escape the message for JSON
+    const escapedMessage = (testMessage || "Hello!")
+      .replace(/\\/g, "\\\\")
+      .replace(/"/g, '\\"')
+      .replace(/\n/g, "\\n")
+      .replace(/\r/g, "\\r")
+      .replace(/\t/g, "\\t");
+
+    return `curl -X POST "${baseURL}/api/messages" \\
   -H "Authorization: Bearer ${apiToken}" \\
   -H "Content-Type: application/json" \\
-  -d '{"session_id": "${session.id}", "to": "${testPhone || "+1234567890"}", "type": "text", "content": {"text": "${testMessage}"}}'`;
-    navigator.clipboard.writeText(code);
-    toast.success("Command copied to clipboard");
+  -d '{"session_id": "${session.id}", "to": "${testPhone || "+1234567890"}", "type": "text", "content": {"text": "${escapedMessage}"}}'`;
+  };
+
+  const generatePythonCommand = () => {
+    const baseURL =
+      import.meta.env.VITE_API_BASE_URL || "http://localhost:8080";
+
+    // Properly escape the message for Python string
+    const escapedMessage = (testMessage || "Hello!")
+      .replace(/\\/g, "\\\\")
+      .replace(/"/g, '\\"')
+      .replace(/\n/g, "\\n")
+      .replace(/\r/g, "\\r")
+      .replace(/\t/g, "\\t");
+
+    return `import requests
+
+url = "${baseURL}/api/messages"
+headers = {
+    "Authorization": "Bearer ${apiToken}",
+    "Content-Type": "application/json"
+}
+data = {
+    "session_id": "${session.id}",
+    "to": "${testPhone || "+1234567890"}",
+    "type": "text",
+    "content": {
+        "text": "${escapedMessage}"
+    }
+}
+
+response = requests.post(url, headers=headers, json=data)
+print(response.json())`;
+  };
+
+  const generateTypeScriptCommand = () => {
+    const baseURL =
+      import.meta.env.VITE_API_BASE_URL || "http://localhost:8080";
+
+    // Properly escape the message for TypeScript string
+    const escapedMessage = (testMessage || "Hello!")
+      .replace(/\\/g, "\\\\")
+      .replace(/"/g, '\\"')
+      .replace(/\n/g, "\\n")
+      .replace(/\r/g, "\\r")
+      .replace(/\t/g, "\\t");
+
+    return `const response = await fetch("${baseURL}/api/messages", {
+  method: "POST",
+  headers: {
+    "Authorization": "Bearer ${apiToken}",
+    "Content-Type": "application/json"
+  },
+  body: JSON.stringify({
+    session_id: "${session.id}",
+    to: "${testPhone || "+1234567890"}",
+    type: "text",
+    content: {
+      text: "${escapedMessage}"
+    }
+  })
+});
+
+const data = await response.json();
+console.log(data);`;
+  };
+
+  const generateGoCommand = () => {
+    const baseURL =
+      import.meta.env.VITE_API_BASE_URL || "http://localhost:8080";
+
+    // Properly escape the message for Go string
+    const escapedMessage = (testMessage || "Hello!")
+      .replace(/\\/g, "\\\\")
+      .replace(/"/g, '\\"')
+      .replace(/\n/g, "\\n")
+      .replace(/\r/g, "\\r")
+      .replace(/\t/g, "\\t");
+
+    return `package main
+
+import (
+    "bytes"
+    "encoding/json"
+    "fmt"
+    "net/http"
+)
+
+func main() {
+    url := "${baseURL}/api/messages"
+    
+    payload := map[string]interface{}{
+        "session_id": "${session.id}",
+        "to": "${testPhone || "+1234567890"}",
+        "type": "text",
+        "content": map[string]string{
+            "text": "${escapedMessage}",
+        },
+    }
+    
+    jsonData, _ := json.Marshal(payload)
+    
+    req, _ := http.NewRequest("POST", url, bytes.NewBuffer(jsonData))
+    req.Header.Set("Authorization", "Bearer ${apiToken}")
+    req.Header.Set("Content-Type", "application/json")
+    
+    client := &http.Client{}
+    resp, err := client.Do(req)
+    if err != nil {
+        panic(err)
+    }
+    defer resp.Body.Close()
+    
+    var result map[string]interface{}
+    json.NewDecoder(resp.Body).Decode(&result)
+    fmt.Println(result)
+}`;
+  };
+
+  const generateRustCommand = () => {
+    const baseURL =
+      import.meta.env.VITE_API_BASE_URL || "http://localhost:8080";
+
+    // Properly escape the message for Rust string
+    const escapedMessage = (testMessage || "Hello!")
+      .replace(/\\/g, "\\\\")
+      .replace(/"/g, '\\"')
+      .replace(/\n/g, "\\n")
+      .replace(/\r/g, "\\r")
+      .replace(/\t/g, "\\t");
+
+    return `use reqwest;
+use serde_json::json;
+
+#[tokio::main]
+async fn main() -> Result<(), Box<dyn std::error::Error>> {
+    let client = reqwest::Client::new();
+    
+    let payload = json!({
+        "session_id": "${session.id}",
+        "to": "${testPhone || "+1234567890"}",
+        "type": "text",
+        "content": {
+            "text": "${escapedMessage}"
+        }
+    });
+    
+    let response = client
+        .post("${baseURL}/api/messages")
+        .header("Authorization", "Bearer ${apiToken}")
+        .header("Content-Type", "application/json")
+        .json(&payload)
+        .send()
+        .await?;
+    
+    let result = response.json::<serde_json::Value>().await?;
+    println!("{:?}", result);
+    
+    Ok(())
+}`;
   };
 
   const contactCount = contacts?.length || 0;
@@ -596,6 +785,34 @@ export function SessionDetails({ session, onBack }: SessionDetailsProps) {
                       </p>
                     </div>
 
+                    {/* Warning when no API key is set */}
+                    {!apiToken && (
+                      <div className="glass-card p-4 border-2 border-amber-500/20 bg-amber-500/5 rounded-lg">
+                        <div className="flex items-start gap-3">
+                          <span className="text-2xl">⚠️</span>
+                          <div className="flex-1">
+                            <h4 className="font-semibold text-amber-600 dark:text-amber-400 mb-1">
+                              No API Key Configured
+                            </h4>
+                            <p className="text-sm text-muted-foreground mb-3">
+                              You need to create an API key to use this session
+                              with the API. API keys are used to authenticate
+                              your requests.
+                            </p>
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              className="glass-card hover-glow-teal"
+                              onClick={() => navigate({ to: "/settings" })}
+                            >
+                              <ShieldCheck className="mr-2 h-4 w-4" />
+                              Go to Settings to Create API Key
+                            </Button>
+                          </div>
+                        </div>
+                      </div>
+                    )}
+
                     <div className="space-y-4">
                       {/* API Access Token */}
                       <div>
@@ -608,27 +825,34 @@ export function SessionDetails({ session, onBack }: SessionDetailsProps) {
                             size="sm"
                             className="glass-card hover-glow-teal h-8"
                             onClick={handleCopyToken}
+                            disabled={!apiToken}
                           >
                             <Copy className="h-3 w-3 mr-1" />
                             Copy
                           </Button>
                         </div>
                         <div className="glass-card p-3 rounded-lg flex items-center justify-between">
-                          <code className="text-sm font-mono">
-                            {showApiToken ? apiToken : "••••••••••••"}
+                          <code className="text-sm font-mono text-muted-foreground">
+                            {apiToken
+                              ? showApiToken
+                                ? apiToken
+                                : "••••••••••••"
+                              : "No API key configured"}
                           </code>
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            className="h-8 w-8"
-                            onClick={() => setShowApiToken(!showApiToken)}
-                          >
-                            {showApiToken ? (
-                              <EyeOff className="h-4 w-4" />
-                            ) : (
-                              <Eye className="h-4 w-4" />
-                            )}
-                          </Button>
+                          {apiToken && (
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              className="h-8 w-8"
+                              onClick={() => setShowApiToken(!showApiToken)}
+                            >
+                              {showApiToken ? (
+                                <EyeOff className="h-4 w-4" />
+                              ) : (
+                                <Eye className="h-4 w-4" />
+                              )}
+                            </Button>
+                          )}
                         </div>
                       </div>
 
@@ -746,7 +970,10 @@ export function SessionDetails({ session, onBack }: SessionDetailsProps) {
                         className="glass-card hover-glow-teal"
                         onClick={handleSendTestMessage}
                         disabled={
-                          sendMessage.isPending || !testPhone || !testMessage
+                          sendMessage.isPending ||
+                          !testPhone ||
+                          !testMessage ||
+                          !apiToken
                         }
                       >
                         {sendMessage.isPending ? (
@@ -761,65 +988,123 @@ export function SessionDetails({ session, onBack }: SessionDetailsProps) {
                           </>
                         )}
                       </Button>
+
+                      {!apiToken && (
+                        <p className="text-xs text-amber-600 dark:text-amber-400 mt-2">
+                          ⚠️ Please configure an API key in the Credentials tab
+                          to send messages
+                        </p>
+                      )}
                     </div>
 
-                    {/* OR SEND VIA CLI */}
+                    {/* OR SEND VIA */}
                     <div className="pt-6 border-t border-border/50">
                       <h3 className="text-sm font-medium text-muted-foreground mb-4">
-                        OR SEND VIA CLI
+                        OR SEND VIA
                       </h3>
 
-                      <div className="relative glass-card rounded-lg p-4 bg-muted/5">
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          className="absolute top-2 right-2 glass-card hover-glow-teal h-8 w-8"
-                          onClick={handleCopyCurlCommand}
-                        >
-                          <Copy className="h-4 w-4" />
-                        </Button>
+                      {!apiToken ? (
+                        <div className="glass-card p-4 rounded-lg bg-muted/5 border-2 border-amber-500/20">
+                          <div className="flex items-start gap-3">
+                            <span className="text-xl">⚠️</span>
+                            <div className="flex-1">
+                              <p className="text-sm text-muted-foreground">
+                                Configure an API key in the{" "}
+                                <span className="text-teal font-medium">
+                                  Credentials
+                                </span>{" "}
+                                tab to see the curl command
+                              </p>
+                            </div>
+                          </div>
+                        </div>
+                      ) : (
+                        <>
+                          <Snippet
+                            value={snippetTab}
+                            onValueChange={setSnippetTab}
+                          >
+                            <SnippetHeader>
+                              <SnippetTabsList>
+                                <SnippetTabsTrigger value="curl">
+                                  <Terminal className="h-3.5 w-3.5" />
+                                  <span>cURL</span>
+                                </SnippetTabsTrigger>
+                                <SnippetTabsTrigger value="typescript">
+                                  <Code2 className="h-3.5 w-3.5" />
+                                  <span>TypeScript</span>
+                                </SnippetTabsTrigger>
+                                <SnippetTabsTrigger value="python">
+                                  <Code2 className="h-3.5 w-3.5" />
+                                  <span>Python</span>
+                                </SnippetTabsTrigger>
+                                <SnippetTabsTrigger value="go">
+                                  <Code2 className="h-3.5 w-3.5" />
+                                  <span>Go</span>
+                                </SnippetTabsTrigger>
+                                <SnippetTabsTrigger value="rust">
+                                  <Code2 className="h-3.5 w-3.5" />
+                                  <span>Rust</span>
+                                </SnippetTabsTrigger>
+                              </SnippetTabsList>
+                              <SnippetCopyButton
+                                value={
+                                  snippetTab === "curl"
+                                    ? generateCurlCommand()
+                                    : snippetTab === "typescript"
+                                      ? generateTypeScriptCommand()
+                                      : snippetTab === "python"
+                                        ? generatePythonCommand()
+                                        : snippetTab === "go"
+                                          ? generateGoCommand()
+                                          : generateRustCommand()
+                                }
+                                onCopy={() =>
+                                  toast.success("Command copied to clipboard")
+                                }
+                                onError={() =>
+                                  toast.error("Failed to copy to clipboard")
+                                }
+                              />
+                            </SnippetHeader>
+                            <SnippetTabsContent
+                              value="curl"
+                              className="whitespace-pre-wrap break-all"
+                            >
+                              {generateCurlCommand()}
+                            </SnippetTabsContent>
+                            <SnippetTabsContent
+                              value="typescript"
+                              className="whitespace-pre-wrap break-all"
+                            >
+                              {generateTypeScriptCommand()}
+                            </SnippetTabsContent>
+                            <SnippetTabsContent
+                              value="python"
+                              className="whitespace-pre-wrap break-all"
+                            >
+                              {generatePythonCommand()}
+                            </SnippetTabsContent>
+                            <SnippetTabsContent
+                              value="go"
+                              className="whitespace-pre-wrap break-all"
+                            >
+                              {generateGoCommand()}
+                            </SnippetTabsContent>
+                            <SnippetTabsContent
+                              value="rust"
+                              className="whitespace-pre-wrap break-all"
+                            >
+                              {generateRustCommand()}
+                            </SnippetTabsContent>
+                          </Snippet>
 
-                        <pre className="text-xs font-mono overflow-x-auto pr-10">
-                          <code className="text-muted-foreground">
-                            <span className="text-teal">curl</span>{" "}
-                            <span className="text-amber">-X</span> POST{" "}
-                            <span className="text-emerald">
-                              "
-                              {import.meta.env.VITE_API_BASE_URL ||
-                                "http://localhost:8080"}
-                              /api/messages"
-                            </span>{" "}
-                            \{"\n"}
-                            {"  "}
-                            <span className="text-amber">-H</span>{" "}
-                            <span className="text-emerald">
-                              "Authorization: Bearer {apiToken}"
-                            </span>{" "}
-                            \{"\n"}
-                            {"  "}
-                            <span className="text-amber">-H</span>{" "}
-                            <span className="text-emerald">
-                              "Content-Type: application/json"
-                            </span>{" "}
-                            \{"\n"}
-                            {"  "}
-                            <span className="text-amber">-d</span>{" "}
-                            <span className="text-emerald">
-                              '{"{"}
-                              "session_id": "{session.id}", "to": "
-                              {testPhone || "+1234567890"}", "type": "text",
-                              "content": {"{"}
-                              "text": "{testMessage}"{"}"}
-                              {"}"}'
-                            </span>
-                          </code>
-                        </pre>
-                      </div>
-
-                      <p className="text-xs text-muted-foreground mt-2">
-                        This command uses your actual API key and the values
-                        entered above.
-                      </p>
+                          <p className="text-xs text-muted-foreground mt-2">
+                            This command uses your actual API key and the values
+                            entered above.
+                          </p>
+                        </>
+                      )}
                     </div>
                   </TabsContent>
 
