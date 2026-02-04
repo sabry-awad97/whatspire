@@ -310,8 +310,8 @@ func extractRateLimitKey(r *http.Request, config ratelimit.Config) string {
 // APIKeyMiddleware provides API key authentication for protected routes.
 // It validates the API key from the configured header or Authorization Bearer token.
 // Supports both X-API-Key header and Authorization: Bearer <token> formats.
-// If apiKeyRepo is provided, it checks database-backed keys and validates IsActive status.
-// Otherwise, it falls back to config-based validation for backward compatibility.
+// API keys are validated against the database and must be active (not revoked).
+// Requires apiKeyRepo to be provided when API key authentication is enabled.
 func APIKeyMiddleware(apiKeyConfig config.APIKeyConfig, auditLogger repository.AuditLogger, apiKeyRepo repository.APIKeyRepository) gin.HandlerFunc {
 	headerName := apiKeyConfig.Header
 	if headerName == "" {
@@ -322,6 +322,17 @@ func APIKeyMiddleware(apiKeyConfig config.APIKeyConfig, auditLogger repository.A
 		// Skip if API key authentication is disabled
 		if !apiKeyConfig.Enabled {
 			c.Next()
+			return
+		}
+
+		// Ensure repository is provided when authentication is enabled
+		if apiKeyRepo == nil {
+			c.JSON(http.StatusInternalServerError, dto.NewErrorResponse[interface{}](
+				"CONFIGURATION_ERROR",
+				"API key authentication is enabled but repository is not configured",
+				nil,
+			))
+			c.Abort()
 			return
 		}
 
@@ -361,109 +372,75 @@ func APIKeyMiddleware(apiKeyConfig config.APIKeyConfig, auditLogger repository.A
 			return
 		}
 
-		// Check if using database-backed API keys
-		var keyRole string
-		var keyID string
+		// Hash the provided key to look it up in the database
+		hash := sha256.Sum256([]byte(apiKey))
+		keyHash := fmt.Sprintf("%x", hash)
 
-		if apiKeyRepo != nil {
-			// Hash the provided key to look it up in the database
-			hash := sha256.Sum256([]byte(apiKey))
-			keyHash := fmt.Sprintf("%x", hash)
-
-			// Look up the key in the database
-			dbKey, err := apiKeyRepo.FindByKeyHash(c.Request.Context(), keyHash)
-			if err != nil {
-				// Key not found in database, log failure
-				if auditLogger != nil {
-					auditLogger.LogAuthFailure(c.Request.Context(), repository.AuthFailureEvent{
-						APIKey:    apiKey,
-						Endpoint:  c.Request.URL.Path,
-						Reason:    "invalid_api_key",
-						Timestamp: time.Now(),
-						IPAddress: c.ClientIP(),
-					})
-				}
-
-				c.JSON(http.StatusUnauthorized, dto.NewErrorResponse[interface{}](
-					"INVALID_API_KEY",
-					"Invalid API key",
-					nil,
-				))
-				c.Abort()
-				return
+		// Look up the key in the database
+		dbKey, err := apiKeyRepo.FindByKeyHash(c.Request.Context(), keyHash)
+		if err != nil {
+			// Key not found in database, log failure
+			if auditLogger != nil {
+				auditLogger.LogAuthFailure(c.Request.Context(), repository.AuthFailureEvent{
+					APIKey:    apiKey,
+					Endpoint:  c.Request.URL.Path,
+					Reason:    "invalid_api_key",
+					Timestamp: time.Now(),
+					IPAddress: c.ClientIP(),
+				})
 			}
 
-			// Check if the key is active (not revoked)
-			if !dbKey.IsActive {
-				// Log authentication failure for revoked key
-				if auditLogger != nil {
-					auditLogger.LogAuthFailure(c.Request.Context(), repository.AuthFailureEvent{
-						APIKey:    apiKey,
-						Endpoint:  c.Request.URL.Path,
-						Reason:    "revoked_api_key",
-						Timestamp: time.Now(),
-						IPAddress: c.ClientIP(),
-					})
-				}
+			c.JSON(http.StatusUnauthorized, dto.NewErrorResponse[interface{}](
+				"INVALID_API_KEY",
+				"Invalid API key",
+				nil,
+			))
+			c.Abort()
+			return
+		}
 
-				c.JSON(http.StatusUnauthorized, dto.NewErrorResponse[interface{}](
-					"REVOKED_API_KEY",
-					"This API key has been revoked",
-					nil,
-				))
-				c.Abort()
-				return
+		// Check if the key is active (not revoked)
+		if !dbKey.IsActive {
+			// Log authentication failure for revoked key
+			if auditLogger != nil {
+				auditLogger.LogAuthFailure(c.Request.Context(), repository.AuthFailureEvent{
+					APIKey:    apiKey,
+					Endpoint:  c.Request.URL.Path,
+					Reason:    "revoked_api_key",
+					Timestamp: time.Now(),
+					IPAddress: c.ClientIP(),
+				})
 			}
 
-			keyRole = dbKey.Role
-			keyID = dbKey.ID
-
-			// Update last used timestamp (async, don't block request)
-			go func() {
-				_ = apiKeyRepo.UpdateLastUsed(context.Background(), keyHash)
-			}()
-		} else {
-			// Fall back to config-based validation for backward compatibility
-			if !apiKeyConfig.IsValidKey(apiKey) {
-				// Log authentication failure
-				if auditLogger != nil {
-					auditLogger.LogAuthFailure(c.Request.Context(), repository.AuthFailureEvent{
-						APIKey:    apiKey,
-						Endpoint:  c.Request.URL.Path,
-						Reason:    "invalid_api_key",
-						Timestamp: time.Now(),
-						IPAddress: c.ClientIP(),
-					})
-				}
-
-				c.JSON(http.StatusUnauthorized, dto.NewErrorResponse[interface{}](
-					"INVALID_API_KEY",
-					"Invalid API key",
-					nil,
-				))
-				c.Abort()
-				return
-			}
-
-			keyRole = string(apiKeyConfig.GetRoleForKey(apiKey))
-			keyID = apiKey // For config-based keys, use the key itself as ID
+			c.JSON(http.StatusUnauthorized, dto.NewErrorResponse[interface{}](
+				"REVOKED_API_KEY",
+				"This API key has been revoked",
+				nil,
+			))
+			c.Abort()
+			return
 		}
 
 		// Store API key, role, and ID in context for use by other middleware
 		c.Set("api_key", apiKey)
-		c.Set("api_key_role", keyRole)
-		c.Set("api_key_id", keyID)
+		c.Set("api_key_role", dbKey.Role)
+		c.Set("api_key_id", dbKey.ID)
 
 		// Log API key usage
 		if auditLogger != nil {
 			auditLogger.LogAPIKeyUsage(c.Request.Context(), repository.APIKeyUsageEvent{
-				APIKeyID:  keyID,
+				APIKeyID:  dbKey.ID,
 				Endpoint:  c.Request.URL.Path,
 				Method:    c.Request.Method,
 				Timestamp: time.Now(),
 				IPAddress: c.ClientIP(),
 			})
 		}
+
+		// Update last used timestamp (async, don't block request)
+		go func() {
+			_ = apiKeyRepo.UpdateLastUsed(context.Background(), keyHash)
+		}()
 
 		c.Next()
 	}

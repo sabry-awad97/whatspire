@@ -1,7 +1,6 @@
 package integration
 
 import (
-	"bytes"
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
@@ -9,282 +8,288 @@ import (
 
 	"whatspire/internal/application/dto"
 	"whatspire/internal/infrastructure/config"
-	httpPres "whatspire/internal/presentation/http"
+	httpPresentation "whatspire/internal/presentation/http"
+	"whatspire/test/helpers"
+
+	"github.com/gin-gonic/gin"
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
-func TestRoleAuthorization_ReadRole(t *testing.T) {
-	// Setup
-	handler := httpPres.NewHandler(nil, nil, nil, nil, nil, nil, nil, nil, nil, nil)
+// ==================== Test Setup ====================
 
-	apiKeyConfig := &config.APIKeyConfig{
-		Enabled: true,
-		KeysMap: []config.APIKeyInfo{
-			{Key: "read-key", Role: config.RoleRead},
-		},
-	}
+func setupRoleTestRouter(apiKeyConfig *config.APIKeyConfig, apiKeyRepo *helpers.MockAPIKeyRepository, requiredRole config.Role) *gin.Engine {
+	gin.SetMode(gin.TestMode)
 
-	routerConfig := httpPres.RouterConfig{
-		APIKeyConfig: apiKeyConfig,
-	}
-
-	router := httpPres.NewRouter(handler, routerConfig)
-
-	// Test: Read role can access GET endpoints
-	t.Run("read role can access GET /api/contacts/check", func(t *testing.T) {
-		req := httptest.NewRequest("GET", "/api/contacts/check?phone=+1234567890&session_id=test", nil)
-		req.Header.Set("X-API-Key", "read-key")
-		w := httptest.NewRecorder()
-
-		router.ServeHTTP(w, req)
-
-		// Should not get 403 Forbidden (might get other errors due to missing use cases, but not 403)
-		if w.Code == http.StatusForbidden {
-			t.Errorf("Expected read role to access GET endpoint, got 403 Forbidden")
-		}
+	router := gin.New()
+	router.Use(httpPresentation.APIKeyMiddleware(*apiKeyConfig, nil, apiKeyRepo))
+	router.Use(httpPresentation.RoleAuthorizationMiddleware(requiredRole, apiKeyConfig))
+	router.GET("/test", func(c *gin.Context) {
+		c.JSON(http.StatusOK, gin.H{"message": "success"})
 	})
 
-	// Test: Read role cannot access POST endpoints
-	t.Run("read role cannot access POST /api/messages", func(t *testing.T) {
-		text := "test"
-		reqBody := dto.SendMessageRequest{
-			SessionID: "test",
-			To:        "+1234567890",
-			Type:      "text",
-			Content: dto.SendMessageContentInput{
-				Text: &text,
-			},
-		}
-		body, _ := json.Marshal(reqBody)
-
-		req := httptest.NewRequest("POST", "/api/messages", bytes.NewBuffer(body))
-		req.Header.Set("X-API-Key", "read-key")
-		req.Header.Set("Content-Type", "application/json")
-		w := httptest.NewRecorder()
-
-		router.ServeHTTP(w, req)
-
-		if w.Code != http.StatusForbidden {
-			t.Errorf("Expected 403 Forbidden for read role on POST endpoint, got %d", w.Code)
-		}
-	})
+	return router
 }
 
-func TestRoleAuthorization_WriteRole(t *testing.T) {
-	// Setup
-	handler := httpPres.NewHandler(nil, nil, nil, nil, nil, nil, nil, nil, nil, nil)
+// ==================== Role Authorization Tests ====================
+
+func TestRoleAuthorization_AdminCanAccessAll(t *testing.T) {
+	apiKeyRepo := helpers.NewMockAPIKeyRepository()
+	adminKey := helpers.CreateTestAPIKey(t, apiKeyRepo, "admin", nil)
 
 	apiKeyConfig := &config.APIKeyConfig{
 		Enabled: true,
-		KeysMap: []config.APIKeyInfo{
-			{Key: "write-key", Role: config.RoleWrite},
-		},
+		Header:  "X-API-Key",
 	}
 
-	routerConfig := httpPres.RouterConfig{
-		APIKeyConfig: apiKeyConfig,
+	tests := []struct {
+		name         string
+		requiredRole config.Role
+	}{
+		{"Admin accessing read endpoint", config.RoleRead},
+		{"Admin accessing write endpoint", config.RoleWrite},
+		{"Admin accessing admin endpoint", config.RoleAdmin},
 	}
 
-	router := httpPres.NewRouter(handler, routerConfig)
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			router := setupRoleTestRouter(apiKeyConfig, apiKeyRepo, tt.requiredRole)
 
-	// Test: Write role can access GET endpoints
-	t.Run("write role can access GET /api/contacts/check", func(t *testing.T) {
-		req := httptest.NewRequest("GET", "/api/contacts/check?phone=+1234567890&session_id=test", nil)
-		req.Header.Set("X-API-Key", "write-key")
-		w := httptest.NewRecorder()
+			req := httptest.NewRequest(http.MethodGet, "/test", nil)
+			req.Header.Set("X-API-Key", adminKey.PlainText)
+			w := httptest.NewRecorder()
 
-		router.ServeHTTP(w, req)
+			router.ServeHTTP(w, req)
 
-		// Should not get 403 Forbidden
-		if w.Code == http.StatusForbidden {
-			t.Errorf("Expected write role to access GET endpoint, got 403 Forbidden")
-		}
-	})
-
-	// Test: Write role can access POST endpoints
-	t.Run("write role can access POST /api/messages", func(t *testing.T) {
-		text := "test"
-		reqBody := dto.SendMessageRequest{
-			SessionID: "test",
-			To:        "+1234567890",
-			Type:      "text",
-			Content: dto.SendMessageContentInput{
-				Text: &text,
-			},
-		}
-		body, _ := json.Marshal(reqBody)
-
-		req := httptest.NewRequest("POST", "/api/messages", bytes.NewBuffer(body))
-		req.Header.Set("X-API-Key", "write-key")
-		req.Header.Set("Content-Type", "application/json")
-		w := httptest.NewRecorder()
-
-		router.ServeHTTP(w, req)
-
-		// Should not get 403 Forbidden (might get other errors due to missing use cases, but not 403)
-		if w.Code == http.StatusForbidden {
-			t.Errorf("Expected write role to access POST endpoint, got 403 Forbidden")
-		}
-	})
-
-	// Test: Write role cannot access admin endpoints
-	t.Run("write role cannot access POST /api/internal/sessions/register", func(t *testing.T) {
-		reqBody := map[string]string{
-			"id":   "test",
-			"name": "test",
-		}
-		body, _ := json.Marshal(reqBody)
-
-		req := httptest.NewRequest("POST", "/api/internal/sessions/register", bytes.NewBuffer(body))
-		req.Header.Set("X-API-Key", "write-key")
-		req.Header.Set("Content-Type", "application/json")
-		w := httptest.NewRecorder()
-
-		router.ServeHTTP(w, req)
-
-		if w.Code != http.StatusForbidden {
-			t.Errorf("Expected 403 Forbidden for write role on admin endpoint, got %d", w.Code)
-		}
-	})
+			assert.Equal(t, http.StatusOK, w.Code)
+		})
+	}
 }
 
-func TestRoleAuthorization_AdminRole(t *testing.T) {
-	// Setup
-	handler := httpPres.NewHandler(nil, nil, nil, nil, nil, nil, nil, nil, nil, nil)
+func TestRoleAuthorization_WriteCanAccessReadAndWrite(t *testing.T) {
+	apiKeyRepo := helpers.NewMockAPIKeyRepository()
+	writeKey := helpers.CreateTestAPIKey(t, apiKeyRepo, "write", nil)
 
 	apiKeyConfig := &config.APIKeyConfig{
 		Enabled: true,
-		KeysMap: []config.APIKeyInfo{
-			{Key: "admin-key", Role: config.RoleAdmin},
-		},
+		Header:  "X-API-Key",
 	}
 
-	routerConfig := httpPres.RouterConfig{
-		APIKeyConfig: apiKeyConfig,
+	tests := []struct {
+		name         string
+		requiredRole config.Role
+		expectStatus int
+	}{
+		{"Write accessing read endpoint", config.RoleRead, http.StatusOK},
+		{"Write accessing write endpoint", config.RoleWrite, http.StatusOK},
+		{"Write accessing admin endpoint", config.RoleAdmin, http.StatusForbidden},
 	}
 
-	router := httpPres.NewRouter(handler, routerConfig)
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			router := setupRoleTestRouter(apiKeyConfig, apiKeyRepo, tt.requiredRole)
 
-	// Test: Admin role can access GET endpoints
-	t.Run("admin role can access GET /api/contacts/check", func(t *testing.T) {
-		req := httptest.NewRequest("GET", "/api/contacts/check?phone=+1234567890&session_id=test", nil)
-		req.Header.Set("X-API-Key", "admin-key")
-		w := httptest.NewRecorder()
+			req := httptest.NewRequest(http.MethodGet, "/test", nil)
+			req.Header.Set("X-API-Key", writeKey.PlainText)
+			w := httptest.NewRecorder()
 
-		router.ServeHTTP(w, req)
+			router.ServeHTTP(w, req)
 
-		// Should not get 403 Forbidden
-		if w.Code == http.StatusForbidden {
-			t.Errorf("Expected admin role to access GET endpoint, got 403 Forbidden")
-		}
-	})
-
-	// Test: Admin role can access POST endpoints
-	t.Run("admin role can access POST /api/messages", func(t *testing.T) {
-		text := "test"
-		reqBody := dto.SendMessageRequest{
-			SessionID: "test",
-			To:        "+1234567890",
-			Type:      "text",
-			Content: dto.SendMessageContentInput{
-				Text: &text,
-			},
-		}
-		body, _ := json.Marshal(reqBody)
-
-		req := httptest.NewRequest("POST", "/api/messages", bytes.NewBuffer(body))
-		req.Header.Set("X-API-Key", "admin-key")
-		req.Header.Set("Content-Type", "application/json")
-		w := httptest.NewRecorder()
-
-		router.ServeHTTP(w, req)
-
-		// Should not get 403 Forbidden
-		if w.Code == http.StatusForbidden {
-			t.Errorf("Expected admin role to access POST endpoint, got 403 Forbidden")
-		}
-	})
-
-	// Test: Admin role can access admin endpoints
-	t.Run("admin role can access POST /api/internal/sessions/register", func(t *testing.T) {
-		reqBody := map[string]string{
-			"id":   "test",
-			"name": "test",
-		}
-		body, _ := json.Marshal(reqBody)
-
-		req := httptest.NewRequest("POST", "/api/internal/sessions/register", bytes.NewBuffer(body))
-		req.Header.Set("X-API-Key", "admin-key")
-		req.Header.Set("Content-Type", "application/json")
-		w := httptest.NewRecorder()
-
-		router.ServeHTTP(w, req)
-
-		// Should not get 403 Forbidden (might get other errors due to missing use cases, but not 403)
-		if w.Code == http.StatusForbidden {
-			t.Errorf("Expected admin role to access admin endpoint, got 403 Forbidden")
-		}
-	})
+			assert.Equal(t, tt.expectStatus, w.Code)
+		})
+	}
 }
 
-func TestRoleAuthorization_DefaultRole(t *testing.T) {
-	// Setup
-	handler := httpPres.NewHandler(nil, nil, nil, nil, nil, nil, nil, nil, nil, nil)
+func TestRoleAuthorization_ReadCanOnlyAccessRead(t *testing.T) {
+	apiKeyRepo := helpers.NewMockAPIKeyRepository()
+	readKey := helpers.CreateTestAPIKey(t, apiKeyRepo, "read", nil)
 
-	// Test with legacy keys (should default to write role)
 	apiKeyConfig := &config.APIKeyConfig{
 		Enabled: true,
-		Keys:    []string{"legacy-key"},
+		Header:  "X-API-Key",
 	}
 
-	routerConfig := httpPres.RouterConfig{
-		APIKeyConfig: apiKeyConfig,
+	tests := []struct {
+		name         string
+		requiredRole config.Role
+		expectStatus int
+	}{
+		{"Read accessing read endpoint", config.RoleRead, http.StatusOK},
+		{"Read accessing write endpoint", config.RoleWrite, http.StatusForbidden},
+		{"Read accessing admin endpoint", config.RoleAdmin, http.StatusForbidden},
 	}
 
-	router := httpPres.NewRouter(handler, routerConfig)
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			router := setupRoleTestRouter(apiKeyConfig, apiKeyRepo, tt.requiredRole)
 
-	// Test: Legacy key defaults to write role and can access POST endpoints
-	t.Run("legacy key defaults to write role", func(t *testing.T) {
-		text := "test"
-		reqBody := dto.SendMessageRequest{
-			SessionID: "test",
-			To:        "+1234567890",
-			Type:      "text",
-			Content: dto.SendMessageContentInput{
-				Text: &text,
-			},
-		}
-		body, _ := json.Marshal(reqBody)
+			req := httptest.NewRequest(http.MethodGet, "/test", nil)
+			req.Header.Set("X-API-Key", readKey.PlainText)
+			w := httptest.NewRecorder()
 
-		req := httptest.NewRequest("POST", "/api/messages", bytes.NewBuffer(body))
-		req.Header.Set("X-API-Key", "legacy-key")
-		req.Header.Set("Content-Type", "application/json")
-		w := httptest.NewRecorder()
+			router.ServeHTTP(w, req)
 
-		router.ServeHTTP(w, req)
+			assert.Equal(t, tt.expectStatus, w.Code)
+		})
+	}
+}
 
-		// Should not get 403 Forbidden (default write role should allow POST)
-		if w.Code == http.StatusForbidden {
-			t.Errorf("Expected legacy key with default write role to access POST endpoint, got 403 Forbidden")
-		}
+func TestRoleAuthorization_ForbiddenResponse(t *testing.T) {
+	apiKeyRepo := helpers.NewMockAPIKeyRepository()
+	readKey := helpers.CreateTestAPIKey(t, apiKeyRepo, "read", nil)
+
+	apiKeyConfig := &config.APIKeyConfig{
+		Enabled: true,
+		Header:  "X-API-Key",
+	}
+
+	router := setupRoleTestRouter(apiKeyConfig, apiKeyRepo, config.RoleAdmin)
+
+	req := httptest.NewRequest(http.MethodGet, "/test", nil)
+	req.Header.Set("X-API-Key", readKey.PlainText)
+	w := httptest.NewRecorder()
+
+	router.ServeHTTP(w, req)
+
+	assert.Equal(t, http.StatusForbidden, w.Code)
+
+	var response dto.APIResponse[any]
+	err := json.Unmarshal(w.Body.Bytes(), &response)
+	require.NoError(t, err)
+
+	assert.False(t, response.Success)
+	assert.Equal(t, "FORBIDDEN", response.Error.Code)
+	assert.Contains(t, response.Error.Message, "Insufficient permissions")
+}
+
+func TestRoleAuthorization_NoAPIKeyInContext(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+
+	apiKeyConfig := &config.APIKeyConfig{
+		Enabled: true,
+		Header:  "X-API-Key",
+	}
+
+	router := gin.New()
+	// Skip APIKeyMiddleware to simulate missing API key in context
+	router.Use(httpPresentation.RoleAuthorizationMiddleware(config.RoleRead, apiKeyConfig))
+	router.GET("/test", func(c *gin.Context) {
+		c.JSON(http.StatusOK, gin.H{"message": "success"})
 	})
 
-	// Test: Legacy key cannot access admin endpoints
-	t.Run("legacy key cannot access admin endpoints", func(t *testing.T) {
-		reqBody := map[string]string{
-			"id":   "test",
-			"name": "test",
-		}
-		body, _ := json.Marshal(reqBody)
+	req := httptest.NewRequest(http.MethodGet, "/test", nil)
+	w := httptest.NewRecorder()
 
-		req := httptest.NewRequest("POST", "/api/internal/sessions/register", bytes.NewBuffer(body))
-		req.Header.Set("X-API-Key", "legacy-key")
-		req.Header.Set("Content-Type", "application/json")
-		w := httptest.NewRecorder()
+	router.ServeHTTP(w, req)
 
-		router.ServeHTTP(w, req)
+	assert.Equal(t, http.StatusUnauthorized, w.Code)
 
-		if w.Code != http.StatusForbidden {
-			t.Errorf("Expected 403 Forbidden for legacy key on admin endpoint, got %d", w.Code)
-		}
+	var response dto.APIResponse[any]
+	err := json.Unmarshal(w.Body.Bytes(), &response)
+	require.NoError(t, err)
+
+	assert.False(t, response.Success)
+	assert.Equal(t, "UNAUTHORIZED", response.Error.Code)
+}
+
+func TestRoleAuthorization_DisabledAuth(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+
+	apiKeyConfig := &config.APIKeyConfig{
+		Enabled: false, // Disabled
+		Header:  "X-API-Key",
+	}
+
+	router := gin.New()
+	router.Use(httpPresentation.RoleAuthorizationMiddleware(config.RoleAdmin, apiKeyConfig))
+	router.GET("/test", func(c *gin.Context) {
+		c.JSON(http.StatusOK, gin.H{"message": "success"})
 	})
+
+	req := httptest.NewRequest(http.MethodGet, "/test", nil)
+	// No API key
+	w := httptest.NewRecorder()
+
+	router.ServeHTTP(w, req)
+
+	// Should succeed when auth is disabled
+	assert.Equal(t, http.StatusOK, w.Code)
+}
+
+func TestRoleAuthorization_MultipleRoles(t *testing.T) {
+	apiKeyRepo := helpers.NewMockAPIKeyRepository()
+	adminKey := helpers.CreateTestAPIKey(t, apiKeyRepo, "admin", nil)
+	writeKey := helpers.CreateTestAPIKey(t, apiKeyRepo, "write", nil)
+	readKey := helpers.CreateTestAPIKey(t, apiKeyRepo, "read", nil)
+
+	apiKeyConfig := &config.APIKeyConfig{
+		Enabled: true,
+		Header:  "X-API-Key",
+	}
+
+	tests := []struct {
+		name         string
+		apiKey       *helpers.TestAPIKey
+		requiredRole config.Role
+		expectStatus int
+	}{
+		// Admin tests
+		{"Admin can read", adminKey, config.RoleRead, http.StatusOK},
+		{"Admin can write", adminKey, config.RoleWrite, http.StatusOK},
+		{"Admin can admin", adminKey, config.RoleAdmin, http.StatusOK},
+
+		// Write tests
+		{"Write can read", writeKey, config.RoleRead, http.StatusOK},
+		{"Write can write", writeKey, config.RoleWrite, http.StatusOK},
+		{"Write cannot admin", writeKey, config.RoleAdmin, http.StatusForbidden},
+
+		// Read tests
+		{"Read can read", readKey, config.RoleRead, http.StatusOK},
+		{"Read cannot write", readKey, config.RoleWrite, http.StatusForbidden},
+		{"Read cannot admin", readKey, config.RoleAdmin, http.StatusForbidden},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			router := setupRoleTestRouter(apiKeyConfig, apiKeyRepo, tt.requiredRole)
+
+			req := httptest.NewRequest(http.MethodGet, "/test", nil)
+			req.Header.Set("X-API-Key", tt.apiKey.PlainText)
+			w := httptest.NewRecorder()
+
+			router.ServeHTTP(w, req)
+
+			assert.Equal(t, tt.expectStatus, w.Code)
+		})
+	}
+}
+
+func TestRoleAuthorization_StoresRoleInContext(t *testing.T) {
+	apiKeyRepo := helpers.NewMockAPIKeyRepository()
+	adminKey := helpers.CreateTestAPIKey(t, apiKeyRepo, "admin", nil)
+
+	apiKeyConfig := &config.APIKeyConfig{
+		Enabled: true,
+		Header:  "X-API-Key",
+	}
+
+	var capturedRole config.Role
+
+	gin.SetMode(gin.TestMode)
+	router := gin.New()
+	router.Use(httpPresentation.APIKeyMiddleware(*apiKeyConfig, nil, apiKeyRepo))
+	router.Use(httpPresentation.RoleAuthorizationMiddleware(config.RoleRead, apiKeyConfig))
+	router.GET("/test", func(c *gin.Context) {
+		capturedRole = httpPresentation.GetUserRole(c)
+		c.JSON(http.StatusOK, gin.H{"message": "success"})
+	})
+
+	req := httptest.NewRequest(http.MethodGet, "/test", nil)
+	req.Header.Set("X-API-Key", adminKey.PlainText)
+	w := httptest.NewRecorder()
+
+	router.ServeHTTP(w, req)
+
+	assert.Equal(t, http.StatusOK, w.Code)
+	assert.Equal(t, config.RoleAdmin, capturedRole)
 }
