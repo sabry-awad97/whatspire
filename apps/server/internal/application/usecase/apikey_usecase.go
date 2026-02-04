@@ -1,11 +1,14 @@
 package usecase
 
 import (
+	"context"
 	"crypto/rand"
 	"crypto/sha256"
 	"encoding/base64"
 	"fmt"
+	"time"
 
+	"whatspire/internal/domain/entity"
 	"whatspire/internal/domain/errors"
 	"whatspire/internal/domain/repository"
 )
@@ -59,4 +62,46 @@ func (uc *APIKeyUseCase) maskAPIKey(key string) string {
 	prefix := key[:8]
 	suffix := key[len(key)-4:]
 	return fmt.Sprintf("%s...%s", prefix, suffix)
+}
+
+// CreateAPIKey generates a new API key with the specified role and optional description
+// Returns the plain-text key (shown only once) and the created entity
+func (uc *APIKeyUseCase) CreateAPIKey(ctx context.Context, role string, description *string, createdBy string) (plainKey string, apiKey *entity.APIKey, err error) {
+	// Validate role
+	if role != "read" && role != "write" && role != "admin" {
+		return "", nil, errors.ErrValidationFailed.WithMessage("invalid role: must be read, write, or admin")
+	}
+
+	// Generate plain-text API key
+	plainKey, err = uc.generateAPIKey()
+	if err != nil {
+		return "", nil, err
+	}
+
+	// Hash the key for storage
+	keyHash := uc.hashAPIKey(plainKey)
+
+	// Generate UUID for API key ID
+	id := fmt.Sprintf("key_%d", time.Now().UnixNano())
+
+	// Create entity
+	apiKey = entity.NewAPIKey(id, keyHash, role, description)
+
+	// Save to repository
+	if err := uc.repo.Save(ctx, apiKey); err != nil {
+		return "", nil, err
+	}
+
+	// Log API key creation
+	if uc.auditLogger != nil {
+		uc.auditLogger.LogAPIKeyCreated(ctx, repository.APIKeyCreatedEvent{
+			APIKeyID:    apiKey.ID,
+			Role:        apiKey.Role,
+			Description: apiKey.Description,
+			CreatedBy:   createdBy,
+			Timestamp:   apiKey.CreatedAt,
+		})
+	}
+
+	return plainKey, apiKey, nil
 }

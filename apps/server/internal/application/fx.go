@@ -23,6 +23,7 @@ var Module = fx.Module("application",
 		NewPresenceUseCase,
 		NewContactUseCase,
 		NewEventUseCase,
+		NewAPIKeyUseCase,
 	),
 )
 
@@ -119,4 +120,12 @@ func NewEventUseCase(
 	publisher repository.EventPublisher,
 ) *usecase.EventUseCase {
 	return usecase.NewEventUseCase(eventRepo, publisher)
+}
+
+// NewAPIKeyUseCase creates a new API key use case
+func NewAPIKeyUseCase(
+	repo repository.APIKeyRepository,
+	auditLogger repository.AuditLogger,
+) *usecase.APIKeyUseCase {
+	return usecase.NewAPIKeyUseCase(repo, auditLogger)
 }

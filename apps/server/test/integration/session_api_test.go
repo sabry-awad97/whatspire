@@ -23,7 +23,7 @@ import (
 
 func setupTestRouter(sessionUC *usecase.SessionUseCase) *gin.Engine {
 	gin.SetMode(gin.TestMode)
-	handler := httpHandler.NewHandler(sessionUC, nil, nil, nil, nil, nil, nil, nil, nil)
+	handler := httpHandler.NewHandler(sessionUC, nil, nil, nil, nil, nil, nil, nil, nil, nil)
 	return httpHandler.NewRouter(handler, httpHandler.DefaultRouterConfig())
 }
 

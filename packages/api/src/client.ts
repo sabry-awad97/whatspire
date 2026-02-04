@@ -23,6 +23,8 @@ import {
   sendReceiptRequestSchema,
   receiptResponseSchema,
   queryEventsResponseSchema,
+  createAPIKeySchema,
+  createAPIKeyResponseSchema,
   type ApiResponse,
   type Session,
   type CreateSessionRequest,
@@ -44,6 +46,8 @@ import {
   type ReceiptResponse,
   type QueryEventsRequest,
   type QueryEventsResponse,
+  type CreateAPIKeyRequest,
+  type CreateAPIKeyResponse,
 } from "@whatspire/schema";
 
 // ============================================================================
@@ -716,6 +720,43 @@ export class ApiClient {
         throw new ApiClientError(
           validatedResponse.error?.message || "Failed to query events",
           validatedResponse.error?.code || "QUERY_EVENTS_FAILED",
+          response.status,
+          validatedResponse.error?.details,
+        );
+      }
+
+      return validatedResponse.data;
+    });
+  }
+
+  // ==========================================================================
+  // API Keys
+  // ==========================================================================
+
+  /**
+   * Create a new API key
+   * @param data - API key creation request with role and optional description
+   * @returns Created API key with plain key (only shown once)
+   */
+  async createAPIKey(data: CreateAPIKeyRequest): Promise<CreateAPIKeyResponse> {
+    return this.executeWithRetry(async () => {
+      // Validate request
+      const validatedRequest = createAPIKeySchema.parse(data);
+
+      // Make request
+      const response = await this.client.post<
+        ApiResponse<CreateAPIKeyResponse>
+      >("/api/apikeys", validatedRequest);
+
+      // Validate response
+      const validatedResponse = apiResponseSchema(
+        createAPIKeyResponseSchema,
+      ).parse(response.data);
+
+      if (!validatedResponse.success || !validatedResponse.data) {
+        throw new ApiClientError(
+          validatedResponse.error?.message || "Failed to create API key",
+          validatedResponse.error?.code || "CREATE_API_KEY_FAILED",
           response.status,
           validatedResponse.error?.details,
         );

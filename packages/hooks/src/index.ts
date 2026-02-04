@@ -18,6 +18,7 @@ export * from "./query-options/events";
 // Mutation Options (for advanced usage)
 export * from "./mutation-options/sessions";
 export * from "./mutation-options/messages";
+export * from "./mutation-options/api-keys";
 
 // Hooks
 export * from "./hooks/use-sessions";
@@ -25,6 +26,7 @@ export * from "./hooks/use-contacts";
 export * from "./hooks/use-messages";
 export * from "./hooks/use-groups";
 export * from "./hooks/use-events";
+export * from "./hooks/use-api-keys";
 
 // Re-export commonly used types from dependencies
 export type {

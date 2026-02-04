@@ -182,6 +182,14 @@ func registerRoutes(router *gin.Engine, handler *Handler, routerConfig RouterCon
 		events.GET("/:id", handler.GetEventByID)
 		events.POST("/replay", handler.ReplayEvents)
 	}
+
+	// API Key routes - require admin role
+	apikeys := api.Group("/apikeys")
+	if routerConfig.APIKeyConfig != nil && routerConfig.APIKeyConfig.Enabled {
+		apikeys.POST("", RoleAuthorizationMiddleware(config.RoleAdmin, routerConfig.APIKeyConfig), handler.CreateAPIKey)
+	} else {
+		apikeys.POST("", handler.CreateAPIKey)
+	}
 }
 
 // NewRouter creates a new Gin router with a pre-configured handler

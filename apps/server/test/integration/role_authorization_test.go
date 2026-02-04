@@ -14,7 +14,7 @@ import (
 
 func TestRoleAuthorization_ReadRole(t *testing.T) {
 	// Setup
-	handler := httpPres.NewHandler(nil, nil, nil, nil, nil, nil, nil, nil, nil)
+	handler := httpPres.NewHandler(nil, nil, nil, nil, nil, nil, nil, nil, nil, nil)
 
 	apiKeyConfig := &config.APIKeyConfig{
 		Enabled: true,
@@ -71,7 +71,7 @@ func TestRoleAuthorization_ReadRole(t *testing.T) {
 
 func TestRoleAuthorization_WriteRole(t *testing.T) {
 	// Setup
-	handler := httpPres.NewHandler(nil, nil, nil, nil, nil, nil, nil, nil, nil)
+	handler := httpPres.NewHandler(nil, nil, nil, nil, nil, nil, nil, nil, nil, nil)
 
 	apiKeyConfig := &config.APIKeyConfig{
 		Enabled: true,
@@ -149,7 +149,7 @@ func TestRoleAuthorization_WriteRole(t *testing.T) {
 
 func TestRoleAuthorization_AdminRole(t *testing.T) {
 	// Setup
-	handler := httpPres.NewHandler(nil, nil, nil, nil, nil, nil, nil, nil, nil)
+	handler := httpPres.NewHandler(nil, nil, nil, nil, nil, nil, nil, nil, nil, nil)
 
 	apiKeyConfig := &config.APIKeyConfig{
 		Enabled: true,
@@ -228,7 +228,7 @@ func TestRoleAuthorization_AdminRole(t *testing.T) {
 
 func TestRoleAuthorization_DefaultRole(t *testing.T) {
 	// Setup
-	handler := httpPres.NewHandler(nil, nil, nil, nil, nil, nil, nil, nil, nil)
+	handler := httpPres.NewHandler(nil, nil, nil, nil, nil, nil, nil, nil, nil, nil)
 
 	// Test with legacy keys (should default to write role)
 	apiKeyConfig := &config.APIKeyConfig{

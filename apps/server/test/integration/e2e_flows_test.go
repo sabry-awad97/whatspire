@@ -61,6 +61,7 @@ func setupE2ERouter(
 		presenceUC,
 		contactUC,
 		nil, // eventUC
+		nil, // apikeyUC
 	)
 	return httpHandler.NewRouter(handler, httpHandler.DefaultRouterConfig())
 }
