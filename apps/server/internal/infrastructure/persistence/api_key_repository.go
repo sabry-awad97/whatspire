@@ -188,6 +188,17 @@ func (r *APIKeyRepository) List(ctx context.Context, limit, offset int, role *st
 
 // Update updates an existing API key
 func (r *APIKeyRepository) Update(ctx context.Context, apiKey *entity.APIKey) error {
+	// First check if the key exists
+	var existing models.APIKey
+	result := r.db.WithContext(ctx).First(&existing, "id = ?", apiKey.ID)
+	if result.Error != nil {
+		if errors.Is(result.Error, gorm.ErrRecordNotFound) {
+			return domainErrors.ErrNotFound.WithMessage("API key not found")
+		}
+		return domainErrors.ErrDatabaseError.WithCause(result.Error)
+	}
+
+	// Update the existing record
 	model := &models.APIKey{
 		ID:               apiKey.ID,
 		KeyHash:          apiKey.KeyHash,
@@ -201,13 +212,9 @@ func (r *APIKeyRepository) Update(ctx context.Context, apiKey *entity.APIKey) er
 		RevocationReason: apiKey.RevocationReason,
 	}
 
-	result := r.db.WithContext(ctx).Save(model)
+	result = r.db.WithContext(ctx).Save(model)
 	if result.Error != nil {
 		return domainErrors.ErrDatabaseError.WithCause(result.Error)
-	}
-
-	if result.RowsAffected == 0 {
-		return domainErrors.ErrNotFound.WithMessage("API key not found")
 	}
 
 	return nil
