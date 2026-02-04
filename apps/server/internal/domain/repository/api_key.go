@@ -26,9 +26,13 @@ type APIKeyRepository interface {
 	// Delete removes an API key by its ID
 	Delete(ctx context.Context, id string) error
 
-	// List retrieves all API keys with pagination
-	List(ctx context.Context, limit, offset int) ([]*entity.APIKey, error)
+	// List retrieves all API keys with pagination and optional filters
+	// role: filter by role (read, write, admin) - nil means no filter
+	// isActive: filter by active status - nil means no filter
+	List(ctx context.Context, limit, offset int, role *string, isActive *bool) ([]*entity.APIKey, error)
 
-	// Count returns the total number of API keys
-	Count(ctx context.Context) (int64, error)
+	// Count returns the total number of API keys matching the filters
+	// role: filter by role (read, write, admin) - nil means no filter
+	// isActive: filter by active status - nil means no filter
+	Count(ctx context.Context, role *string, isActive *bool) (int64, error)
 }

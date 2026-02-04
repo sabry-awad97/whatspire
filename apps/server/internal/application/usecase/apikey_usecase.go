@@ -53,7 +53,8 @@ func (uc *APIKeyUseCase) hashAPIKey(key string) string {
 
 // maskAPIKey masks an API key for display purposes
 // Shows first 8 and last 4 characters: "abcd1234...xyz9"
-func (uc *APIKeyUseCase) maskAPIKey(key string) string {
+// This is exported so handlers can use it for masking keys in responses
+func (uc *APIKeyUseCase) MaskAPIKey(key string) string {
 	if len(key) <= 12 {
 		// Key too short to mask meaningfully
 		return "****"
@@ -139,4 +140,54 @@ func (uc *APIKeyUseCase) RevokeAPIKey(ctx context.Context, id string, revokedBy 
 	}
 
 	return apiKey, nil
+}
+
+// ListAPIKeys retrieves a paginated list of API keys with optional filters
+// Supports filtering by role and status, with pagination and sorting
+func (uc *APIKeyUseCase) ListAPIKeys(ctx context.Context, page, limit int, role, status *string) ([]*entity.APIKey, int64, error) {
+	// Set default pagination values
+	if page < 1 {
+		page = 1
+	}
+	if limit < 1 || limit > 100 {
+		limit = 50 // Default page size
+	}
+
+	// Validate role filter if provided
+	if role != nil && *role != "" {
+		if *role != "read" && *role != "write" && *role != "admin" {
+			return nil, 0, errors.ErrValidationFailed.WithMessage("invalid role filter: must be read, write, or admin")
+		}
+	}
+
+	// Validate status filter if provided
+	var isActive *bool
+	if status != nil && *status != "" {
+		if *status == "active" {
+			active := true
+			isActive = &active
+		} else if *status == "revoked" {
+			inactive := false
+			isActive = &inactive
+		} else {
+			return nil, 0, errors.ErrValidationFailed.WithMessage("invalid status filter: must be active or revoked")
+		}
+	}
+
+	// Calculate offset for pagination
+	offset := (page - 1) * limit
+
+	// Retrieve API keys from repository
+	apiKeys, err := uc.repo.List(ctx, limit, offset, role, isActive)
+	if err != nil {
+		return nil, 0, err
+	}
+
+	// Get total count for pagination
+	total, err := uc.repo.Count(ctx, role, isActive)
+	if err != nil {
+		return nil, 0, err
+	}
+
+	return apiKeys, total, nil
 }

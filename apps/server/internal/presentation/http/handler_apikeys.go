@@ -132,3 +132,93 @@ func (h *Handler) RevokeAPIKey(c *gin.Context) {
 
 	respondWithSuccess(c, http.StatusOK, response)
 }
+
+// ListAPIKeys handles GET /api/apikeys
+// Lists all API keys with optional filtering and pagination
+//
+// @Summary List API keys
+// @Description Retrieves a paginated list of API keys with optional filters for role and status. Supports sorting by creation date.
+// @Tags API Keys
+// @Accept json
+// @Produce json
+// @Param page query int false "Page number (default: 1)" minimum(1)
+// @Param limit query int false "Items per page (default: 50, max: 100)" minimum(1) maximum(100)
+// @Param role query string false "Filter by role" Enums(read, write, admin)
+// @Param status query string false "Filter by status" Enums(active, revoked)
+// @Success 200 {object} dto.ListAPIKeysResponse "API keys retrieved successfully"
+// @Failure 400 {object} ErrorResponse "Invalid request or validation failed"
+// @Failure 401 {object} ErrorResponse "Unauthorized - invalid or missing API key"
+// @Failure 403 {object} ErrorResponse "Forbidden - insufficient permissions (admin role required)"
+// @Failure 500 {object} ErrorResponse "Internal server error"
+// @Security ApiKeyAuth
+// @Router /api/apikeys [get]
+func (h *Handler) ListAPIKeys(c *gin.Context) {
+	// Parse query parameters
+	var req dto.ListAPIKeysRequest
+	if err := c.ShouldBindQuery(&req); err != nil {
+		respondWithError(c, http.StatusBadRequest, "INVALID_QUERY", "Invalid query parameters", nil)
+		return
+	}
+
+	// Validate request
+	if err := validator.Validate(req); err != nil {
+		details := validator.ValidationErrors(err)
+		respondWithError(c, http.StatusBadRequest, "VALIDATION_FAILED", "Validation failed", details)
+		return
+	}
+
+	// Set default values
+	page := req.Page
+	if page == 0 {
+		page = 1
+	}
+	limit := req.Limit
+	if limit == 0 {
+		limit = 50
+	}
+
+	// List API keys
+	apiKeys, total, err := h.apikeyUC.ListAPIKeys(c.Request.Context(), page, limit, req.Role, req.Status)
+	if err != nil {
+		handleDomainError(c, err)
+		return
+	}
+
+	// Build response
+	apiKeyResponses := make([]dto.APIKeyResponse, len(apiKeys))
+	for i, key := range apiKeys {
+		// Mask the key for display
+		maskedKey := h.apikeyUC.MaskAPIKey(key.KeyHash) // Note: This masks the hash, not the original key
+
+		apiKeyResponses[i] = dto.APIKeyResponse{
+			ID:               key.ID,
+			MaskedKey:        maskedKey,
+			Role:             key.Role,
+			Description:      key.Description,
+			CreatedAt:        key.CreatedAt,
+			LastUsedAt:       key.LastUsedAt,
+			IsActive:         key.IsActive,
+			RevokedAt:        key.RevokedAt,
+			RevokedBy:        key.RevokedBy,
+			RevocationReason: key.RevocationReason,
+		}
+	}
+
+	// Calculate total pages
+	totalPages := int(total) / limit
+	if int(total)%limit > 0 {
+		totalPages++
+	}
+
+	response := dto.ListAPIKeysResponse{
+		APIKeys: apiKeyResponses,
+		Pagination: dto.PaginationInfo{
+			Page:       page,
+			Limit:      limit,
+			Total:      total,
+			TotalPages: totalPages,
+		},
+	}
+
+	respondWithSuccess(c, http.StatusOK, response)
+}

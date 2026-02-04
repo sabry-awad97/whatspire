@@ -139,11 +139,23 @@ func (r *APIKeyRepository) Delete(ctx context.Context, id string) error {
 	return nil
 }
 
-// List retrieves all API keys with pagination
-func (r *APIKeyRepository) List(ctx context.Context, limit, offset int) ([]*entity.APIKey, error) {
+// List retrieves all API keys with pagination and optional filters
+func (r *APIKeyRepository) List(ctx context.Context, limit, offset int, role *string, isActive *bool) ([]*entity.APIKey, error) {
 	var modelKeys []models.APIKey
 
-	result := r.db.WithContext(ctx).
+	query := r.db.WithContext(ctx)
+
+	// Apply role filter if provided
+	if role != nil && *role != "" {
+		query = query.Where("role = ?", *role)
+	}
+
+	// Apply status filter if provided
+	if isActive != nil {
+		query = query.Where("is_active = ?", *isActive)
+	}
+
+	result := query.
 		Order("created_at DESC").
 		Limit(limit).
 		Offset(offset).
@@ -201,10 +213,22 @@ func (r *APIKeyRepository) Update(ctx context.Context, apiKey *entity.APIKey) er
 	return nil
 }
 
-// Count returns the total number of API keys
-func (r *APIKeyRepository) Count(ctx context.Context) (int64, error) {
+// Count returns the total number of API keys matching the filters
+func (r *APIKeyRepository) Count(ctx context.Context, role *string, isActive *bool) (int64, error) {
 	var count int64
-	result := r.db.WithContext(ctx).Model(&models.APIKey{}).Count(&count)
+	query := r.db.WithContext(ctx).Model(&models.APIKey{})
+
+	// Apply role filter if provided
+	if role != nil && *role != "" {
+		query = query.Where("role = ?", *role)
+	}
+
+	// Apply status filter if provided
+	if isActive != nil {
+		query = query.Where("is_active = ?", *isActive)
+	}
+
+	result := query.Count(&count)
 
 	if result.Error != nil {
 		return 0, domainErrors.ErrDatabaseError.WithCause(result.Error)
