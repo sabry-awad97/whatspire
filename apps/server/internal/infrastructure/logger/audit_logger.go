@@ -30,6 +30,39 @@ func (al *AuditLogger) LogAPIKeyUsage(ctx context.Context, event repository.APIK
 	)
 }
 
+// LogAPIKeyCreated logs an API key creation event
+func (al *AuditLogger) LogAPIKeyCreated(ctx context.Context, event repository.APIKeyCreatedEvent) {
+	fields := []Field{
+		String("event_type", "api_key_created"),
+		String("api_key_id", event.APIKeyID),
+		String("role", event.Role),
+		String("created_by", event.CreatedBy),
+		Any("timestamp", event.Timestamp),
+	}
+
+	if event.Description != nil {
+		fields = append(fields, String("description", *event.Description))
+	}
+
+	al.logger.WithContext(ctx).Info("API key created", fields...)
+}
+
+// LogAPIKeyRevoked logs an API key revocation event
+func (al *AuditLogger) LogAPIKeyRevoked(ctx context.Context, event repository.APIKeyRevokedEvent) {
+	fields := []Field{
+		String("event_type", "api_key_revoked"),
+		String("api_key_id", event.APIKeyID),
+		String("revoked_by", event.RevokedBy),
+		Any("timestamp", event.Timestamp),
+	}
+
+	if event.RevocationReason != nil {
+		fields = append(fields, String("revocation_reason", *event.RevocationReason))
+	}
+
+	al.logger.WithContext(ctx).Warn("API key revoked", fields...)
+}
+
 // LogSessionAction logs a session action event
 func (al *AuditLogger) LogSessionAction(ctx context.Context, event repository.SessionActionEvent) {
 	al.logger.WithContext(ctx).Info("Session action",

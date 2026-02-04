@@ -20,9 +20,15 @@ type APIKeyRepository interface {
 	// UpdateLastUsed updates the last used timestamp for an API key
 	UpdateLastUsed(ctx context.Context, keyHash string) error
 
+	// Update updates an existing API key
+	Update(ctx context.Context, apiKey *entity.APIKey) error
+
 	// Delete removes an API key by its ID
 	Delete(ctx context.Context, id string) error
 
 	// List retrieves all API keys with pagination
 	List(ctx context.Context, limit, offset int) ([]*entity.APIKey, error)
+
+	// Count returns the total number of API keys
+	Count(ctx context.Context) (int64, error)
 }

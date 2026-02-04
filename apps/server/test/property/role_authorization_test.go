@@ -114,7 +114,7 @@ func TestRoleStorageAndRetrieval_Property20(t *testing.T) {
 
 			// Create and save API key
 			keyHash := hashKey(key)
-			apiKey := entity.NewAPIKey(id, keyHash, string(role))
+			apiKey := entity.NewAPIKey(id, keyHash, string(role), nil)
 			err := repo.Save(ctx, apiKey)
 			if err != nil {
 				return false
@@ -146,7 +146,7 @@ func TestRoleStorageAndRetrieval_Property20(t *testing.T) {
 
 			// Create and save API key
 			keyHash := hashKey(key)
-			apiKey := entity.NewAPIKey(id, keyHash, string(role))
+			apiKey := entity.NewAPIKey(id, keyHash, string(role), nil)
 			err := repo.Save(ctx, apiKey)
 			if err != nil {
 				return false
@@ -183,7 +183,7 @@ func TestRoleStorageAndRetrieval_Property20(t *testing.T) {
 
 			// Create and save API key
 			keyHash := hashKey(key)
-			apiKey := entity.NewAPIKey(id, keyHash, string(role))
+			apiKey := entity.NewAPIKey(id, keyHash, string(role), nil)
 			err := repo.Save(ctx, apiKey)
 			if err != nil {
 				return false

@@ -8,6 +8,8 @@ import (
 // AuditLogger defines the interface for audit logging
 type AuditLogger interface {
 	LogAPIKeyUsage(ctx context.Context, event APIKeyUsageEvent)
+	LogAPIKeyCreated(ctx context.Context, event APIKeyCreatedEvent)
+	LogAPIKeyRevoked(ctx context.Context, event APIKeyRevokedEvent)
 	LogSessionAction(ctx context.Context, event SessionActionEvent)
 	LogMessageSent(ctx context.Context, event MessageSentEvent)
 	LogAuthFailure(ctx context.Context, event AuthFailureEvent)
@@ -21,6 +23,23 @@ type APIKeyUsageEvent struct {
 	Method    string
 	Timestamp time.Time
 	IPAddress string
+}
+
+// APIKeyCreatedEvent represents an API key creation event
+type APIKeyCreatedEvent struct {
+	APIKeyID    string
+	Role        string
+	Description *string
+	CreatedBy   string
+	Timestamp   time.Time
+}
+
+// APIKeyRevokedEvent represents an API key revocation event
+type APIKeyRevokedEvent struct {
+	APIKeyID         string
+	RevokedBy        string
+	RevocationReason *string
+	Timestamp        time.Time
 }
 
 // SessionActionEvent represents a session action event

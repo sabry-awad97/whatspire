@@ -31,3 +31,6 @@ export * from "./receipt";
 
 // Event schemas
 export * from "./event";
+
+// API Key schemas
+export * from "./apikey";
