@@ -2,6 +2,8 @@
  * API Key Query Options
  * Centralized query configurations for API key management operations
  */
+import { queryOptions } from "@tanstack/react-query";
+import { ApiClient } from "@whatspire/api";
 
 // ============================================================================
 // Query Keys Factory
@@ -20,5 +22,31 @@ export const apiKeyKeys = {
 // Query Options Factories
 // ============================================================================
 
-// Note: Query options will be implemented in Phase 5 (US-003)
-// when the listAPIKeys endpoint is added to the API client
+/**
+ * Query options for listing API keys
+ * @param client - API client instance
+ * @param params - Optional filters and pagination parameters
+ * @returns Query options for useQuery
+ *
+ * @example
+ * ```tsx
+ * const { data } = useQuery(listAPIKeysOptions(apiClient, { page: 1, limit: 50 }));
+ * ```
+ */
+export const listAPIKeysOptions = (
+  client: ApiClient,
+  params?: {
+    page?: number;
+    limit?: number;
+    role?: "read" | "write" | "admin";
+    status?: "active" | "revoked";
+  },
+) =>
+  queryOptions({
+    queryKey: apiKeyKeys.list(params),
+    queryFn: () => client.listAPIKeys(params),
+    staleTime: 30000, // 30 seconds
+  });
+
+// Note: Additional query options will be implemented in Phase 6 (US-004)
+// when the getAPIKeyDetails endpoint is added to the API client

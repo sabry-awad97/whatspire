@@ -27,6 +27,8 @@ import {
   createAPIKeyResponseSchema,
   revokeAPIKeySchema,
   revokeAPIKeyResponseSchema,
+  listAPIKeysRequestSchema,
+  listAPIKeysResponseSchema,
   type ApiResponse,
   type Session,
   type CreateSessionRequest,
@@ -52,6 +54,8 @@ import {
   type CreateAPIKeyResponse,
   type RevokeAPIKeyRequest,
   type RevokeAPIKeyResponse,
+  type ListAPIKeysRequest,
+  type ListAPIKeysResponse,
 } from "@whatspire/schema";
 
 // ============================================================================
@@ -804,6 +808,43 @@ export class ApiClient {
         throw new ApiClientError(
           validatedResponse.error?.message || "Failed to revoke API key",
           validatedResponse.error?.code || "REVOKE_API_KEY_FAILED",
+          response.status,
+          validatedResponse.error?.details,
+        );
+      }
+
+      return validatedResponse.data;
+    });
+  }
+
+  /**
+   * List API keys with optional filtering and pagination
+   * @param params - Optional filters and pagination parameters
+   * @returns Paginated list of API keys with metadata
+   * @throws ApiClientError if request fails
+   */
+  async listAPIKeys(params?: ListAPIKeysRequest): Promise<ListAPIKeysResponse> {
+    return this.executeWithRetry(async () => {
+      // Validate request parameters if provided
+      if (params) {
+        listAPIKeysRequestSchema.parse(params);
+      }
+
+      // Make request
+      const response = await this.client.get<ApiResponse<ListAPIKeysResponse>>(
+        "/api/apikeys",
+        { params },
+      );
+
+      // Validate response
+      const validatedResponse = apiResponseSchema(
+        listAPIKeysResponseSchema,
+      ).parse(response.data);
+
+      if (!validatedResponse.success || !validatedResponse.data) {
+        throw new ApiClientError(
+          validatedResponse.error?.message || "Failed to list API keys",
+          validatedResponse.error?.code || "LIST_API_KEYS_FAILED",
           response.status,
           validatedResponse.error?.details,
         );

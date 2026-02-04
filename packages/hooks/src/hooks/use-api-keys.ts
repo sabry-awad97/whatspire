@@ -2,10 +2,48 @@
  * API Key Hooks
  * Custom React hooks for API key management operations
  */
-import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { ApiClient } from "@whatspire/api";
 import type { CreateAPIKeyResponse } from "@whatspire/schema";
 import { createAPIKeyMutation } from "../mutation-options/api-keys";
+import { listAPIKeysOptions } from "../query-options/api-keys";
+
+// ============================================================================
+// Query Hooks
+// ============================================================================
+
+/**
+ * Hook to list API keys with optional filtering and pagination
+ * @param client - API client instance
+ * @param params - Optional filters and pagination parameters
+ * @returns Query result for API keys list
+ *
+ * @example
+ * ```tsx
+ * const { data, isLoading } = useAPIKeys(client, {
+ *   page: 1,
+ *   limit: 50,
+ *   role: "admin",
+ *   status: "active",
+ * });
+ *
+ * if (data) {
+ *   console.log("API Keys:", data.api_keys);
+ *   console.log("Pagination:", data.pagination);
+ * }
+ * ```
+ */
+export function useAPIKeys(
+  client: ApiClient,
+  params?: {
+    page?: number;
+    limit?: number;
+    role?: "read" | "write" | "admin";
+    status?: "active" | "revoked";
+  },
+) {
+  return useQuery(listAPIKeysOptions(client, params));
+}
 
 // ============================================================================
 // Mutation Hooks

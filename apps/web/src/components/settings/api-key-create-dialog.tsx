@@ -38,17 +38,34 @@ import { Textarea } from "../ui/textarea";
 
 type DialogStep = "form" | "display-key";
 
+export interface CreateAPIKeyDialogProps {
+  /** Whether the dialog is open */
+  open?: boolean;
+  /** Callback when dialog open state changes */
+  onOpenChange?: (open: boolean) => void;
+}
+
 // ============================================================================
 // Component
 // ============================================================================
 
-export function CreateAPIKeyDialog() {
-  const [open, setOpen] = useState(false);
+export function CreateAPIKeyDialog({
+  open: controlledOpen,
+  onOpenChange: controlledOnOpenChange,
+}: CreateAPIKeyDialogProps = {}) {
+  const [internalOpen, setInternalOpen] = useState(false);
   const [step, setStep] = useState<DialogStep>("form");
   const [createdKey, setCreatedKey] = useState<CreateAPIKeyResponse | null>(
     null,
   );
   const [copied, setCopied] = useState(false);
+
+  // Use controlled or uncontrolled state
+  const open = controlledOpen !== undefined ? controlledOpen : internalOpen;
+  const setOpen =
+    controlledOnOpenChange !== undefined
+      ? controlledOnOpenChange
+      : setInternalOpen;
 
   const apiClient = useApiClient();
 
