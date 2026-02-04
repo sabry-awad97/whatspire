@@ -118,7 +118,7 @@ func (uc *APIKeyUseCase) RevokeAPIKey(ctx context.Context, id string, revokedBy 
 
 	// Check if already revoked
 	if apiKey.IsRevoked() {
-		return nil, errors.ErrValidationFailed.WithMessage("API key is already revoked")
+		return nil, errors.ErrAlreadyRevoked
 	}
 
 	// Revoke the key

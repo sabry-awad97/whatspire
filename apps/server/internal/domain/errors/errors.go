@@ -175,6 +175,9 @@ var (
 	ErrChatNotFound    = NewDomainError("CHAT_NOT_FOUND", "chat not found")
 	ErrInvalidJID      = NewDomainError("INVALID_JID", "invalid JID format")
 
+	// API Key errors
+	ErrAlreadyRevoked = NewDomainError("ALREADY_REVOKED", "API key is already revoked")
+
 	// WhatsApp errors
 	ErrWhatsAppUnavailable = NewDomainError("WHATSAPP_UNAVAILABLE", "WhatsApp service is unavailable")
 	ErrWhatsAppError       = NewDomainError("WHATSAPP_ERROR", "WhatsApp operation failed")

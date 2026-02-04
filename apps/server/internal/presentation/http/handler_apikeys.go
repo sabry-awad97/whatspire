@@ -2,6 +2,7 @@ package http
 
 import (
 	"net/http"
+	"strings"
 
 	"whatspire/internal/application/dto"
 	"whatspire/pkg/validator"
@@ -28,11 +29,18 @@ import (
 func (h *Handler) CreateAPIKey(c *gin.Context) {
 	var req dto.CreateAPIKeyRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
+		// Check if it's a validation error from Gin's binding tags
+		// Validation errors contain "Field validation" in the error message
+		if strings.Contains(err.Error(), "Field validation") {
+			respondWithError(c, http.StatusBadRequest, "VALIDATION_FAILED", err.Error(), nil)
+			return
+		}
+		// JSON parsing error or other binding error
 		respondWithError(c, http.StatusBadRequest, "INVALID_JSON", "Invalid request body", nil)
 		return
 	}
 
-	// Validate request
+	// Additional custom validation if needed
 	if err := validator.Validate(req); err != nil {
 		details := validator.ValidationErrors(err)
 		respondWithError(c, http.StatusBadRequest, "VALIDATION_FAILED", "Validation failed", details)

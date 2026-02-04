@@ -388,7 +388,7 @@ func TestAPIKeyUseCase_RevokeAPIKey_AlreadyRevoked(t *testing.T) {
 	revokedKey, err := uc.RevokeAPIKey(context.Background(), apiKey.ID, "admin2@example.com", nil)
 
 	assert.Nil(t, revokedKey)
-	assert.ErrorIs(t, err, errors.ErrValidationFailed)
+	assert.ErrorIs(t, err, errors.ErrAlreadyRevoked)
 	assert.Contains(t, err.Error(), "already revoked")
 
 	// Should only have one revocation event
