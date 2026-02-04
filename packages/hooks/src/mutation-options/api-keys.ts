@@ -7,7 +7,9 @@ import { ApiClient, ApiClientError } from "@whatspire/api";
 import type {
   CreateAPIKeyRequest,
   CreateAPIKeyResponse,
+  RevokeAPIKeyResponse,
 } from "@whatspire/schema";
+import { apiKeyKeys } from "../query-options/api-keys";
 
 // ============================================================================
 // Mutation Options Factories
@@ -36,10 +38,42 @@ export const createAPIKeyMutation = (
   mutationFn: (data) => client.createAPIKey(data),
   onSuccess: () => {
     // Invalidate API keys list to trigger refetch
-    // Note: We'll add the query key when we implement the list query
-    queryClient.invalidateQueries({ queryKey: ["apikeys"] });
+    queryClient.invalidateQueries({ queryKey: apiKeyKeys.lists() });
   },
   onError: (error) => {
     console.error("Failed to create API key:", error);
+  },
+});
+
+/**
+ * Mutation options for revoking an API key
+ * @param client - API client instance
+ * @param queryClient - Query client for cache updates
+ * @returns Mutation options for useMutation
+ *
+ * @example
+ * ```tsx
+ * const mutation = useMutation(revokeAPIKeyMutation(apiClient, queryClient));
+ * mutation.mutate({ id: "key-123", reason: "Compromised" });
+ * ```
+ */
+export const revokeAPIKeyMutation = (
+  client: ApiClient,
+  queryClient: QueryClient,
+): MutationOptions<
+  RevokeAPIKeyResponse,
+  ApiClientError,
+  { id: string; reason?: string }
+> => ({
+  mutationFn: ({ id, reason }) => client.revokeAPIKey(id, reason),
+  onSuccess: (_, { id }) => {
+    // Invalidate API keys list to trigger refetch
+    queryClient.invalidateQueries({ queryKey: apiKeyKeys.lists() });
+
+    // Remove API key detail cache
+    queryClient.removeQueries({ queryKey: apiKeyKeys.detail(id) });
+  },
+  onError: (error) => {
+    console.error("Failed to revoke API key:", error);
   },
 });

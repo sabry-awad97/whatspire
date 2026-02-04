@@ -25,6 +25,8 @@ import {
   queryEventsResponseSchema,
   createAPIKeySchema,
   createAPIKeyResponseSchema,
+  revokeAPIKeySchema,
+  revokeAPIKeyResponseSchema,
   type ApiResponse,
   type Session,
   type CreateSessionRequest,
@@ -48,6 +50,8 @@ import {
   type QueryEventsResponse,
   type CreateAPIKeyRequest,
   type CreateAPIKeyResponse,
+  type RevokeAPIKeyRequest,
+  type RevokeAPIKeyResponse,
 } from "@whatspire/schema";
 
 // ============================================================================
@@ -757,6 +761,49 @@ export class ApiClient {
         throw new ApiClientError(
           validatedResponse.error?.message || "Failed to create API key",
           validatedResponse.error?.code || "CREATE_API_KEY_FAILED",
+          response.status,
+          validatedResponse.error?.details,
+        );
+      }
+
+      return validatedResponse.data;
+    });
+  }
+
+  /**
+   * Revoke an existing API key
+   * @param id - API key ID to revoke
+   * @param reason - Optional reason for revocation (for audit trail)
+   * @returns Revocation details including timestamp and revoker
+   * @throws ApiClientError if key not found or already revoked
+   */
+  async revokeAPIKey(
+    id: string,
+    reason?: string,
+  ): Promise<RevokeAPIKeyResponse> {
+    return this.executeWithRetry(async () => {
+      // Prepare request body
+      const requestBody: RevokeAPIKeyRequest = reason ? { reason } : {};
+
+      // Validate request if reason is provided
+      if (reason) {
+        revokeAPIKeySchema.parse(requestBody);
+      }
+
+      // Make request
+      const response = await this.client.delete<
+        ApiResponse<RevokeAPIKeyResponse>
+      >(`/api/apikeys/${id}`, { data: requestBody });
+
+      // Validate response
+      const validatedResponse = apiResponseSchema(
+        revokeAPIKeyResponseSchema,
+      ).parse(response.data);
+
+      if (!validatedResponse.success || !validatedResponse.data) {
+        throw new ApiClientError(
+          validatedResponse.error?.message || "Failed to revoke API key",
+          validatedResponse.error?.code || "REVOKE_API_KEY_FAILED",
           response.status,
           validatedResponse.error?.details,
         );

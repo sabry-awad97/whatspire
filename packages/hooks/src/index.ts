@@ -14,6 +14,7 @@ export * from "./query-options/sessions";
 export * from "./query-options/contacts";
 export * from "./query-options/groups";
 export * from "./query-options/events";
+export * from "./query-options/api-keys";
 
 // Mutation Options (for advanced usage)
 export * from "./mutation-options/sessions";
