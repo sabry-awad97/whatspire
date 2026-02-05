@@ -6,9 +6,40 @@ import (
 	"whatspire/internal/application/dto"
 	"whatspire/internal/domain/entity"
 	"whatspire/internal/domain/errors"
+	"whatspire/pkg/validator"
 
 	"github.com/gin-gonic/gin"
+	"github.com/google/uuid"
 )
+
+// CreateSession handles POST /api/sessions
+// Public endpoint for creating a new WhatsApp session
+func (h *Handler) CreateSession(c *gin.Context) {
+	var req dto.CreateSessionRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		respondWithError(c, http.StatusBadRequest, "INVALID_JSON", "Invalid request body", nil)
+		return
+	}
+
+	// Validate request
+	if err := validator.Validate(req); err != nil {
+		details := validator.ValidationErrors(err)
+		respondWithError(c, http.StatusBadRequest, "VALIDATION_FAILED", "Validation failed", details)
+		return
+	}
+
+	// Generate UUID for session ID
+	sessionID := uuid.New().String()
+
+	// Create session in local repository for WhatsApp client tracking
+	session, err := h.sessionUC.CreateSessionWithID(c.Request.Context(), sessionID, req.Name)
+	if err != nil {
+		handleDomainError(c, err)
+		return
+	}
+
+	respondWithSuccess(c, http.StatusCreated, dto.NewSessionResponse(session))
+}
 
 // RegisterSession handles POST /api/internal/sessions/register
 // Called by Node.js API when a new session is created
@@ -169,4 +200,87 @@ func (h *Handler) ConfigureHistorySync(c *gin.Context) {
 		"success": true,
 		"message": "History sync configured successfully",
 	})
+}
+
+// ListSessions handles GET /api/sessions
+// Returns all sessions with their current status
+func (h *Handler) ListSessions(c *gin.Context) {
+	sessions, err := h.sessionUC.ListSessions(c.Request.Context())
+	if err != nil {
+		handleDomainError(c, err)
+		return
+	}
+
+	// Convert to response DTOs
+	sessionResponses := make([]map[string]any, 0, len(sessions))
+	for _, s := range sessions {
+		sessionResponses = append(sessionResponses, map[string]any{
+			"id":         s.ID,
+			"name":       s.Name,
+			"status":     s.Status.String(),
+			"jid":        s.JID,
+			"created_at": s.CreatedAt.Format("2006-01-02T15:04:05Z07:00"),
+			"updated_at": s.UpdatedAt.Format("2006-01-02T15:04:05Z07:00"),
+		})
+	}
+
+	respondWithSuccess(c, http.StatusOK, map[string]any{
+		"sessions": sessionResponses,
+	})
+}
+
+// GetSession handles GET /api/sessions/:id
+// Returns a single session by ID
+func (h *Handler) GetSession(c *gin.Context) {
+	id := c.Param("id")
+	if id == "" {
+		respondWithError(c, http.StatusBadRequest, "INVALID_ID", "Session ID is required", nil)
+		return
+	}
+
+	session, err := h.sessionUC.GetSession(c.Request.Context(), id)
+	if err != nil {
+		handleDomainError(c, err)
+		return
+	}
+
+	respondWithSuccess(c, http.StatusOK, map[string]any{
+		"id":         session.ID,
+		"name":       session.Name,
+		"status":     session.Status.String(),
+		"jid":        session.JID,
+		"created_at": session.CreatedAt.Format("2006-01-02T15:04:05Z07:00"),
+		"updated_at": session.UpdatedAt.Format("2006-01-02T15:04:05Z07:00"),
+	})
+}
+
+// DeleteSession handles DELETE /api/sessions/:id
+// Public endpoint for deleting a session
+func (h *Handler) DeleteSession(c *gin.Context) {
+	id := c.Param("id")
+	if id == "" {
+		respondWithError(c, http.StatusBadRequest, "INVALID_ID", "Session ID is required", nil)
+		return
+	}
+
+	// Disconnect and cleanup WhatsApp client resources
+	if err := h.sessionUC.DeleteSession(c.Request.Context(), id); err != nil {
+		handleDomainError(c, err)
+		return
+	}
+
+	respondWithSuccess(c, http.StatusOK, map[string]string{"message": "Session deleted successfully"})
+}
+
+// isValidSessionID validates that a session ID contains only alphanumeric characters, hyphens, and underscores
+func isValidSessionID(sessionID string) bool {
+	if sessionID == "" {
+		return false
+	}
+	for _, char := range sessionID {
+		if !((char >= 'a' && char <= 'z') || (char >= 'A' && char <= 'Z') || (char >= '0' && char <= '9') || char == '-' || char == '_') {
+			return false
+		}
+	}
+	return true
 }

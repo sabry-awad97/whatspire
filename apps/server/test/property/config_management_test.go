@@ -323,19 +323,8 @@ func TestConfigurationValidationOnStartup_Property34(t *testing.T) {
 		gen.Const(0),
 	))
 
-	// Property 34.8: API key enabled without keys should cause startup failure
-	properties.Property("API key enabled without keys causes startup failure", prop.ForAll(
-		func(_ int) bool {
-			v := createMinimalViperConfig()
-			v.Set("apikey.enabled", true)
-			v.Set("apikey.keys", []string{})
-			v.Set("apikey.keys_map", []config.APIKeyInfo{})
-
-			_, err := config.LoadWithViper(v)
-			return err != nil
-		},
-		gen.Const(0),
-	))
+	// Property 34.8: Removed - API key validation is now handled by database-backed authentication
+	// Legacy config-based API key validation has been removed
 
 	// Property 34.9: Invalid webhook event type should cause startup failure
 	properties.Property("invalid webhook event type causes startup failure", prop.ForAll(
@@ -365,30 +354,8 @@ func TestConfigurationValidationOnStartup_Property34(t *testing.T) {
 		gen.OneConstOf("invalid.event", "message.deleted", "user.typing", ""),
 	))
 
-	// Property 34.10: Invalid API key role should cause startup failure
-	properties.Property("invalid API key role causes startup failure", prop.ForAll(
-		func(role string) bool {
-			validRoles := map[string]bool{
-				"read":  true,
-				"write": true,
-				"admin": true,
-				"":      true, // empty is valid (defaults to write)
-			}
-			if validRoles[role] {
-				return true // skip valid roles
-			}
-
-			v := createMinimalViperConfig()
-			v.Set("apikey.enabled", true)
-			v.Set("apikey.keys_map", []config.APIKeyInfo{
-				{Key: "test-key", Role: config.Role(role)},
-			})
-
-			_, err := config.LoadWithViper(v)
-			return err != nil
-		},
-		gen.OneConstOf("superadmin", "user", "guest", "owner"),
-	))
+	// Property 34.10: Removed - API key role validation is now handled by database-backed authentication
+	// Legacy config-based API key role validation has been removed
 
 	properties.TestingRun(t)
 }

@@ -6,12 +6,12 @@ import (
 
 // Event represents a WhatsApp event in the database
 type Event struct {
-	ID        string    `gorm:"primaryKey;type:text;not null"`
-	Type      string    `gorm:"type:text;not null;index:idx_events_type"`
-	SessionID string    `gorm:"type:text;not null;index:idx_events_session_id"`
-	Data      []byte    `gorm:"type:bytea"` // JSON data stored as bytes (works with both SQLite and PostgreSQL)
-	Timestamp time.Time `gorm:"not null;index:idx_events_timestamp"`
-	CreatedAt time.Time `gorm:"not null"`
+	ID        string    `gorm:"column:id;primaryKey;type:text;not null"`
+	Type      string    `gorm:"column:type;type:text;not null;index:idx_events_type"`
+	SessionID string    `gorm:"column:session_id;type:text;not null;index:idx_events_session_id"`
+	Data      []byte    `gorm:"column:data;type:bytea"` // JSON data stored as bytes (works with both SQLite and PostgreSQL)
+	Timestamp time.Time `gorm:"column:timestamp;not null;index:idx_events_timestamp"`
+	CreatedAt time.Time `gorm:"column:created_at;not null"`
 }
 
 // TableName specifies the table name for Event model

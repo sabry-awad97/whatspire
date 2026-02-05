@@ -2,7 +2,10 @@ package infrastructure
 
 import (
 	"context"
+	"fmt"
 	"log"
+	"os"
+	"path/filepath"
 	"time"
 
 	"whatspire/internal/domain/entity"
@@ -23,11 +26,20 @@ import (
 	"gorm.io/gorm"
 )
 
+// ensureDir creates a directory if it doesn't exist
+// Returns the directory path and any error encountered
+func ensureDir(path string) (string, error) {
+	dir := filepath.Dir(path)
+	if err := os.MkdirAll(dir, 0755); err != nil {
+		return "", fmt.Errorf("failed to create directory %s: %w", dir, err)
+	}
+	return dir, nil
+}
+
 // Module provides all infrastructure layer dependencies
 var Module = fx.Module("infrastructure",
 	fx.Provide(
 		NewDB,
-		NewSessionRepository,
 		fx.Annotate(
 			NewSessionRepository,
 			fx.As(new(repository.SessionRepository)),
@@ -41,39 +53,37 @@ var Module = fx.Module("infrastructure",
 			func(c *whatsapp.WhatsmeowClient) *whatsapp.WhatsmeowClient { return c },
 			fx.As(new(repository.GroupFetcher)),
 		),
-		NewGorillaEventPublisher,
+		fx.Annotate(
+			NewGorillaEventPublisher,
+			fx.ResultTags(`name:"websocket"`),
+		),
 		NewAuditLogger,
 		NewAuditLogRepository,
-		fx.Annotate(
-			NewAuditLogRepository,
-			fx.As(new(repository.AuditLogger)),
-		),
 		NewWebhookPublisher,
-		NewCompositeEventPublisher,
+		fx.Annotate(
+			NewCompositeEventPublisher,
+			fx.ParamTags(`name:"websocket"`),
+			fx.As(new(repository.EventPublisher)),
+		),
 		NewEventHub,
 		NewHealthCheckers,
 		NewMediaUploader,
-		NewReactionRepository,
 		fx.Annotate(
 			NewReactionRepository,
 			fx.As(new(repository.ReactionRepository)),
 		),
-		NewReceiptRepository,
 		fx.Annotate(
 			NewReceiptRepository,
 			fx.As(new(repository.ReceiptRepository)),
 		),
-		NewPresenceRepository,
 		fx.Annotate(
 			NewPresenceRepository,
 			fx.As(new(repository.PresenceRepository)),
 		),
-		NewAPIKeyRepository,
 		fx.Annotate(
 			NewAPIKeyRepository,
 			fx.As(new(repository.APIKeyRepository)),
 		),
-		NewEventRepository,
 		fx.Annotate(
 			NewEventRepository,
 			fx.As(new(repository.EventRepository)),
@@ -84,13 +94,22 @@ var Module = fx.Module("infrastructure",
 	// Wire EventHub to WhatsApp client events
 	fx.Invoke(WireEventHubToWhatsAppClient),
 	fx.Invoke(WireMessageHandler),
-	fx.Invoke(WireReactionHandler),
 	fx.Invoke(RunMigrations),
 	fx.Invoke(StartEventCleanupJob),
+	fx.Invoke(StartAutoReconnect),
 )
 
 // NewDB creates a new GORM database connection using the configured driver
 func NewDB(lc fx.Lifecycle, cfg *config.Config) (*gorm.DB, error) {
+	// Ensure the data directory exists for SQLite databases
+	if cfg.Database.Driver == "sqlite" {
+		dbDir, err := ensureDir(cfg.Database.DSN)
+		if err != nil {
+			return nil, err
+		}
+		log.Printf("✅ Database directory ensured: %s", dbDir)
+	}
+
 	// Create database factory
 	factory := persistence.NewDatabaseFactory()
 
@@ -151,6 +170,13 @@ func NewAuditLogRepository(db *gorm.DB) *persistence.AuditLogRepository {
 
 // NewWhatsmeowClient creates a new WhatsApp client
 func NewWhatsmeowClient(lc fx.Lifecycle, cfg *config.Config) (*whatsapp.WhatsmeowClient, error) {
+	// Ensure the data directory exists for WhatsApp database
+	dbDir, err := ensureDir(cfg.WhatsApp.DBPath)
+	if err != nil {
+		return nil, err
+	}
+	log.Printf("✅ WhatsApp database directory ensured: %s", dbDir)
+
 	clientConfig := whatsapp.ClientConfig{
 		DBPath:           cfg.WhatsApp.DBPath,
 		QRTimeout:        cfg.WhatsApp.QRTimeout,
@@ -326,6 +352,7 @@ func WireEventHubToWhatsAppClient(
 	hub *websocket.EventHub,
 	publisher repository.EventPublisher, // This is now the CompositeEventPublisher
 	eventRepo repository.EventRepository,
+	sessionRepo repository.SessionRepository,
 	cfg *config.Config,
 ) {
 	// Register an event handler that broadcasts events to the EventHub (for frontend WebSocket clients)
@@ -340,9 +367,8 @@ func WireEventHubToWhatsAppClient(
 		// Publish the event (non-blocking)
 		go func() {
 			ctx := context.Background()
-			if err := publisher.Publish(ctx, event); err != nil {
-				// Log error but don't block (events are queued internally)
-			}
+			_ = publisher.Publish(ctx, event)
+			// Ignore error - events are queued internally
 		}()
 	})
 
@@ -359,6 +385,34 @@ func WireEventHubToWhatsAppClient(
 		})
 		log.Println("✅ Event persistence enabled")
 	}
+
+	// Register an event handler that updates session status based on connection events
+	waClient.RegisterEventHandler(func(event *entity.Event) {
+		go func() {
+			ctx := context.Background()
+			var status entity.Status
+
+			switch event.Type {
+			case entity.EventTypeConnected:
+				status = entity.StatusConnected
+				log.Printf("📱 Session %s connected - updating status to 'connected'", event.SessionID)
+			case entity.EventTypeDisconnected:
+				status = entity.StatusDisconnected
+				log.Printf("📱 Session %s disconnected - updating status to 'disconnected'", event.SessionID)
+			case entity.EventTypeLoggedOut:
+				status = entity.StatusLoggedOut
+				log.Printf("📱 Session %s logged out - updating status to 'logged_out'", event.SessionID)
+			default:
+				return // Ignore other event types
+			}
+
+			// Update session status in database
+			if err := sessionRepo.UpdateStatus(ctx, event.SessionID, status); err != nil {
+				log.Printf("⚠️  Failed to update session status for %s: %v", event.SessionID, err)
+			}
+		}()
+	})
+	log.Println("✅ Session status auto-update handler registered")
 }
 
 // NewEventHub creates a new WebSocket event hub for broadcasting events to connected clients
@@ -460,16 +514,6 @@ func WireMessageHandler(
 	log.Println("✅ Message handler and reaction handler wired to WhatsApp client")
 }
 
-// WireReactionHandler is deprecated - reaction handler is now wired in WireMessageHandler
-func WireReactionHandler(
-	waClient *whatsapp.WhatsmeowClient,
-	reactionRepo repository.ReactionRepository,
-	publisher repository.EventPublisher,
-) {
-	// This function is kept for backward compatibility but does nothing
-	// The reaction handler is now wired in WireMessageHandler
-}
-
 // RunMigrations runs GORM auto-migration on startup with version tracking
 func RunMigrations(lc fx.Lifecycle, db *gorm.DB) {
 	lc.Append(fx.Hook{
@@ -527,6 +571,39 @@ func StartEventCleanupJob(lc fx.Lifecycle, job *jobs.EventCleanupJob, cfg *confi
 		OnStop: func(ctx context.Context) error {
 			log.Println("🛑 Stopping event cleanup job...")
 			return job.Stop()
+		},
+	})
+}
+
+// StartAutoReconnect starts the auto-reconnect process for stored WhatsApp sessions
+func StartAutoReconnect(
+	lc fx.Lifecycle,
+	waClient *whatsapp.WhatsmeowClient,
+	sessionRepo repository.SessionRepository,
+) {
+	lc.Append(fx.Hook{
+		OnStart: func(ctx context.Context) error {
+			// Run auto-reconnect in background to not block startup
+			go func() {
+				log.Println("🔄 Auto-reconnecting stored WhatsApp sessions...")
+				results := waClient.AutoReconnect(ctx, sessionRepo)
+
+				successCount := 0
+				failCount := 0
+				for sessionID, err := range results {
+					if err == nil {
+						successCount++
+					} else {
+						failCount++
+						log.Printf("⚠️  Session %s failed to reconnect: %v", sessionID, err)
+					}
+				}
+
+				if len(results) > 0 {
+					log.Printf("📊 Auto-reconnect summary: %d successful, %d failed", successCount, failCount)
+				}
+			}()
+			return nil
 		},
 	})
 }

@@ -108,7 +108,9 @@ func (w *ConfigWatcher) Start(ctx context.Context) error {
 	// Keep watcher running
 	go func() {
 		<-ctx.Done()
-		w.Stop()
+		if err := w.Stop(); err != nil {
+			log.Printf("⚠️ Error stopping config watcher: %v", err)
+		}
 	}()
 
 	return nil

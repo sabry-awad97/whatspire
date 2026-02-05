@@ -25,7 +25,7 @@ func setupRateLimitTestRouter(sessionUC *usecase.SessionUseCase, limiter *rateli
 	config := httpHandler.DefaultRouterConfig()
 	config.RateLimiter = limiter
 
-	handler := httpHandler.NewHandler(sessionUC, nil, nil, nil, nil, nil, nil, nil, nil)
+	handler := httpHandler.NewHandler(sessionUC, nil, nil, nil, nil, nil, nil, nil, nil, nil)
 	return httpHandler.NewRouter(handler, config)
 }
 

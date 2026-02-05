@@ -2,6 +2,8 @@ package http
 
 import (
 	"bytes"
+	"context"
+	"crypto/sha256"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -306,8 +308,11 @@ func extractRateLimitKey(r *http.Request, config ratelimit.Config) string {
 }
 
 // APIKeyMiddleware provides API key authentication for protected routes.
-// It validates the API key from the configured header against the list of valid keys.
-func APIKeyMiddleware(apiKeyConfig config.APIKeyConfig, auditLogger repository.AuditLogger) gin.HandlerFunc {
+// It validates the API key from the configured header or Authorization Bearer token.
+// Supports both X-API-Key header and Authorization: Bearer <token> formats.
+// API keys are validated against the database and must be active (not revoked).
+// Requires apiKeyRepo to be provided when API key authentication is enabled.
+func APIKeyMiddleware(apiKeyConfig config.APIKeyConfig, auditLogger repository.AuditLogger, apiKeyRepo repository.APIKeyRepository) gin.HandlerFunc {
 	headerName := apiKeyConfig.Header
 	if headerName == "" {
 		headerName = "X-API-Key"
@@ -320,8 +325,32 @@ func APIKeyMiddleware(apiKeyConfig config.APIKeyConfig, auditLogger repository.A
 			return
 		}
 
-		// Get API key from header
+		// Ensure repository is provided when authentication is enabled
+		if apiKeyRepo == nil {
+			c.JSON(http.StatusInternalServerError, dto.NewErrorResponse[interface{}](
+				"CONFIGURATION_ERROR",
+				"API key authentication is enabled but repository is not configured",
+				nil,
+			))
+			c.Abort()
+			return
+		}
+
+		// Try to get API key from configured header first
 		apiKey := c.GetHeader(headerName)
+
+		// If not found, try Authorization Bearer token
+		if apiKey == "" {
+			authHeader := c.GetHeader("Authorization")
+			if authHeader != "" {
+				// Check if it's a Bearer token
+				parts := strings.SplitN(authHeader, " ", 2)
+				if len(parts) == 2 && strings.ToLower(parts[0]) == "bearer" {
+					apiKey = strings.TrimSpace(parts[1])
+				}
+			}
+		}
+
 		if apiKey == "" {
 			// Log authentication failure
 			if auditLogger != nil {
@@ -336,16 +365,21 @@ func APIKeyMiddleware(apiKeyConfig config.APIKeyConfig, auditLogger repository.A
 
 			c.JSON(http.StatusUnauthorized, dto.NewErrorResponse[interface{}](
 				"MISSING_API_KEY",
-				fmt.Sprintf("API key is required in %s header", headerName),
+				fmt.Sprintf("API key is required in %s header or Authorization: Bearer <token>", headerName),
 				nil,
 			))
 			c.Abort()
 			return
 		}
 
-		// Validate API key using the new IsValidKey method
-		if !apiKeyConfig.IsValidKey(apiKey) {
-			// Log authentication failure
+		// Hash the provided key to look it up in the database
+		hash := sha256.Sum256([]byte(apiKey))
+		keyHash := fmt.Sprintf("%x", hash)
+
+		// Look up the key in the database
+		dbKey, err := apiKeyRepo.FindByKeyHash(c.Request.Context(), keyHash)
+		if err != nil {
+			// Key not found in database, log failure
 			if auditLogger != nil {
 				auditLogger.LogAuthFailure(c.Request.Context(), repository.AuthFailureEvent{
 					APIKey:    apiKey,
@@ -365,19 +399,48 @@ func APIKeyMiddleware(apiKeyConfig config.APIKeyConfig, auditLogger repository.A
 			return
 		}
 
-		// Store API key in context for potential use by other middleware (e.g., rate limiting, role authorization)
+		// Check if the key is active (not revoked)
+		if !dbKey.IsActive {
+			// Log authentication failure for revoked key
+			if auditLogger != nil {
+				auditLogger.LogAuthFailure(c.Request.Context(), repository.AuthFailureEvent{
+					APIKey:    apiKey,
+					Endpoint:  c.Request.URL.Path,
+					Reason:    "revoked_api_key",
+					Timestamp: time.Now(),
+					IPAddress: c.ClientIP(),
+				})
+			}
+
+			c.JSON(http.StatusUnauthorized, dto.NewErrorResponse[interface{}](
+				"REVOKED_API_KEY",
+				"This API key has been revoked",
+				nil,
+			))
+			c.Abort()
+			return
+		}
+
+		// Store API key, role, and ID in context for use by other middleware
 		c.Set("api_key", apiKey)
+		c.Set("api_key_role", dbKey.Role)
+		c.Set("api_key_id", dbKey.ID)
 
 		// Log API key usage
 		if auditLogger != nil {
 			auditLogger.LogAPIKeyUsage(c.Request.Context(), repository.APIKeyUsageEvent{
-				APIKeyID:  apiKey, // In production, this should be a key ID, not the key itself
+				APIKeyID:  dbKey.ID,
 				Endpoint:  c.Request.URL.Path,
 				Method:    c.Request.Method,
 				Timestamp: time.Now(),
 				IPAddress: c.ClientIP(),
 			})
 		}
+
+		// Update last used timestamp (async, don't block request)
+		go func() {
+			_ = apiKeyRepo.UpdateLastUsed(context.Background(), keyHash)
+		}()
 
 		c.Next()
 	}

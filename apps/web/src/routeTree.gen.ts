@@ -10,33 +10,166 @@
 
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
+import { Route as SettingsIndexRouteImport } from './routes/settings/index'
+import { Route as SessionsIndexRouteImport } from './routes/sessions/index'
+import { Route as MessagesIndexRouteImport } from './routes/messages/index'
+import { Route as GroupsIndexRouteImport } from './routes/groups/index'
+import { Route as ContactsIndexRouteImport } from './routes/contacts/index'
+import { Route as SessionsNewRouteImport } from './routes/sessions/new'
+import { Route as SessionsSessionIdRouteImport } from './routes/sessions/$sessionId'
+import { Route as GroupsGroupIdRouteImport } from './routes/groups/$groupId'
+import { Route as SessionsSessionIdWebhooksRouteImport } from './routes/sessions/$sessionId/webhooks'
+import { Route as SessionsSessionIdEditRouteImport } from './routes/sessions/$sessionId/edit'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
   path: '/',
   getParentRoute: () => rootRouteImport,
 } as any)
+const SettingsIndexRoute = SettingsIndexRouteImport.update({
+  id: '/settings/',
+  path: '/settings/',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const SessionsIndexRoute = SessionsIndexRouteImport.update({
+  id: '/sessions/',
+  path: '/sessions/',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const MessagesIndexRoute = MessagesIndexRouteImport.update({
+  id: '/messages/',
+  path: '/messages/',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const GroupsIndexRoute = GroupsIndexRouteImport.update({
+  id: '/groups/',
+  path: '/groups/',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ContactsIndexRoute = ContactsIndexRouteImport.update({
+  id: '/contacts/',
+  path: '/contacts/',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const SessionsNewRoute = SessionsNewRouteImport.update({
+  id: '/sessions/new',
+  path: '/sessions/new',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const SessionsSessionIdRoute = SessionsSessionIdRouteImport.update({
+  id: '/sessions/$sessionId',
+  path: '/sessions/$sessionId',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const GroupsGroupIdRoute = GroupsGroupIdRouteImport.update({
+  id: '/groups/$groupId',
+  path: '/groups/$groupId',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const SessionsSessionIdWebhooksRoute =
+  SessionsSessionIdWebhooksRouteImport.update({
+    id: '/webhooks',
+    path: '/webhooks',
+    getParentRoute: () => SessionsSessionIdRoute,
+  } as any)
+const SessionsSessionIdEditRoute = SessionsSessionIdEditRouteImport.update({
+  id: '/edit',
+  path: '/edit',
+  getParentRoute: () => SessionsSessionIdRoute,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
+  '/groups/$groupId': typeof GroupsGroupIdRoute
+  '/sessions/$sessionId': typeof SessionsSessionIdRouteWithChildren
+  '/sessions/new': typeof SessionsNewRoute
+  '/contacts/': typeof ContactsIndexRoute
+  '/groups/': typeof GroupsIndexRoute
+  '/messages/': typeof MessagesIndexRoute
+  '/sessions/': typeof SessionsIndexRoute
+  '/settings/': typeof SettingsIndexRoute
+  '/sessions/$sessionId/edit': typeof SessionsSessionIdEditRoute
+  '/sessions/$sessionId/webhooks': typeof SessionsSessionIdWebhooksRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
+  '/groups/$groupId': typeof GroupsGroupIdRoute
+  '/sessions/$sessionId': typeof SessionsSessionIdRouteWithChildren
+  '/sessions/new': typeof SessionsNewRoute
+  '/contacts': typeof ContactsIndexRoute
+  '/groups': typeof GroupsIndexRoute
+  '/messages': typeof MessagesIndexRoute
+  '/sessions': typeof SessionsIndexRoute
+  '/settings': typeof SettingsIndexRoute
+  '/sessions/$sessionId/edit': typeof SessionsSessionIdEditRoute
+  '/sessions/$sessionId/webhooks': typeof SessionsSessionIdWebhooksRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
+  '/groups/$groupId': typeof GroupsGroupIdRoute
+  '/sessions/$sessionId': typeof SessionsSessionIdRouteWithChildren
+  '/sessions/new': typeof SessionsNewRoute
+  '/contacts/': typeof ContactsIndexRoute
+  '/groups/': typeof GroupsIndexRoute
+  '/messages/': typeof MessagesIndexRoute
+  '/sessions/': typeof SessionsIndexRoute
+  '/settings/': typeof SettingsIndexRoute
+  '/sessions/$sessionId/edit': typeof SessionsSessionIdEditRoute
+  '/sessions/$sessionId/webhooks': typeof SessionsSessionIdWebhooksRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/'
+  fullPaths:
+    | '/'
+    | '/groups/$groupId'
+    | '/sessions/$sessionId'
+    | '/sessions/new'
+    | '/contacts/'
+    | '/groups/'
+    | '/messages/'
+    | '/sessions/'
+    | '/settings/'
+    | '/sessions/$sessionId/edit'
+    | '/sessions/$sessionId/webhooks'
   fileRoutesByTo: FileRoutesByTo
-  to: '/'
-  id: '__root__' | '/'
+  to:
+    | '/'
+    | '/groups/$groupId'
+    | '/sessions/$sessionId'
+    | '/sessions/new'
+    | '/contacts'
+    | '/groups'
+    | '/messages'
+    | '/sessions'
+    | '/settings'
+    | '/sessions/$sessionId/edit'
+    | '/sessions/$sessionId/webhooks'
+  id:
+    | '__root__'
+    | '/'
+    | '/groups/$groupId'
+    | '/sessions/$sessionId'
+    | '/sessions/new'
+    | '/contacts/'
+    | '/groups/'
+    | '/messages/'
+    | '/sessions/'
+    | '/settings/'
+    | '/sessions/$sessionId/edit'
+    | '/sessions/$sessionId/webhooks'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
+  GroupsGroupIdRoute: typeof GroupsGroupIdRoute
+  SessionsSessionIdRoute: typeof SessionsSessionIdRouteWithChildren
+  SessionsNewRoute: typeof SessionsNewRoute
+  ContactsIndexRoute: typeof ContactsIndexRoute
+  GroupsIndexRoute: typeof GroupsIndexRoute
+  MessagesIndexRoute: typeof MessagesIndexRoute
+  SessionsIndexRoute: typeof SessionsIndexRoute
+  SettingsIndexRoute: typeof SettingsIndexRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -48,11 +181,102 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof IndexRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/settings/': {
+      id: '/settings/'
+      path: '/settings'
+      fullPath: '/settings/'
+      preLoaderRoute: typeof SettingsIndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/sessions/': {
+      id: '/sessions/'
+      path: '/sessions'
+      fullPath: '/sessions/'
+      preLoaderRoute: typeof SessionsIndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/messages/': {
+      id: '/messages/'
+      path: '/messages'
+      fullPath: '/messages/'
+      preLoaderRoute: typeof MessagesIndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/groups/': {
+      id: '/groups/'
+      path: '/groups'
+      fullPath: '/groups/'
+      preLoaderRoute: typeof GroupsIndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/contacts/': {
+      id: '/contacts/'
+      path: '/contacts'
+      fullPath: '/contacts/'
+      preLoaderRoute: typeof ContactsIndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/sessions/new': {
+      id: '/sessions/new'
+      path: '/sessions/new'
+      fullPath: '/sessions/new'
+      preLoaderRoute: typeof SessionsNewRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/sessions/$sessionId': {
+      id: '/sessions/$sessionId'
+      path: '/sessions/$sessionId'
+      fullPath: '/sessions/$sessionId'
+      preLoaderRoute: typeof SessionsSessionIdRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/groups/$groupId': {
+      id: '/groups/$groupId'
+      path: '/groups/$groupId'
+      fullPath: '/groups/$groupId'
+      preLoaderRoute: typeof GroupsGroupIdRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/sessions/$sessionId/webhooks': {
+      id: '/sessions/$sessionId/webhooks'
+      path: '/webhooks'
+      fullPath: '/sessions/$sessionId/webhooks'
+      preLoaderRoute: typeof SessionsSessionIdWebhooksRouteImport
+      parentRoute: typeof SessionsSessionIdRoute
+    }
+    '/sessions/$sessionId/edit': {
+      id: '/sessions/$sessionId/edit'
+      path: '/edit'
+      fullPath: '/sessions/$sessionId/edit'
+      preLoaderRoute: typeof SessionsSessionIdEditRouteImport
+      parentRoute: typeof SessionsSessionIdRoute
+    }
   }
 }
 
+interface SessionsSessionIdRouteChildren {
+  SessionsSessionIdEditRoute: typeof SessionsSessionIdEditRoute
+  SessionsSessionIdWebhooksRoute: typeof SessionsSessionIdWebhooksRoute
+}
+
+const SessionsSessionIdRouteChildren: SessionsSessionIdRouteChildren = {
+  SessionsSessionIdEditRoute: SessionsSessionIdEditRoute,
+  SessionsSessionIdWebhooksRoute: SessionsSessionIdWebhooksRoute,
+}
+
+const SessionsSessionIdRouteWithChildren =
+  SessionsSessionIdRoute._addFileChildren(SessionsSessionIdRouteChildren)
+
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
+  GroupsGroupIdRoute: GroupsGroupIdRoute,
+  SessionsSessionIdRoute: SessionsSessionIdRouteWithChildren,
+  SessionsNewRoute: SessionsNewRoute,
+  ContactsIndexRoute: ContactsIndexRoute,
+  GroupsIndexRoute: GroupsIndexRoute,
+  MessagesIndexRoute: MessagesIndexRoute,
+  SessionsIndexRoute: SessionsIndexRoute,
+  SettingsIndexRoute: SettingsIndexRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)

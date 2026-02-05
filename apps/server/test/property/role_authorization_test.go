@@ -1,310 +1,320 @@
 package property
 
 import (
-	"context"
-	"crypto/sha256"
-	"encoding/hex"
+	"net/http"
+	"net/http/httptest"
 	"testing"
 
-	"whatspire/internal/domain/entity"
 	"whatspire/internal/infrastructure/config"
-	"whatspire/internal/infrastructure/persistence"
+	httpPresentation "whatspire/internal/presentation/http"
+	"whatspire/test/helpers"
 
+	"github.com/gin-gonic/gin"
 	"github.com/leanovate/gopter"
 	"github.com/leanovate/gopter/gen"
 	"github.com/leanovate/gopter/prop"
+	"github.com/stretchr/testify/require"
 )
 
-// Feature: whatsapp-http-api-enhancement, Property 19: Role Permission Hierarchy
-// *For any* API key with role R and operation requiring role R', the operation SHALL be
-// allowed if and only if R has permission for R' (admin > write > read).
-// **Validates: Requirements 7.2, 7.3, 7.4, 7.5**
-
-func TestRolePermissionHierarchy_Property19(t *testing.T) {
+// TestRoleHierarchy_PropertyBased verifies role hierarchy properties using property-based testing
+func TestRoleHierarchy_PropertyBased(t *testing.T) {
 	parameters := gopter.DefaultTestParameters()
 	parameters.MinSuccessfulTests = 100
+
 	properties := gopter.NewProperties(parameters)
 
-	// Property 19.1: Admin role can access all operations
-	properties.Property("admin role can access all operations", prop.ForAll(
+	// Property: Admin role can access any endpoint regardless of required role
+	properties.Property("Admin can access any endpoint", prop.ForAll(
 		func(requiredRole config.Role) bool {
-			userRole := config.RoleAdmin
-			return hasPermission(userRole, requiredRole)
-		},
-		genRole(),
-	))
+			apiKeyRepo := helpers.NewMockAPIKeyRepository()
+			adminKey := helpers.CreateTestAPIKey(t, apiKeyRepo, "admin", nil)
 
-	// Property 19.2: Write role can access write and read operations
-	properties.Property("write role can access write and read operations", prop.ForAll(
-		func(requiredRole config.Role) bool {
-			userRole := config.RoleWrite
-			canAccess := hasPermission(userRole, requiredRole)
-
-			// Write should be able to access write and read, but not admin
-			if requiredRole == config.RoleWrite || requiredRole == config.RoleRead {
-				return canAccess
+			apiKeyConfig := &config.APIKeyConfig{
+				Enabled: true,
+				Header:  "X-API-Key",
 			}
-			return !canAccess
+
+			gin.SetMode(gin.TestMode)
+			router := gin.New()
+			router.Use(httpPresentation.APIKeyMiddleware(*apiKeyConfig, nil, apiKeyRepo))
+			router.Use(httpPresentation.RoleAuthorizationMiddleware(requiredRole, apiKeyConfig))
+			router.GET("/test", func(c *gin.Context) {
+				c.JSON(http.StatusOK, gin.H{"message": "success"})
+			})
+
+			req := httptest.NewRequest(http.MethodGet, "/test", nil)
+			req.Header.Set("X-API-Key", adminKey.PlainText)
+			w := httptest.NewRecorder()
+
+			router.ServeHTTP(w, req)
+
+			return w.Code == http.StatusOK
 		},
 		genRole(),
 	))
 
-	// Property 19.3: Read role can only access read operations
-	properties.Property("read role can only access read operations", prop.ForAll(
+	// Property: Write role can access read and write endpoints but not admin
+	properties.Property("Write role permissions", prop.ForAll(
 		func(requiredRole config.Role) bool {
-			userRole := config.RoleRead
-			canAccess := hasPermission(userRole, requiredRole)
+			apiKeyRepo := helpers.NewMockAPIKeyRepository()
+			writeKey := helpers.CreateTestAPIKey(t, apiKeyRepo, "write", nil)
 
-			// Read should only be able to access read operations
+			apiKeyConfig := &config.APIKeyConfig{
+				Enabled: true,
+				Header:  "X-API-Key",
+			}
+
+			gin.SetMode(gin.TestMode)
+			router := gin.New()
+			router.Use(httpPresentation.APIKeyMiddleware(*apiKeyConfig, nil, apiKeyRepo))
+			router.Use(httpPresentation.RoleAuthorizationMiddleware(requiredRole, apiKeyConfig))
+			router.GET("/test", func(c *gin.Context) {
+				c.JSON(http.StatusOK, gin.H{"message": "success"})
+			})
+
+			req := httptest.NewRequest(http.MethodGet, "/test", nil)
+			req.Header.Set("X-API-Key", writeKey.PlainText)
+			w := httptest.NewRecorder()
+
+			router.ServeHTTP(w, req)
+
+			// Write can access read and write, but not admin
+			expectedStatus := http.StatusOK
+			if requiredRole == config.RoleAdmin {
+				expectedStatus = http.StatusForbidden
+			}
+
+			return w.Code == expectedStatus
+		},
+		genRole(),
+	))
+
+	// Property: Read role can only access read endpoints
+	properties.Property("Read role can only access read endpoints", prop.ForAll(
+		func(requiredRole config.Role) bool {
+			apiKeyRepo := helpers.NewMockAPIKeyRepository()
+			readKey := helpers.CreateTestAPIKey(t, apiKeyRepo, "read", nil)
+
+			apiKeyConfig := &config.APIKeyConfig{
+				Enabled: true,
+				Header:  "X-API-Key",
+			}
+
+			gin.SetMode(gin.TestMode)
+			router := gin.New()
+			router.Use(httpPresentation.APIKeyMiddleware(*apiKeyConfig, nil, apiKeyRepo))
+			router.Use(httpPresentation.RoleAuthorizationMiddleware(requiredRole, apiKeyConfig))
+			router.GET("/test", func(c *gin.Context) {
+				c.JSON(http.StatusOK, gin.H{"message": "success"})
+			})
+
+			req := httptest.NewRequest(http.MethodGet, "/test", nil)
+			req.Header.Set("X-API-Key", readKey.PlainText)
+			w := httptest.NewRecorder()
+
+			router.ServeHTTP(w, req)
+
+			// Read can only access read endpoints
+			expectedStatus := http.StatusForbidden
 			if requiredRole == config.RoleRead {
-				return canAccess
+				expectedStatus = http.StatusOK
 			}
-			return !canAccess
+
+			return w.Code == expectedStatus
 		},
 		genRole(),
 	))
 
-	// Property 19.4: Permission hierarchy is transitive
-	properties.Property("permission hierarchy is transitive", prop.ForAll(
-		func(_ int) bool {
-			// If admin can do X and write can do Y, and admin > write, then admin can do Y
-			adminCanDoWrite := hasPermission(config.RoleAdmin, config.RoleWrite)
-			adminCanDoRead := hasPermission(config.RoleAdmin, config.RoleRead)
-			writeCanDoRead := hasPermission(config.RoleWrite, config.RoleRead)
+	// Property: Role hierarchy is transitive (if A >= B and B >= C, then A >= C)
+	properties.Property("Role hierarchy is transitive", prop.ForAll(
+		func() bool {
+			// Admin >= Write >= Read
+			// If admin can access write endpoints, and write can access read endpoints,
+			// then admin can access read endpoints
 
-			return adminCanDoWrite && adminCanDoRead && writeCanDoRead
+			apiKeyRepo := helpers.NewMockAPIKeyRepository()
+			adminKey := helpers.CreateTestAPIKey(t, apiKeyRepo, "admin", nil)
+
+			apiKeyConfig := &config.APIKeyConfig{
+				Enabled: true,
+				Header:  "X-API-Key",
+			}
+
+			// Test admin accessing read endpoint (transitivity)
+			gin.SetMode(gin.TestMode)
+			router := gin.New()
+			router.Use(httpPresentation.APIKeyMiddleware(*apiKeyConfig, nil, apiKeyRepo))
+			router.Use(httpPresentation.RoleAuthorizationMiddleware(config.RoleRead, apiKeyConfig))
+			router.GET("/test", func(c *gin.Context) {
+				c.JSON(http.StatusOK, gin.H{"message": "success"})
+			})
+
+			req := httptest.NewRequest(http.MethodGet, "/test", nil)
+			req.Header.Set("X-API-Key", adminKey.PlainText)
+			w := httptest.NewRecorder()
+
+			router.ServeHTTP(w, req)
+
+			return w.Code == http.StatusOK
 		},
-		gen.Const(0),
 	))
 
-	// Property 19.5: Permission hierarchy is anti-symmetric
-	properties.Property("permission hierarchy is anti-symmetric", prop.ForAll(
-		func(_ int) bool {
-			// If read cannot do write, then write should be able to do read
-			readCannotDoWrite := !hasPermission(config.RoleRead, config.RoleWrite)
-			writeCanDoRead := hasPermission(config.RoleWrite, config.RoleRead)
+	// Property: Invalid API key always results in unauthorized, regardless of role
+	properties.Property("Invalid API key always unauthorized", prop.ForAll(
+		func(requiredRole config.Role) bool {
+			apiKeyRepo := helpers.NewMockAPIKeyRepository()
+			// Create a valid key but don't use it
+			_ = helpers.CreateTestAPIKey(t, apiKeyRepo, "admin", nil)
 
-			return readCannotDoWrite && writeCanDoRead
+			apiKeyConfig := &config.APIKeyConfig{
+				Enabled: true,
+				Header:  "X-API-Key",
+			}
+
+			gin.SetMode(gin.TestMode)
+			router := gin.New()
+			router.Use(httpPresentation.APIKeyMiddleware(*apiKeyConfig, nil, apiKeyRepo))
+			router.Use(httpPresentation.RoleAuthorizationMiddleware(requiredRole, apiKeyConfig))
+			router.GET("/test", func(c *gin.Context) {
+				c.JSON(http.StatusOK, gin.H{"message": "success"})
+			})
+
+			req := httptest.NewRequest(http.MethodGet, "/test", nil)
+			req.Header.Set("X-API-Key", "invalid-key-not-in-database")
+			w := httptest.NewRecorder()
+
+			router.ServeHTTP(w, req)
+
+			return w.Code == http.StatusUnauthorized
 		},
-		gen.Const(0),
-	))
-
-	properties.TestingRun(t)
-}
-
-// Feature: whatsapp-http-api-enhancement, Property 20: Role Storage and Retrieval
-// *For any* API key created with a role, retrieving the API key SHALL return the same role.
-// **Validates: Requirements 7.1**
-
-func TestRoleStorageAndRetrieval_Property20(t *testing.T) {
-	parameters := gopter.DefaultTestParameters()
-	parameters.MinSuccessfulTests = 100
-	properties := gopter.NewProperties(parameters)
-
-	// Property 20.1: Stored role matches retrieved role
-	properties.Property("stored role matches retrieved role", prop.ForAll(
-		func(id, key string, role config.Role) bool {
-			if id == "" || key == "" {
-				return true // skip invalid inputs
-			}
-
-			ctx := context.Background()
-			db := setupTestDB(t)
-			repo := persistence.NewAPIKeyRepository(db)
-
-			// Create and save API key
-			keyHash := hashKey(key)
-			apiKey := entity.NewAPIKey(id, keyHash, string(role))
-			err := repo.Save(ctx, apiKey)
-			if err != nil {
-				return false
-			}
-
-			// Retrieve by key hash
-			retrieved, err := repo.FindByKeyHash(ctx, keyHash)
-			if err != nil {
-				return false
-			}
-
-			return retrieved.Role == string(role)
-		},
-		gen.Identifier(),
-		gen.Identifier(),
 		genRole(),
 	))
 
-	// Property 20.2: Stored role persists across multiple retrievals
-	properties.Property("stored role persists across multiple retrievals", prop.ForAll(
-		func(id, key string, role config.Role) bool {
-			if id == "" || key == "" {
-				return true // skip invalid inputs
+	// Property: Revoked keys are always rejected regardless of role
+	properties.Property("Revoked keys always rejected", prop.ForAll(
+		func(role string, requiredRole config.Role) bool {
+			apiKeyRepo := helpers.NewMockAPIKeyRepository()
+			revokedKey := helpers.CreateRevokedTestAPIKey(t, apiKeyRepo, role)
+
+			apiKeyConfig := &config.APIKeyConfig{
+				Enabled: true,
+				Header:  "X-API-Key",
 			}
 
-			ctx := context.Background()
-			db := setupTestDB(t)
-			repo := persistence.NewAPIKeyRepository(db)
+			gin.SetMode(gin.TestMode)
+			router := gin.New()
+			router.Use(httpPresentation.APIKeyMiddleware(*apiKeyConfig, nil, apiKeyRepo))
+			router.Use(httpPresentation.RoleAuthorizationMiddleware(requiredRole, apiKeyConfig))
+			router.GET("/test", func(c *gin.Context) {
+				c.JSON(http.StatusOK, gin.H{"message": "success"})
+			})
 
-			// Create and save API key
-			keyHash := hashKey(key)
-			apiKey := entity.NewAPIKey(id, keyHash, string(role))
-			err := repo.Save(ctx, apiKey)
-			if err != nil {
-				return false
-			}
+			req := httptest.NewRequest(http.MethodGet, "/test", nil)
+			req.Header.Set("X-API-Key", revokedKey.PlainText)
+			w := httptest.NewRecorder()
 
-			// Retrieve multiple times
-			for i := 0; i < 5; i++ {
-				retrieved, err := repo.FindByKeyHash(ctx, keyHash)
-				if err != nil {
-					return false
-				}
-				if retrieved.Role != string(role) {
-					return false
-				}
-			}
+			router.ServeHTTP(w, req)
 
-			return true
+			return w.Code == http.StatusUnauthorized
 		},
-		gen.Identifier(),
-		gen.Identifier(),
-		genRole(),
-	))
-
-	// Property 20.3: Role can be retrieved by ID
-	properties.Property("role can be retrieved by ID", prop.ForAll(
-		func(id, key string, role config.Role) bool {
-			if id == "" || key == "" {
-				return true // skip invalid inputs
-			}
-
-			ctx := context.Background()
-			db := setupTestDB(t)
-			repo := persistence.NewAPIKeyRepository(db)
-
-			// Create and save API key
-			keyHash := hashKey(key)
-			apiKey := entity.NewAPIKey(id, keyHash, string(role))
-			err := repo.Save(ctx, apiKey)
-			if err != nil {
-				return false
-			}
-
-			// Retrieve by ID
-			retrieved, err := repo.FindByID(ctx, id)
-			if err != nil {
-				return false
-			}
-
-			return retrieved.Role == string(role)
-		},
-		gen.Identifier(),
-		gen.Identifier(),
+		genRoleString(),
 		genRole(),
 	))
 
 	properties.TestingRun(t)
 }
 
-// Feature: whatsapp-http-api-enhancement, Property 21: Default Role Assignment
-// *For any* API key created without an explicit role, the key SHALL be treated as having "write" role.
-// **Validates: Requirements 7.6**
-
-func TestDefaultRoleAssignment_Property21(t *testing.T) {
+// TestRolePermissionMatrix_PropertyBased tests the complete permission matrix
+func TestRolePermissionMatrix_PropertyBased(t *testing.T) {
 	parameters := gopter.DefaultTestParameters()
-	parameters.MinSuccessfulTests = 100
+	parameters.MinSuccessfulTests = 50
+
 	properties := gopter.NewProperties(parameters)
 
-	// Property 21.1: Empty role defaults to write
-	properties.Property("empty role defaults to write", prop.ForAll(
-		func(key string) bool {
-			if key == "" {
-				return true // skip invalid inputs
-			}
+	// Property: Permission matrix is consistent
+	properties.Property("Permission matrix consistency", prop.ForAll(
+		func(userRole, requiredRole config.Role) bool {
+			apiKeyRepo := helpers.NewMockAPIKeyRepository()
 
-			cfg := &config.APIKeyConfig{
+			// Convert role to string for CreateTestAPIKey
+			roleStr := string(userRole)
+			testKey := helpers.CreateTestAPIKey(t, apiKeyRepo, roleStr, nil)
+
+			apiKeyConfig := &config.APIKeyConfig{
 				Enabled: true,
-				KeysMap: []config.APIKeyInfo{
-					{Key: key, Role: ""}, // Empty role
-				},
+				Header:  "X-API-Key",
 			}
 
-			role := cfg.GetRoleForKey(key)
-			return role == config.RoleWrite
+			gin.SetMode(gin.TestMode)
+			router := gin.New()
+			router.Use(httpPresentation.APIKeyMiddleware(*apiKeyConfig, nil, apiKeyRepo))
+			router.Use(httpPresentation.RoleAuthorizationMiddleware(requiredRole, apiKeyConfig))
+			router.GET("/test", func(c *gin.Context) {
+				c.JSON(http.StatusOK, gin.H{"message": "success"})
+			})
+
+			req := httptest.NewRequest(http.MethodGet, "/test", nil)
+			req.Header.Set("X-API-Key", testKey.PlainText)
+			w := httptest.NewRecorder()
+
+			router.ServeHTTP(w, req)
+
+			// Calculate expected result based on role hierarchy
+			expectedStatus := calculateExpectedStatus(userRole, requiredRole)
+
+			return w.Code == expectedStatus
 		},
-		gen.Identifier(),
+		genRole(),
+		genRole(),
 	))
 
-	// Property 21.2: Legacy keys default to write role
-	properties.Property("legacy keys default to write role", prop.ForAll(
-		func(key string) bool {
-			if key == "" {
-				return true // skip invalid inputs
-			}
+	properties.TestingRun(t)
+}
 
-			cfg := &config.APIKeyConfig{
+// TestRoleContextPropagation_PropertyBased verifies role is correctly stored in context
+func TestRoleContextPropagation_PropertyBased(t *testing.T) {
+	parameters := gopter.DefaultTestParameters()
+	parameters.MinSuccessfulTests = 50
+
+	properties := gopter.NewProperties(parameters)
+
+	// Property: Role is correctly propagated to context when authorized
+	properties.Property("Role propagated to context", prop.ForAll(
+		func(role config.Role) bool {
+			apiKeyRepo := helpers.NewMockAPIKeyRepository()
+			roleStr := string(role)
+			testKey := helpers.CreateTestAPIKey(t, apiKeyRepo, roleStr, nil)
+
+			apiKeyConfig := &config.APIKeyConfig{
 				Enabled: true,
-				Keys:    []string{key}, // Legacy keys list
+				Header:  "X-API-Key",
 			}
 
-			role := cfg.GetRoleForKey(key)
-			return role == config.RoleWrite
+			var capturedRole config.Role
+
+			gin.SetMode(gin.TestMode)
+			router := gin.New()
+			router.Use(httpPresentation.APIKeyMiddleware(*apiKeyConfig, nil, apiKeyRepo))
+			router.Use(httpPresentation.RoleAuthorizationMiddleware(config.RoleRead, apiKeyConfig))
+			router.GET("/test", func(c *gin.Context) {
+				capturedRole = httpPresentation.GetUserRole(c)
+				c.JSON(http.StatusOK, gin.H{"message": "success"})
+			})
+
+			req := httptest.NewRequest(http.MethodGet, "/test", nil)
+			req.Header.Set("X-API-Key", testKey.PlainText)
+			w := httptest.NewRecorder()
+
+			router.ServeHTTP(w, req)
+
+			// All roles can access read endpoints, so check if role was captured
+			if w.Code == http.StatusOK {
+				return capturedRole == role
+			}
+
+			return true // If forbidden, role propagation doesn't matter
 		},
-		gen.Identifier(),
-	))
-
-	// Property 21.3: Default role allows write operations
-	properties.Property("default role allows write operations", prop.ForAll(
-		func(key string) bool {
-			if key == "" {
-				return true // skip invalid inputs
-			}
-
-			cfg := &config.APIKeyConfig{
-				Enabled: true,
-				Keys:    []string{key},
-			}
-
-			role := cfg.GetRoleForKey(key)
-			return hasPermission(role, config.RoleWrite)
-		},
-		gen.Identifier(),
-	))
-
-	// Property 21.4: Default role allows read operations
-	properties.Property("default role allows read operations", prop.ForAll(
-		func(key string) bool {
-			if key == "" {
-				return true // skip invalid inputs
-			}
-
-			cfg := &config.APIKeyConfig{
-				Enabled: true,
-				Keys:    []string{key},
-			}
-
-			role := cfg.GetRoleForKey(key)
-			return hasPermission(role, config.RoleRead)
-		},
-		gen.Identifier(),
-	))
-
-	// Property 21.5: Default role does not allow admin operations
-	properties.Property("default role does not allow admin operations", prop.ForAll(
-		func(key string) bool {
-			if key == "" {
-				return true // skip invalid inputs
-			}
-
-			cfg := &config.APIKeyConfig{
-				Enabled: true,
-				Keys:    []string{key},
-			}
-
-			role := cfg.GetRoleForKey(key)
-			// Write role should not have admin permissions
-			return !hasPermission(role, config.RoleAdmin) || role == config.RoleAdmin
-		},
-		gen.Identifier(),
+		genRole(),
 	))
 
 	properties.TestingRun(t)
@@ -312,38 +322,118 @@ func TestDefaultRoleAssignment_Property21(t *testing.T) {
 
 // Helper functions
 
-// genRole generates a random role
+// genRole generates random valid roles
 func genRole() gopter.Gen {
 	return gen.OneConstOf(
-		config.RoleRead,
-		config.RoleWrite,
 		config.RoleAdmin,
+		config.RoleWrite,
+		config.RoleRead,
 	)
 }
 
-// hasPermission checks if a user role has permission for a required role
-// This is a copy of the function from role_middleware.go for testing
-func hasPermission(userRole, requiredRole config.Role) bool {
-	// Admin can do everything
-	if userRole == config.RoleAdmin {
-		return true
-	}
-
-	// Write can do write and read
-	if userRole == config.RoleWrite && (requiredRole == config.RoleWrite || requiredRole == config.RoleRead) {
-		return true
-	}
-
-	// Read can only do read
-	if userRole == config.RoleRead && requiredRole == config.RoleRead {
-		return true
-	}
-
-	return false
+// genRoleString generates random valid role strings
+func genRoleString() gopter.Gen {
+	return gen.OneConstOf("admin", "write", "read")
 }
 
-// hashKey creates a SHA-256 hash of the key
-func hashKey(key string) string {
-	hash := sha256.Sum256([]byte(key))
-	return hex.EncodeToString(hash[:])
+// calculateExpectedStatus determines the expected HTTP status based on role hierarchy
+func calculateExpectedStatus(userRole, requiredRole config.Role) int {
+	// Admin can access everything
+	if userRole == config.RoleAdmin {
+		return http.StatusOK
+	}
+
+	// Write can access write and read
+	if userRole == config.RoleWrite && (requiredRole == config.RoleWrite || requiredRole == config.RoleRead) {
+		return http.StatusOK
+	}
+
+	// Read can only access read
+	if userRole == config.RoleRead && requiredRole == config.RoleRead {
+		return http.StatusOK
+	}
+
+	// All other combinations are forbidden
+	return http.StatusForbidden
+}
+
+// TestRoleAuthorizationDisabled_PropertyBased verifies behavior when auth is disabled
+func TestRoleAuthorizationDisabled_PropertyBased(t *testing.T) {
+	parameters := gopter.DefaultTestParameters()
+	parameters.MinSuccessfulTests = 20
+
+	properties := gopter.NewProperties(parameters)
+
+	// Property: When auth is disabled, all requests succeed regardless of role
+	properties.Property("Disabled auth allows all requests", prop.ForAll(
+		func(requiredRole config.Role) bool {
+			apiKeyConfig := &config.APIKeyConfig{
+				Enabled: false,
+				Header:  "X-API-Key",
+			}
+
+			gin.SetMode(gin.TestMode)
+			router := gin.New()
+			router.Use(httpPresentation.RoleAuthorizationMiddleware(requiredRole, apiKeyConfig))
+			router.GET("/test", func(c *gin.Context) {
+				c.JSON(http.StatusOK, gin.H{"message": "success"})
+			})
+
+			req := httptest.NewRequest(http.MethodGet, "/test", nil)
+			// No API key
+			w := httptest.NewRecorder()
+
+			router.ServeHTTP(w, req)
+
+			return w.Code == http.StatusOK
+		},
+		genRole(),
+	))
+
+	properties.TestingRun(t)
+}
+
+// TestAPIKeyCreation_PropertyBased verifies API key creation and validation
+func TestAPIKeyCreation_PropertyBased(t *testing.T) {
+	parameters := gopter.DefaultTestParameters()
+	parameters.MinSuccessfulTests = 50
+
+	properties := gopter.NewProperties(parameters)
+
+	// Property: Created API keys can be used for authentication
+	properties.Property("Created keys are valid", prop.ForAll(
+		func(role string) bool {
+			apiKeyRepo := helpers.NewMockAPIKeyRepository()
+			testKey := helpers.CreateTestAPIKey(t, apiKeyRepo, role, nil)
+
+			// Verify the key was created
+			require.NotNil(t, testKey)
+			require.NotEmpty(t, testKey.PlainText)
+			require.NotNil(t, testKey.Entity)
+
+			// Verify the key can be used for authentication
+			apiKeyConfig := &config.APIKeyConfig{
+				Enabled: true,
+				Header:  "X-API-Key",
+			}
+
+			gin.SetMode(gin.TestMode)
+			router := gin.New()
+			router.Use(httpPresentation.APIKeyMiddleware(*apiKeyConfig, nil, apiKeyRepo))
+			router.GET("/test", func(c *gin.Context) {
+				c.JSON(http.StatusOK, gin.H{"message": "success"})
+			})
+
+			req := httptest.NewRequest(http.MethodGet, "/test", nil)
+			req.Header.Set("X-API-Key", testKey.PlainText)
+			w := httptest.NewRecorder()
+
+			router.ServeHTTP(w, req)
+
+			return w.Code == http.StatusOK
+		},
+		genRoleString(),
+	))
+
+	properties.TestingRun(t)
 }

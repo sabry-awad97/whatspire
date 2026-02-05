@@ -109,48 +109,12 @@ const (
 	RoleAdmin Role = "admin"
 )
 
-// APIKeyInfo holds information about an API key including its role
-type APIKeyInfo struct {
-	Key  string `mapstructure:"key"`  // The actual API key
-	Role Role   `mapstructure:"role"` // Role assigned to this key
-}
-
 // APIKeyConfig holds API key authentication configuration
+// Note: API keys are now managed in the database. This config only controls
+// whether API key authentication is enabled and which header to use.
 type APIKeyConfig struct {
-	Enabled bool         `mapstructure:"enabled"`
-	Keys    []string     `mapstructure:"keys"`     // Deprecated: List of valid API keys (for backward compatibility)
-	KeysMap []APIKeyInfo `mapstructure:"keys_map"` // Map of API keys to roles
-	Header  string       `mapstructure:"header"`   // Header name for API key (default: X-API-Key)
-}
-
-// GetRoleForKey returns the role for a given API key
-// Returns RoleWrite as default if key is found in legacy Keys list
-// Returns empty string if key is not found
-func (c *APIKeyConfig) GetRoleForKey(key string) Role {
-	// First check the new keys_map
-	for _, keyInfo := range c.KeysMap {
-		if keyInfo.Key == key {
-			// If no role is specified, default to write
-			if keyInfo.Role == "" {
-				return RoleWrite
-			}
-			return keyInfo.Role
-		}
-	}
-
-	// Fall back to legacy keys list (default to write role)
-	for _, k := range c.Keys {
-		if k == key {
-			return RoleWrite
-		}
-	}
-
-	return ""
-}
-
-// IsValidKey checks if a key is valid (exists in either Keys or KeysMap)
-func (c *APIKeyConfig) IsValidKey(key string) bool {
-	return c.GetRoleForKey(key) != ""
+	Enabled bool   `mapstructure:"enabled"` // Enable API key authentication
+	Header  string `mapstructure:"header"`  // Header name for API key (default: X-API-Key)
 }
 
 // CORSConfig holds CORS configuration
@@ -386,31 +350,10 @@ func (c *Config) Validate() error {
 
 	// Validate API Key config
 	if c.APIKey.Enabled {
-		if len(c.APIKey.Keys) == 0 && len(c.APIKey.KeysMap) == 0 {
-			errs = append(errs, ValidationError{
-				Field:   "apikey.keys",
-				Message: "at least one API key must be configured when API key authentication is enabled",
-			})
-		}
-		// Validate roles in KeysMap
-		validRoles := map[Role]bool{
-			RoleRead:  true,
-			RoleWrite: true,
-			RoleAdmin: true,
-		}
-		for i, keyInfo := range c.APIKey.KeysMap {
-			if keyInfo.Key == "" {
-				errs = append(errs, ValidationError{
-					Field:   fmt.Sprintf("apikey.keys_map[%d].key", i),
-					Message: "is required",
-				})
-			}
-			if keyInfo.Role != "" && !validRoles[keyInfo.Role] {
-				errs = append(errs, ValidationError{
-					Field:   fmt.Sprintf("apikey.keys_map[%d].role", i),
-					Message: fmt.Sprintf("invalid role: %s (must be read, write, or admin)", keyInfo.Role),
-				})
-			}
+		// API keys are now managed in the database
+		// No validation needed for config-based keys
+		if c.APIKey.Header == "" {
+			c.APIKey.Header = "X-API-Key" // Set default header
 		}
 	}
 
@@ -595,9 +538,7 @@ func setDefaults(v *viper.Viper) {
 	v.SetDefault("cors.max_age", 86400) // 24 hours
 
 	// APIKey defaults
-	v.SetDefault("apikey.enabled", false)
-	v.SetDefault("apikey.keys", []string{})
-	v.SetDefault("apikey.keys_map", []APIKeyInfo{})
+	v.SetDefault("apikey.enabled", true)
 	v.SetDefault("apikey.header", "X-API-Key")
 
 	// Metrics defaults
@@ -626,7 +567,7 @@ func setDefaults(v *viper.Viper) {
 
 	// Database defaults
 	v.SetDefault("database.driver", "sqlite")
-	v.SetDefault("database.dsn", "/data/whatsmeow.db")
+	v.SetDefault("database.dsn", "/data/application.db")
 	v.SetDefault("database.max_idle_conns", 10)
 	v.SetDefault("database.max_open_conns", 100)
 	v.SetDefault("database.conn_max_lifetime", time.Hour)
@@ -683,8 +624,6 @@ func bindEnvVars(v *viper.Viper) {
 
 	// APIKey
 	_ = v.BindEnv("apikey.enabled", "WHATSAPP_API_KEY_ENABLED")
-	_ = v.BindEnv("apikey.keys", "WHATSAPP_API_KEYS")
-	_ = v.BindEnv("apikey.keys_map", "WHATSAPP_API_KEYS_MAP")
 	_ = v.BindEnv("apikey.header", "WHATSAPP_API_KEY_HEADER")
 
 	// Metrics

@@ -94,6 +94,15 @@ func IsNotFound(err error) bool {
 	return domainErr.Code == "SESSION_NOT_FOUND" || domainErr.Code == "NOT_FOUND" || domainErr.Code == "MESSAGE_NOT_FOUND"
 }
 
+// IsDuplicate checks if an error is a duplicate/already exists error
+func IsDuplicate(err error) bool {
+	domainErr := GetDomainError(err)
+	if domainErr == nil {
+		return false
+	}
+	return domainErr.Code == "SESSION_EXISTS" || domainErr.Code == "DUPLICATE"
+}
+
 // Pre-defined domain errors
 var (
 	// Session errors
@@ -165,6 +174,9 @@ var (
 	ErrContactNotFound = NewDomainError("CONTACT_NOT_FOUND", "contact not found")
 	ErrChatNotFound    = NewDomainError("CHAT_NOT_FOUND", "chat not found")
 	ErrInvalidJID      = NewDomainError("INVALID_JID", "invalid JID format")
+
+	// API Key errors
+	ErrAlreadyRevoked = NewDomainError("ALREADY_REVOKED", "API key is already revoked")
 
 	// WhatsApp errors
 	ErrWhatsAppUnavailable = NewDomainError("WHATSAPP_UNAVAILABLE", "WhatsApp service is unavailable")

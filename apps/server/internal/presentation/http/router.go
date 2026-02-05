@@ -22,6 +22,8 @@ type RouterConfig struct {
 	CORSConfig *config.CORSConfig
 	// APIKeyConfig is the API key authentication configuration (optional)
 	APIKeyConfig *config.APIKeyConfig
+	// APIKeyRepository is the API key repository for database-backed keys (optional)
+	APIKeyRepository repository.APIKeyRepository
 	// Metrics is the metrics instance (optional)
 	Metrics *metrics.Metrics
 	// MetricsConfig is the metrics configuration (optional)
@@ -38,6 +40,7 @@ func DefaultRouterConfig() RouterConfig {
 		RateLimiter:          nil,
 		CORSConfig:           nil,
 		APIKeyConfig:         nil,
+		APIKeyRepository:     nil,
 		Metrics:              nil,
 		MetricsConfig:        nil,
 		AuditLogger:          nil,
@@ -105,7 +108,7 @@ func registerRoutes(router *gin.Engine, handler *Handler, routerConfig RouterCon
 
 	// Apply API key authentication to API routes if configured
 	if routerConfig.APIKeyConfig != nil && routerConfig.APIKeyConfig.Enabled {
-		api.Use(APIKeyMiddleware(*routerConfig.APIKeyConfig, routerConfig.AuditLogger))
+		api.Use(APIKeyMiddleware(*routerConfig.APIKeyConfig, routerConfig.AuditLogger, routerConfig.APIKeyRepository))
 	}
 
 	// Internal routes (called by Node.js API for session lifecycle) - require admin role
@@ -123,10 +126,18 @@ func registerRoutes(router *gin.Engine, handler *Handler, routerConfig RouterCon
 	// Session routes (groups sync) - require write role for sync, read for list
 	sessions := api.Group("/sessions")
 	if routerConfig.APIKeyConfig != nil && routerConfig.APIKeyConfig.Enabled {
+		sessions.POST("", handler.CreateSession) // Public endpoint - no auth required in development
+		sessions.GET("", RoleAuthorizationMiddleware(config.RoleRead, routerConfig.APIKeyConfig), handler.ListSessions)
+		sessions.GET("/:id", RoleAuthorizationMiddleware(config.RoleRead, routerConfig.APIKeyConfig), handler.GetSession)
+		sessions.DELETE("/:id", RoleAuthorizationMiddleware(config.RoleWrite, routerConfig.APIKeyConfig), handler.DeleteSession)
 		sessions.POST("/:id/groups/sync", RoleAuthorizationMiddleware(config.RoleWrite, routerConfig.APIKeyConfig), handler.SyncGroups)
 		sessions.GET("/:id/contacts", RoleAuthorizationMiddleware(config.RoleRead, routerConfig.APIKeyConfig), handler.ListContacts)
 		sessions.GET("/:id/chats", RoleAuthorizationMiddleware(config.RoleRead, routerConfig.APIKeyConfig), handler.ListChats)
 	} else {
+		sessions.POST("", handler.CreateSession) // Public endpoint - no auth required in development
+		sessions.GET("", handler.ListSessions)
+		sessions.GET("/:id", handler.GetSession)
+		sessions.DELETE("/:id", handler.DeleteSession)
 		sessions.POST("/:id/groups/sync", handler.SyncGroups)
 		sessions.GET("/:id/contacts", handler.ListContacts)
 		sessions.GET("/:id/chats", handler.ListChats)
@@ -173,6 +184,20 @@ func registerRoutes(router *gin.Engine, handler *Handler, routerConfig RouterCon
 		events.GET("", handler.QueryEvents)
 		events.GET("/:id", handler.GetEventByID)
 		events.POST("/replay", handler.ReplayEvents)
+	}
+
+	// API Key routes - require admin role
+	apikeys := api.Group("/apikeys")
+	if routerConfig.APIKeyConfig != nil && routerConfig.APIKeyConfig.Enabled {
+		apikeys.POST("", RoleAuthorizationMiddleware(config.RoleAdmin, routerConfig.APIKeyConfig), handler.CreateAPIKey)
+		apikeys.GET("", RoleAuthorizationMiddleware(config.RoleAdmin, routerConfig.APIKeyConfig), handler.ListAPIKeys)
+		apikeys.GET("/:id", RoleAuthorizationMiddleware(config.RoleAdmin, routerConfig.APIKeyConfig), handler.GetAPIKeyDetails)
+		apikeys.DELETE("/:id", RoleAuthorizationMiddleware(config.RoleAdmin, routerConfig.APIKeyConfig), handler.RevokeAPIKey)
+	} else {
+		apikeys.POST("", handler.CreateAPIKey)
+		apikeys.GET("", handler.ListAPIKeys)
+		apikeys.GET("/:id", handler.GetAPIKeyDetails)
+		apikeys.DELETE("/:id", handler.RevokeAPIKey)
 	}
 }
 

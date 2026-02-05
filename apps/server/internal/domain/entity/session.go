@@ -3,6 +3,7 @@ package entity
 import (
 	"encoding/json"
 	"time"
+	"whatspire/internal/domain/valueobject"
 )
 
 // Status represents the connection status of a WhatsApp session
@@ -64,8 +65,9 @@ func (s *Session) SetStatus(status Status) {
 }
 
 // SetJID sets the WhatsApp JID for the session
+// Automatically cleans the JID by removing device ID
 func (s *Session) SetJID(jid string) {
-	s.JID = jid
+	s.JID = valueobject.CleanJID(jid)
 	s.UpdatedAt = time.Now()
 }
 

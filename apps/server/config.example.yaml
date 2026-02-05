@@ -8,7 +8,7 @@ server:
 
 # WhatsApp client configuration
 whatsapp:
-  db_path: "/data/whatsmeow.db"
+  db_path: "/data/whatsmeow.db" # WhatsApp protocol database (managed by whatsmeow library)
   qr_timeout: "2m"
   reconnect_delay: "5s"
   max_reconnects: 10
@@ -65,17 +65,11 @@ cors:
   max_age: 86400 # 24 hours
 
 # API Key authentication configuration
+# API keys are managed in the database via the /api/apikeys endpoints
+# This configuration only controls whether authentication is enabled
 apikey:
-  enabled: false
-  header: "X-API-Key"
-  keys: [] # Legacy: List of valid API keys
-  keys_map: # Recommended: Map of API keys to roles
-    - key: "your-read-key-here"
-      role: "read"
-    - key: "your-write-key-here"
-      role: "write"
-    - key: "your-admin-key-here"
-      role: "admin"
+  enabled: false # Set to true to require API key authentication
+  header: "X-API-Key" # Header name for API key (default: X-API-Key)
 
 # Metrics configuration
 metrics:
@@ -108,7 +102,7 @@ webhook:
 # Database configuration
 database:
   driver: "sqlite" # sqlite or postgres
-  dsn: "/data/whatsmeow.db"
+  dsn: "/data/application.db" # Application database (sessions, events, reactions, etc.)
   max_idle_conns: 10
   max_open_conns: 100
   conn_max_lifetime: "1h"

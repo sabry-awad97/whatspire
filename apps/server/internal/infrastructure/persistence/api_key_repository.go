@@ -25,12 +25,16 @@ func NewAPIKeyRepository(db *gorm.DB) *APIKeyRepository {
 // Save stores an API key in the repository
 func (r *APIKeyRepository) Save(ctx context.Context, apiKey *entity.APIKey) error {
 	model := &models.APIKey{
-		ID:         apiKey.ID,
-		KeyHash:    apiKey.KeyHash,
-		Role:       apiKey.Role,
-		CreatedAt:  apiKey.CreatedAt,
-		LastUsedAt: apiKey.LastUsedAt,
-		IsActive:   apiKey.IsActive,
+		ID:               apiKey.ID,
+		KeyHash:          apiKey.KeyHash,
+		Role:             apiKey.Role,
+		Description:      apiKey.Description,
+		CreatedAt:        apiKey.CreatedAt,
+		LastUsedAt:       apiKey.LastUsedAt,
+		IsActive:         apiKey.IsActive,
+		RevokedAt:        apiKey.RevokedAt,
+		RevokedBy:        apiKey.RevokedBy,
+		RevocationReason: apiKey.RevocationReason,
 	}
 
 	result := r.db.WithContext(ctx).Create(model)
@@ -58,12 +62,16 @@ func (r *APIKeyRepository) FindByKeyHash(ctx context.Context, keyHash string) (*
 
 	// Convert model to domain entity
 	apiKey := &entity.APIKey{
-		ID:         model.ID,
-		KeyHash:    model.KeyHash,
-		Role:       model.Role,
-		CreatedAt:  model.CreatedAt,
-		LastUsedAt: model.LastUsedAt,
-		IsActive:   model.IsActive,
+		ID:               model.ID,
+		KeyHash:          model.KeyHash,
+		Role:             model.Role,
+		Description:      model.Description,
+		CreatedAt:        model.CreatedAt,
+		LastUsedAt:       model.LastUsedAt,
+		IsActive:         model.IsActive,
+		RevokedAt:        model.RevokedAt,
+		RevokedBy:        model.RevokedBy,
+		RevocationReason: model.RevocationReason,
 	}
 
 	return apiKey, nil
@@ -83,12 +91,16 @@ func (r *APIKeyRepository) FindByID(ctx context.Context, id string) (*entity.API
 
 	// Convert model to domain entity
 	apiKey := &entity.APIKey{
-		ID:         model.ID,
-		KeyHash:    model.KeyHash,
-		Role:       model.Role,
-		CreatedAt:  model.CreatedAt,
-		LastUsedAt: model.LastUsedAt,
-		IsActive:   model.IsActive,
+		ID:               model.ID,
+		KeyHash:          model.KeyHash,
+		Role:             model.Role,
+		Description:      model.Description,
+		CreatedAt:        model.CreatedAt,
+		LastUsedAt:       model.LastUsedAt,
+		IsActive:         model.IsActive,
+		RevokedAt:        model.RevokedAt,
+		RevokedBy:        model.RevokedBy,
+		RevocationReason: model.RevocationReason,
 	}
 
 	return apiKey, nil
@@ -127,11 +139,23 @@ func (r *APIKeyRepository) Delete(ctx context.Context, id string) error {
 	return nil
 }
 
-// List retrieves all API keys with pagination
-func (r *APIKeyRepository) List(ctx context.Context, limit, offset int) ([]*entity.APIKey, error) {
+// List retrieves all API keys with pagination and optional filters
+func (r *APIKeyRepository) List(ctx context.Context, limit, offset int, role *string, isActive *bool) ([]*entity.APIKey, error) {
 	var modelKeys []models.APIKey
 
-	result := r.db.WithContext(ctx).
+	query := r.db.WithContext(ctx)
+
+	// Apply role filter if provided
+	if role != nil && *role != "" {
+		query = query.Where("role = ?", *role)
+	}
+
+	// Apply status filter if provided
+	if isActive != nil {
+		query = query.Where("is_active = ?", *isActive)
+	}
+
+	result := query.
 		Order("created_at DESC").
 		Limit(limit).
 		Offset(offset).
@@ -145,15 +169,77 @@ func (r *APIKeyRepository) List(ctx context.Context, limit, offset int) ([]*enti
 	apiKeys := make([]*entity.APIKey, 0, len(modelKeys))
 	for _, model := range modelKeys {
 		apiKey := &entity.APIKey{
-			ID:         model.ID,
-			KeyHash:    model.KeyHash,
-			Role:       model.Role,
-			CreatedAt:  model.CreatedAt,
-			LastUsedAt: model.LastUsedAt,
-			IsActive:   model.IsActive,
+			ID:               model.ID,
+			KeyHash:          model.KeyHash,
+			Role:             model.Role,
+			Description:      model.Description,
+			CreatedAt:        model.CreatedAt,
+			LastUsedAt:       model.LastUsedAt,
+			IsActive:         model.IsActive,
+			RevokedAt:        model.RevokedAt,
+			RevokedBy:        model.RevokedBy,
+			RevocationReason: model.RevocationReason,
 		}
 		apiKeys = append(apiKeys, apiKey)
 	}
 
 	return apiKeys, nil
+}
+
+// Update updates an existing API key
+func (r *APIKeyRepository) Update(ctx context.Context, apiKey *entity.APIKey) error {
+	// First check if the key exists
+	var existing models.APIKey
+	result := r.db.WithContext(ctx).First(&existing, "id = ?", apiKey.ID)
+	if result.Error != nil {
+		if errors.Is(result.Error, gorm.ErrRecordNotFound) {
+			return domainErrors.ErrNotFound.WithMessage("API key not found")
+		}
+		return domainErrors.ErrDatabaseError.WithCause(result.Error)
+	}
+
+	// Update the existing record
+	model := &models.APIKey{
+		ID:               apiKey.ID,
+		KeyHash:          apiKey.KeyHash,
+		Role:             apiKey.Role,
+		Description:      apiKey.Description,
+		CreatedAt:        apiKey.CreatedAt,
+		LastUsedAt:       apiKey.LastUsedAt,
+		IsActive:         apiKey.IsActive,
+		RevokedAt:        apiKey.RevokedAt,
+		RevokedBy:        apiKey.RevokedBy,
+		RevocationReason: apiKey.RevocationReason,
+	}
+
+	result = r.db.WithContext(ctx).Save(model)
+	if result.Error != nil {
+		return domainErrors.ErrDatabaseError.WithCause(result.Error)
+	}
+
+	return nil
+}
+
+// Count returns the total number of API keys matching the filters
+func (r *APIKeyRepository) Count(ctx context.Context, role *string, isActive *bool) (int64, error) {
+	var count int64
+	query := r.db.WithContext(ctx).Model(&models.APIKey{})
+
+	// Apply role filter if provided
+	if role != nil && *role != "" {
+		query = query.Where("role = ?", *role)
+	}
+
+	// Apply status filter if provided
+	if isActive != nil {
+		query = query.Where("is_active = ?", *isActive)
+	}
+
+	result := query.Count(&count)
+
+	if result.Error != nil {
+		return 0, domainErrors.ErrDatabaseError.WithCause(result.Error)
+	}
+
+	return count, nil
 }

@@ -15,10 +15,11 @@ type Handler struct {
 	presenceUC *usecase.PresenceUseCase
 	contactUC  *usecase.ContactUseCase
 	eventUC    *usecase.EventUseCase
+	apikeyUC   *usecase.APIKeyUseCase
 }
 
 // NewHandler creates a new Handler with all use cases
-func NewHandler(sessionUC *usecase.SessionUseCase, messageUC *usecase.MessageUseCase, healthUC *usecase.HealthUseCase, groupsUC *usecase.GroupsUseCase, reactionUC *usecase.ReactionUseCase, receiptUC *usecase.ReceiptUseCase, presenceUC *usecase.PresenceUseCase, contactUC *usecase.ContactUseCase, eventUC *usecase.EventUseCase) *Handler {
+func NewHandler(sessionUC *usecase.SessionUseCase, messageUC *usecase.MessageUseCase, healthUC *usecase.HealthUseCase, groupsUC *usecase.GroupsUseCase, reactionUC *usecase.ReactionUseCase, receiptUC *usecase.ReceiptUseCase, presenceUC *usecase.PresenceUseCase, contactUC *usecase.ContactUseCase, eventUC *usecase.EventUseCase, apikeyUC *usecase.APIKeyUseCase) *Handler {
 	return &Handler{
 		sessionUC:  sessionUC,
 		messageUC:  messageUC,
@@ -29,5 +30,6 @@ func NewHandler(sessionUC *usecase.SessionUseCase, messageUC *usecase.MessageUse
 		presenceUC: presenceUC,
 		contactUC:  contactUC,
 		eventUC:    eventUC,
+		apikeyUC:   apikeyUC,
 	}
 }

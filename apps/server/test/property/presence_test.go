@@ -3,6 +3,7 @@ package property
 import (
 	"context"
 	"testing"
+	"time"
 
 	"whatspire/internal/application/dto"
 	"whatspire/internal/application/usecase"
@@ -51,6 +52,10 @@ func TestProperty10_PresenceStateTransitions(t *testing.T) {
 			t.Fatalf("Failed to send typing presence: %v", err)
 		}
 
+		// Add a small delay to ensure different timestamps
+		// This prevents race conditions when ordering by created_at
+		time.Sleep(10 * time.Millisecond)
+
 		// Send "paused" presence
 		pausedReq := dto.SendPresenceRequest{
 			SessionID: sessionID,
@@ -73,8 +78,8 @@ func TestProperty10_PresenceStateTransitions(t *testing.T) {
 			t.Fatalf("Expected at least 2 presence records, got %d", len(presences))
 		}
 
-		// Get the latest presence (last one added)
-		latest := presences[len(presences)-1]
+		// Get the latest presence (first one in DESC order)
+		latest := presences[0]
 
 		// Verify the final state is "paused"
 		if latest.State != entity.PresenceStatePaused {

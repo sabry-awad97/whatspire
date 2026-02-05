@@ -42,22 +42,7 @@
   },
   "apikey": {
     "enabled": false,
-    "header": "X-API-Key",
-    "keys": [],
-    "keys_map": [
-      {
-        "key": "your-read-key-here",
-        "role": "read"
-      },
-      {
-        "key": "your-write-key-here",
-        "role": "write"
-      },
-      {
-        "key": "your-admin-key-here",
-        "role": "admin"
-      }
-    ]
+    "header": "X-API-Key"
   },
   "metrics": {
     "enabled": true,
@@ -85,7 +70,7 @@
   },
   "database": {
     "driver": "sqlite",
-    "dsn": "/data/whatsmeow.db",
+    "dsn": "/data/application.db",
     "max_idle_conns": 10,
     "max_open_conns": 100,
     "conn_max_lifetime": "1h",

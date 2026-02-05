@@ -20,7 +20,7 @@ import (
 
 func setupMessageTestRouter(messageUC *usecase.MessageUseCase) *gin.Engine {
 	gin.SetMode(gin.TestMode)
-	handler := httpHandler.NewHandler(nil, messageUC, nil, nil, nil, nil, nil, nil, nil)
+	handler := httpHandler.NewHandler(nil, messageUC, nil, nil, nil, nil, nil, nil, nil, nil)
 	return httpHandler.NewRouter(handler, httpHandler.DefaultRouterConfig())
 }
 

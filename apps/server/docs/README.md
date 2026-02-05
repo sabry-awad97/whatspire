@@ -104,10 +104,18 @@ apps/server/
 
 ## Key Features
 
+### API Key Management
+
+- **Key Generation** - Create API keys with specific roles (read/write/admin)
+- **Key Revocation** - Immediately deactivate compromised keys
+- **Key Listing** - View all keys with filtering and pagination
+- **Audit Trail** - Track key creation, usage, and revocation
+- **Masked Display** - Secure key display (first 8 + last 4 chars)
+
 ### Message Types
 
-| Type     | Send | Receive | Description             |
-| -------- | ---- | ------- | ----------------------- |
+| Type     | Send | Receive | Description              |
+| -------- | ---- | ------- | -----------------------  |
 | Text     | ✅   | ✅      | Plain text messages     |
 | Image    | ✅   | ✅      | JPEG, PNG, WebP         |
 | Document | ✅   | ✅      | PDF, DOC, etc.          |
@@ -132,27 +140,40 @@ apps/server/
 
 ## Documentation
 
-| Document                                    | Description                        |
-| ------------------------------------------- | ---------------------------------- |
-| [API Specification](./api_specification.md) | Complete REST API reference        |
-| [Deployment Guide](./deployment_guide.md)   | Production deployment instructions |
-| [Configuration](./configuration.md)         | Environment variables reference    |
-| [Project Analysis](./project_analysis.md)   | Architecture deep-dive             |
+| Document                                                        | Description                        |
+| --------------------------------------------------------------- | ---------------------------------- |
+| [API Specification](./api_specification.md)                     | Complete REST API reference        |
+| [API Key Management](./api_key_management.md)                   | API key generation and management  |
+| [Deployment Guide](./deployment_guide.md)                       | Production deployment instructions |
+| [Configuration](./configuration.md)                             | Environment variables reference    |
+| [Database Migrations](./database_migrations.md)                 | Database setup and migrations      |
+| [Event Persistence](./event_persistence.md)                     | Event storage and replay           |
+| [Property Tests Known Issues](./property_tests_known_issues.md) | Known issues with property tests   |
+| [Project Analysis](./project_analysis.md)                       | Architecture deep-dive             |
+| [Troubleshooting](./troubleshooting.md)                         | Common issues and solutions        |
 
 ## Testing
 
 ```bash
-# Run all tests
-go test ./...
+# Run all tests (skips problematic property tests)
+go test -short ./...
 
 # Run with coverage
-go test -cover ./...
+go test -short -cover ./...
+
+# Run all tests including property tests
+go test ./...
 
 # Run specific test suites
 go test ./test/unit/...
 go test ./test/integration/...
 go test ./test/property/...
+
+# Run specific property test (bypassing skip)
+go test ./test/property -run TestSessionPersistenceRoundTrip_Property2 -v
 ```
+
+**Note**: Some property-based tests are skipped in short mode due to known issues with gopter's shrinking mechanism. See [Property Tests Known Issues](./property_tests_known_issues.md) for details.
 
 ## License
 

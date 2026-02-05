@@ -75,10 +75,8 @@ func (uc *ReceiptUseCase) SendReadReceipt(ctx context.Context, req dto.SendRecei
 
 		// Save receipt to repository
 		if uc.receiptRepo != nil {
-			if err := uc.receiptRepo.Save(ctx, receipt); err != nil {
-				// Log error but don't fail the request
-				// The receipt was sent successfully
-			}
+			_ = uc.receiptRepo.Save(ctx, receipt)
+			// Ignore error - receipt was sent successfully
 		}
 
 		// Publish receipt event

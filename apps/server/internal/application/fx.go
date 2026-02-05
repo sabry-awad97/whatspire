@@ -7,6 +7,7 @@ import (
 	"whatspire/internal/domain/repository"
 	"whatspire/internal/infrastructure"
 	"whatspire/internal/infrastructure/config"
+	"whatspire/internal/infrastructure/persistence"
 
 	"go.uber.org/fx"
 )
@@ -23,6 +24,7 @@ var Module = fx.Module("application",
 		NewPresenceUseCase,
 		NewContactUseCase,
 		NewEventUseCase,
+		NewAPIKeyUseCase,
 	),
 )
 
@@ -119,4 +121,13 @@ func NewEventUseCase(
 	publisher repository.EventPublisher,
 ) *usecase.EventUseCase {
 	return usecase.NewEventUseCase(eventRepo, publisher)
+}
+
+// NewAPIKeyUseCase creates a new API key use case
+func NewAPIKeyUseCase(
+	repo repository.APIKeyRepository,
+	auditLogger repository.AuditLogger,
+	auditLogRepo *persistence.AuditLogRepository,
+) *usecase.APIKeyUseCase {
+	return usecase.NewAPIKeyUseCase(repo, auditLogger, auditLogRepo)
 }

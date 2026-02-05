@@ -317,9 +317,7 @@ func (c *Client) ReadPump() {
 	for {
 		_, message, err := c.conn.ReadMessage()
 		if err != nil {
-			if websocket.IsUnexpectedCloseError(err, websocket.CloseGoingAway, websocket.CloseAbnormalClosure) {
-				// Log unexpected close errors if needed
-			}
+			// Connection closed or error occurred
 			break
 		}
 

@@ -11,6 +11,7 @@ import (
 
 // RoleAuthorizationMiddleware creates a middleware that enforces role-based authorization
 // It checks if the authenticated API key has sufficient permissions for the requested operation
+// The role is retrieved from the context (set by APIKeyMiddleware)
 func RoleAuthorizationMiddleware(requiredRole config.Role, apiKeyConfig *config.APIKeyConfig) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		// Skip if API key authentication is disabled
@@ -19,9 +20,9 @@ func RoleAuthorizationMiddleware(requiredRole config.Role, apiKeyConfig *config.
 			return
 		}
 
-		// Get API key from context (set by APIKeyMiddleware)
-		apiKey := GetAPIKey(c)
-		if apiKey == "" {
+		// Get API key role from context (set by APIKeyMiddleware)
+		userRoleValue, exists := c.Get("api_key_role")
+		if !exists {
 			c.JSON(http.StatusUnauthorized, dto.NewErrorResponse[interface{}](
 				"UNAUTHORIZED",
 				"API key is required",
@@ -31,8 +32,8 @@ func RoleAuthorizationMiddleware(requiredRole config.Role, apiKeyConfig *config.
 			return
 		}
 
-		// Get role for API key
-		userRole := apiKeyConfig.GetRoleForKey(apiKey)
+		// Convert to Role type
+		userRole := config.Role(userRoleValue.(string))
 		if userRole == "" {
 			c.JSON(http.StatusUnauthorized, dto.NewErrorResponse[interface{}](
 				"INVALID_API_KEY",

@@ -7,22 +7,28 @@ import (
 
 	"whatspire/internal/infrastructure/config"
 	httpPresentation "whatspire/internal/presentation/http"
+	"whatspire/test/helpers"
 
 	"github.com/gin-gonic/gin"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func TestAPIKeyMiddleware_ValidKey(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 
+	// Create mock repository and test API keys
+	repo := helpers.NewMockAPIKeyRepository()
+	testKey1 := helpers.CreateTestAPIKey(t, repo, "admin", nil)
+	testKey2 := helpers.CreateTestAPIKey(t, repo, "write", nil)
+
 	apiKeyConfig := config.APIKeyConfig{
 		Enabled: true,
-		Keys:    []string{"valid-key-1", "valid-key-2"},
 		Header:  "X-API-Key",
 	}
 
 	router := gin.New()
-	router.Use(httpPresentation.APIKeyMiddleware(apiKeyConfig, nil))
+	router.Use(httpPresentation.APIKeyMiddleware(apiKeyConfig, nil, repo))
 	router.GET("/test", func(c *gin.Context) {
 		c.String(http.StatusOK, "OK")
 	})
@@ -31,8 +37,8 @@ func TestAPIKeyMiddleware_ValidKey(t *testing.T) {
 		name   string
 		apiKey string
 	}{
-		{"First valid key", "valid-key-1"},
-		{"Second valid key", "valid-key-2"},
+		{"First valid key", testKey1.PlainText},
+		{"Second valid key", testKey2.PlainText},
 	}
 
 	for _, tt := range tests {
@@ -50,21 +56,24 @@ func TestAPIKeyMiddleware_ValidKey(t *testing.T) {
 func TestAPIKeyMiddleware_InvalidKey(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 
+	// Create mock repository with one valid key
+	repo := helpers.NewMockAPIKeyRepository()
+	_ = helpers.CreateTestAPIKey(t, repo, "admin", nil)
+
 	apiKeyConfig := config.APIKeyConfig{
 		Enabled: true,
-		Keys:    []string{"valid-key"},
 		Header:  "X-API-Key",
 	}
 
 	router := gin.New()
-	router.Use(httpPresentation.APIKeyMiddleware(apiKeyConfig, nil))
+	router.Use(httpPresentation.APIKeyMiddleware(apiKeyConfig, nil, repo))
 	router.GET("/test", func(c *gin.Context) {
 		c.String(http.StatusOK, "OK")
 	})
 
 	w := httptest.NewRecorder()
 	req := httptest.NewRequest("GET", "/test", nil)
-	req.Header.Set("X-API-Key", "invalid-key")
+	req.Header.Set("X-API-Key", "invalid-key-that-does-not-exist")
 	router.ServeHTTP(w, req)
 
 	assert.Equal(t, http.StatusUnauthorized, w.Code)
@@ -74,14 +83,16 @@ func TestAPIKeyMiddleware_InvalidKey(t *testing.T) {
 func TestAPIKeyMiddleware_MissingKey(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 
+	repo := helpers.NewMockAPIKeyRepository()
+	_ = helpers.CreateTestAPIKey(t, repo, "admin", nil)
+
 	apiKeyConfig := config.APIKeyConfig{
 		Enabled: true,
-		Keys:    []string{"valid-key"},
 		Header:  "X-API-Key",
 	}
 
 	router := gin.New()
-	router.Use(httpPresentation.APIKeyMiddleware(apiKeyConfig, nil))
+	router.Use(httpPresentation.APIKeyMiddleware(apiKeyConfig, nil, repo))
 	router.GET("/test", func(c *gin.Context) {
 		c.String(http.StatusOK, "OK")
 	})
@@ -98,14 +109,15 @@ func TestAPIKeyMiddleware_MissingKey(t *testing.T) {
 func TestAPIKeyMiddleware_Disabled(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 
+	repo := helpers.NewMockAPIKeyRepository()
+
 	apiKeyConfig := config.APIKeyConfig{
 		Enabled: false,
-		Keys:    []string{"valid-key"},
 		Header:  "X-API-Key",
 	}
 
 	router := gin.New()
-	router.Use(httpPresentation.APIKeyMiddleware(apiKeyConfig, nil))
+	router.Use(httpPresentation.APIKeyMiddleware(apiKeyConfig, nil, repo))
 	router.GET("/test", func(c *gin.Context) {
 		c.String(http.StatusOK, "OK")
 	})
@@ -121,14 +133,16 @@ func TestAPIKeyMiddleware_Disabled(t *testing.T) {
 func TestAPIKeyMiddleware_CustomHeader(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 
+	repo := helpers.NewMockAPIKeyRepository()
+	testKey := helpers.CreateTestAPIKey(t, repo, "admin", nil)
+
 	apiKeyConfig := config.APIKeyConfig{
 		Enabled: true,
-		Keys:    []string{"valid-key"},
 		Header:  "Authorization",
 	}
 
 	router := gin.New()
-	router.Use(httpPresentation.APIKeyMiddleware(apiKeyConfig, nil))
+	router.Use(httpPresentation.APIKeyMiddleware(apiKeyConfig, nil, repo))
 	router.GET("/test", func(c *gin.Context) {
 		c.String(http.StatusOK, "OK")
 	})
@@ -136,7 +150,7 @@ func TestAPIKeyMiddleware_CustomHeader(t *testing.T) {
 	// Using custom header
 	w := httptest.NewRecorder()
 	req := httptest.NewRequest("GET", "/test", nil)
-	req.Header.Set("Authorization", "valid-key")
+	req.Header.Set("Authorization", testKey.PlainText)
 	router.ServeHTTP(w, req)
 
 	assert.Equal(t, http.StatusOK, w.Code)
@@ -144,7 +158,7 @@ func TestAPIKeyMiddleware_CustomHeader(t *testing.T) {
 	// Using default header should fail
 	w = httptest.NewRecorder()
 	req = httptest.NewRequest("GET", "/test", nil)
-	req.Header.Set("X-API-Key", "valid-key")
+	req.Header.Set("X-API-Key", testKey.PlainText)
 	router.ServeHTTP(w, req)
 
 	assert.Equal(t, http.StatusUnauthorized, w.Code)
@@ -153,21 +167,49 @@ func TestAPIKeyMiddleware_CustomHeader(t *testing.T) {
 func TestAPIKeyMiddleware_DefaultHeader(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 
+	repo := helpers.NewMockAPIKeyRepository()
+	testKey := helpers.CreateTestAPIKey(t, repo, "admin", nil)
+
 	apiKeyConfig := config.APIKeyConfig{
 		Enabled: true,
-		Keys:    []string{"valid-key"},
 		Header:  "", // Empty header should default to X-API-Key
 	}
 
 	router := gin.New()
-	router.Use(httpPresentation.APIKeyMiddleware(apiKeyConfig, nil))
+	router.Use(httpPresentation.APIKeyMiddleware(apiKeyConfig, nil, repo))
 	router.GET("/test", func(c *gin.Context) {
 		c.String(http.StatusOK, "OK")
 	})
 
 	w := httptest.NewRecorder()
 	req := httptest.NewRequest("GET", "/test", nil)
-	req.Header.Set("X-API-Key", "valid-key")
+	req.Header.Set("X-API-Key", testKey.PlainText)
+	router.ServeHTTP(w, req)
+
+	assert.Equal(t, http.StatusOK, w.Code)
+}
+
+func TestAPIKeyMiddleware_BearerToken(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+
+	repo := helpers.NewMockAPIKeyRepository()
+	testKey := helpers.CreateTestAPIKey(t, repo, "admin", nil)
+
+	apiKeyConfig := config.APIKeyConfig{
+		Enabled: true,
+		Header:  "X-API-Key",
+	}
+
+	router := gin.New()
+	router.Use(httpPresentation.APIKeyMiddleware(apiKeyConfig, nil, repo))
+	router.GET("/test", func(c *gin.Context) {
+		c.String(http.StatusOK, "OK")
+	})
+
+	// Test Bearer token format
+	w := httptest.NewRecorder()
+	req := httptest.NewRequest("GET", "/test", nil)
+	req.Header.Set("Authorization", "Bearer "+testKey.PlainText)
 	router.ServeHTTP(w, req)
 
 	assert.Equal(t, http.StatusOK, w.Code)
@@ -176,28 +218,147 @@ func TestAPIKeyMiddleware_DefaultHeader(t *testing.T) {
 func TestAPIKeyMiddleware_StoresKeyInContext(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 
+	repo := helpers.NewMockAPIKeyRepository()
+	testKey := helpers.CreateTestAPIKey(t, repo, "admin", nil)
+
 	apiKeyConfig := config.APIKeyConfig{
 		Enabled: true,
-		Keys:    []string{"valid-key"},
 		Header:  "X-API-Key",
 	}
 
 	var capturedKey string
+	var capturedRole string
+	var capturedID string
 
 	router := gin.New()
-	router.Use(httpPresentation.APIKeyMiddleware(apiKeyConfig, nil))
+	router.Use(httpPresentation.APIKeyMiddleware(apiKeyConfig, nil, repo))
 	router.GET("/test", func(c *gin.Context) {
 		capturedKey = httpPresentation.GetAPIKey(c)
+		if role, exists := c.Get("api_key_role"); exists {
+			capturedRole = role.(string)
+		}
+		if id, exists := c.Get("api_key_id"); exists {
+			capturedID = id.(string)
+		}
 		c.String(http.StatusOK, "OK")
 	})
 
 	w := httptest.NewRecorder()
 	req := httptest.NewRequest("GET", "/test", nil)
-	req.Header.Set("X-API-Key", "valid-key")
+	req.Header.Set("X-API-Key", testKey.PlainText)
 	router.ServeHTTP(w, req)
 
 	assert.Equal(t, http.StatusOK, w.Code)
-	assert.Equal(t, "valid-key", capturedKey)
+	assert.Equal(t, testKey.PlainText, capturedKey)
+	assert.Equal(t, "admin", capturedRole)
+	assert.Equal(t, testKey.Entity.ID, capturedID)
+}
+
+func TestAPIKeyMiddleware_RevokedKey(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+
+	repo := helpers.NewMockAPIKeyRepository()
+	testKey := helpers.CreateRevokedTestAPIKey(t, repo, "admin")
+
+	apiKeyConfig := config.APIKeyConfig{
+		Enabled: true,
+		Header:  "X-API-Key",
+	}
+
+	router := gin.New()
+	router.Use(httpPresentation.APIKeyMiddleware(apiKeyConfig, nil, repo))
+	router.GET("/test", func(c *gin.Context) {
+		c.String(http.StatusOK, "OK")
+	})
+
+	w := httptest.NewRecorder()
+	req := httptest.NewRequest("GET", "/test", nil)
+	req.Header.Set("X-API-Key", testKey.PlainText)
+	router.ServeHTTP(w, req)
+
+	assert.Equal(t, http.StatusUnauthorized, w.Code)
+	assert.Contains(t, w.Body.String(), "REVOKED_API_KEY")
+}
+
+func TestAPIKeyMiddleware_InactiveKey(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+
+	repo := helpers.NewMockAPIKeyRepository()
+	testKey := helpers.CreateInactiveTestAPIKey(t, repo, "admin")
+
+	apiKeyConfig := config.APIKeyConfig{
+		Enabled: true,
+		Header:  "X-API-Key",
+	}
+
+	router := gin.New()
+	router.Use(httpPresentation.APIKeyMiddleware(apiKeyConfig, nil, repo))
+	router.GET("/test", func(c *gin.Context) {
+		c.String(http.StatusOK, "OK")
+	})
+
+	w := httptest.NewRecorder()
+	req := httptest.NewRequest("GET", "/test", nil)
+	req.Header.Set("X-API-Key", testKey.PlainText)
+	router.ServeHTTP(w, req)
+
+	assert.Equal(t, http.StatusUnauthorized, w.Code)
+	assert.Contains(t, w.Body.String(), "REVOKED_API_KEY")
+}
+
+func TestAPIKeyMiddleware_NoRepositoryWhenEnabled(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+
+	apiKeyConfig := config.APIKeyConfig{
+		Enabled: true,
+		Header:  "X-API-Key",
+	}
+
+	router := gin.New()
+	router.Use(httpPresentation.APIKeyMiddleware(apiKeyConfig, nil, nil)) // nil repository
+	router.GET("/test", func(c *gin.Context) {
+		c.String(http.StatusOK, "OK")
+	})
+
+	w := httptest.NewRecorder()
+	req := httptest.NewRequest("GET", "/test", nil)
+	req.Header.Set("X-API-Key", "some-key")
+	router.ServeHTTP(w, req)
+
+	assert.Equal(t, http.StatusInternalServerError, w.Code)
+	assert.Contains(t, w.Body.String(), "CONFIGURATION_ERROR")
+}
+
+func TestAPIKeyMiddleware_UpdatesLastUsed(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+
+	repo := helpers.NewMockAPIKeyRepository()
+	testKey := helpers.CreateTestAPIKey(t, repo, "admin", nil)
+
+	// Verify initial state
+	require.Nil(t, testKey.Entity.LastUsedAt)
+
+	apiKeyConfig := config.APIKeyConfig{
+		Enabled: true,
+		Header:  "X-API-Key",
+	}
+
+	router := gin.New()
+	router.Use(httpPresentation.APIKeyMiddleware(apiKeyConfig, nil, repo))
+	router.GET("/test", func(c *gin.Context) {
+		c.String(http.StatusOK, "OK")
+	})
+
+	w := httptest.NewRecorder()
+	req := httptest.NewRequest("GET", "/test", nil)
+	req.Header.Set("X-API-Key", testKey.PlainText)
+	router.ServeHTTP(w, req)
+
+	assert.Equal(t, http.StatusOK, w.Code)
+
+	// Note: LastUsedAt is updated asynchronously in a goroutine,
+	// so we can't reliably test it in a unit test without adding delays
+	// This is tested in integration tests instead
 }
 
 func TestGetAPIKey_NoKey(t *testing.T) {

@@ -1,9 +1,26 @@
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { RouterProvider, createRouter } from "@tanstack/react-router";
 import ReactDOM from "react-dom/client";
+import { WhatspireProvider } from "@whatspire/hooks";
 
 import { ErrorFallback } from "./components/error-fallback";
 import Loader from "./components/loader";
 import { routeTree } from "./routeTree.gen";
+
+// Create QueryClient with default options
+const queryClient = new QueryClient({
+  defaultOptions: {
+    queries: {
+      staleTime: 1000 * 60 * 5, // 5 minutes
+      gcTime: 1000 * 60 * 10, // 10 minutes (formerly cacheTime)
+      retry: 3,
+      refetchOnWindowFocus: false,
+    },
+    mutations: {
+      retry: 1,
+    },
+  },
+});
 
 const router = createRouter({
   routeTree,
@@ -12,7 +29,9 @@ const router = createRouter({
   defaultErrorComponent: ({ error }) => (
     <ErrorFallback error={error} onReset={() => window.location.reload()} />
   ),
-  context: {},
+  context: {
+    queryClient,
+  },
 });
 
 declare module "@tanstack/react-router" {
@@ -29,5 +48,15 @@ if (!rootElement) {
 
 if (!rootElement.innerHTML) {
   const root = ReactDOM.createRoot(rootElement);
-  root.render(<RouterProvider router={router} />);
+  root.render(
+    <QueryClientProvider client={queryClient}>
+      <WhatspireProvider
+        config={{
+          baseURL: import.meta.env.VITE_SERVER_URL || "http://localhost:8080",
+        }}
+      >
+        <RouterProvider router={router} />
+      </WhatspireProvider>
+    </QueryClientProvider>,
+  );
 }

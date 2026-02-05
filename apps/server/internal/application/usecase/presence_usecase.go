@@ -67,10 +67,8 @@ func (uc *PresenceUseCase) SendPresence(ctx context.Context, req dto.SendPresenc
 
 	// Save presence to repository
 	if uc.presenceRepo != nil {
-		if err := uc.presenceRepo.Save(ctx, presence); err != nil {
-			// Log error but don't fail the request
-			// The presence was sent successfully
-		}
+		_ = uc.presenceRepo.Save(ctx, presence)
+		// Ignore error - presence was sent successfully
 	}
 
 	// Publish presence event

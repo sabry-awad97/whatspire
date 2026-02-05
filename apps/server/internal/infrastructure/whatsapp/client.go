@@ -249,20 +249,13 @@ func (c *WhatsmeowClient) getOrCreateDevice(ctx context.Context, sessionID strin
 		return nil, errors.ErrDatabaseError.WithCause(err)
 	}
 
-	// First, check if we have a JID mapping for this session
+	// Check if we have a JID mapping for this session
 	if jidUser, ok := c.sessionToJID[sessionID]; ok {
 		for _, device := range devices {
 			if device.ID != nil && device.ID.User == jidUser {
 				c.logger.Infof("getOrCreateDevice: found device by JID mapping: sessionID=%s, jidUser=%s", sessionID, jidUser)
 				return device, nil
 			}
-		}
-	}
-
-	// Look for device with matching session ID in JID (legacy check)
-	for _, device := range devices {
-		if device.ID != nil && device.ID.User == sessionID {
-			return device, nil
 		}
 	}
 
@@ -363,41 +356,9 @@ func (c *WhatsmeowClient) handleMessageEvent(sessionID string, client *whatsmeow
 		return event, nil
 	}
 
-	// Fallback to legacy handling if message handler not set
-	// Save pushname to contact store if available
-	if msg.Info.PushName != "" && client != nil && client.Store != nil && client.Store.Contacts != nil {
-		// Update contact with pushname (use background context since this is async)
-		ctx := context.Background()
-		_, _, err := client.Store.Contacts.PutPushName(ctx, msg.Info.Sender, msg.Info.PushName)
-		if err != nil {
-			c.logger.Warnf("Failed to save pushname for %s: %v", msg.Info.Sender.String(), err)
-		}
-	}
-
-	// Use the message parser to create a full ParsedMessage
-	parsedMsg, err := c.messageParser.ParseRealtimeMessage(sessionID, msg)
-	if err != nil {
-		c.logger.Warnf("Failed to parse message: %v", err)
-		return nil, err
-	}
-
-	// Resolve LID to phone number JID if needed
-	if msg.Info.Sender.Server == "lid" && client != nil && client.Store != nil && client.Store.LIDs != nil {
-		ctx := context.Background()
-		pnJID, err := client.Store.LIDs.GetPNForLID(ctx, msg.Info.Sender)
-		if err == nil && !pnJID.IsEmpty() {
-			parsedMsg.SenderJID = pnJID.String()
-			c.logger.Debugf("Resolved LID %s to PN %s", msg.Info.Sender.String(), pnJID.String())
-		}
-	}
-
-	// Emit the full parsed message as the event payload
-	return entity.NewEventWithPayload(
-		generateEventID(),
-		entity.EventTypeMessageReceived,
-		sessionID,
-		parsedMsg,
-	)
+	// Message handler is required
+	c.logger.Warnf("Message handler not set, cannot process message")
+	return nil, errors.ErrInternal.WithMessage("message handler not configured")
 }
 
 // handleReceiptEvent converts a WhatsApp receipt event to a domain event

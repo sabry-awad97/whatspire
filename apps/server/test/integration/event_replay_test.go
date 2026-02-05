@@ -79,7 +79,7 @@ func setupEventReplayTest(t *testing.T) (*gorm.DB, repository.EventRepository, *
 	eventUC := usecase.NewEventUseCase(eventRepo, publisher)
 
 	// Create handler
-	handler := httpHandler.NewHandler(nil, nil, nil, nil, nil, nil, nil, nil, eventUC)
+	handler := httpHandler.NewHandler(nil, nil, nil, nil, nil, nil, nil, nil, eventUC, nil)
 
 	// Create router
 	gin.SetMode(gin.TestMode)
@@ -386,7 +386,7 @@ func TestEventReplay_PartialFailure(t *testing.T) {
 
 	// Create use case with failing publisher
 	eventUC := usecase.NewEventUseCase(eventRepo, failingPublisher)
-	handler := httpHandler.NewHandler(nil, nil, nil, nil, nil, nil, nil, nil, eventUC)
+	handler := httpHandler.NewHandler(nil, nil, nil, nil, nil, nil, nil, nil, eventUC, nil)
 	gin.SetMode(gin.TestMode)
 	testRouter := httpHandler.NewRouter(handler, httpHandler.DefaultRouterConfig())
 

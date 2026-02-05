@@ -3,6 +3,7 @@ package persistence
 import (
 	"context"
 	"encoding/json"
+	"time"
 
 	domainErrors "whatspire/internal/domain/errors"
 	"whatspire/internal/domain/repository"
@@ -184,4 +185,36 @@ func (r *AuditLogRepository) FindByEventType(ctx context.Context, eventType stri
 	}
 
 	return modelLogs, nil
+}
+
+// CountAPIKeyUsage counts total API key usage events for a specific API key
+func (r *AuditLogRepository) CountAPIKeyUsage(ctx context.Context, apiKeyID string) (int64, error) {
+	var count int64
+
+	result := r.db.WithContext(ctx).
+		Model(&models.AuditLog{}).
+		Where("event_type = ? AND api_key_id = ?", "api_key_usage", apiKeyID).
+		Count(&count)
+
+	if result.Error != nil {
+		return 0, domainErrors.ErrDatabaseError.WithCause(result.Error)
+	}
+
+	return count, nil
+}
+
+// CountAPIKeyUsageSince counts API key usage events since a specific timestamp
+func (r *AuditLogRepository) CountAPIKeyUsageSince(ctx context.Context, apiKeyID string, since time.Time) (int64, error) {
+	var count int64
+
+	result := r.db.WithContext(ctx).
+		Model(&models.AuditLog{}).
+		Where("event_type = ? AND api_key_id = ? AND created_at >= ?", "api_key_usage", apiKeyID, since).
+		Count(&count)
+
+	if result.Error != nil {
+		return 0, domainErrors.ErrDatabaseError.WithCause(result.Error)
+	}
+
+	return count, nil
 }

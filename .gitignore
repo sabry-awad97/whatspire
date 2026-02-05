@@ -8,6 +8,32 @@ dist
 build
 *.tsbuildinfo
 
+# Binaries
+bin/
+*.exe
+*.dll
+*.so
+*.dylib
+
+# Go build artifacts
+apps/server/main
+apps/server/main.exe
+
+# Database files
+*.db
+*.db-shm
+*.db-wal
+apps/server/data/*.db
+apps/server/data/*.db-shm
+apps/server/data/*.db-wal
+
+# Keep data directory structure but ignore contents
+apps/server/data/*
+!apps/server/data/.gitkeep
+!apps/server/data/media/
+apps/server/data/media/*
+!apps/server/data/media/.gitkeep
+
 # Environment variables
 .env
 .env*.local
@@ -48,3 +74,6 @@ coverage
 .cache
 tmp
 temp
+
+# Future Specs
+future

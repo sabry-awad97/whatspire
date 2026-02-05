@@ -171,18 +171,9 @@ func (c *WhatsmeowClient) GetQRChannel(ctx context.Context, sessionID string) (<
 
 				switch evt.Event {
 				case "code":
-					// Encode QR code as base64 PNG
-					qrBase64, err := EncodeQRToBase64(evt.Code)
-					if err != nil {
-						qrChan <- repository.QREvent{
-							Type:    "error",
-							Message: "failed to encode QR code",
-						}
-						continue
-					}
 					qrChan <- repository.QREvent{
 						Type: "qr",
-						Data: qrBase64,
+						Data: evt.Code,
 					}
 
 				case "success":
@@ -215,33 +206,61 @@ func (c *WhatsmeowClient) GetQRChannel(ctx context.Context, sessionID string) (<
 	return qrChan, nil
 }
 
-// AutoReconnect attempts to reconnect all sessions that have stored credentials
+// AutoReconnect attempts to reconnect all sessions from the session repository that have stored credentials
+// This is the preferred method as it uses actual session IDs from the database
 // Returns a map of session ID to error (nil if successful)
-func (c *WhatsmeowClient) AutoReconnect(ctx context.Context) map[string]error {
+func (c *WhatsmeowClient) AutoReconnect(ctx context.Context, sessionRepo repository.SessionRepository) map[string]error {
 	results := make(map[string]error)
 
-	// Get all stored sessions
-	sessionIDs, err := c.GetStoredSessions(ctx)
+	c.logger.Infof("AutoReconnect: fetching sessions from database...")
+
+	// Get all sessions from database
+	sessions, err := sessionRepo.GetAll(ctx)
 	if err != nil {
-		c.logger.Errorf("AutoReconnect: failed to get stored sessions: %v", err)
+		c.logger.Errorf("AutoReconnect: failed to get sessions from database: %v", err)
 		return results
 	}
 
-	c.logger.Infof("AutoReconnect: found %d stored sessions", len(sessionIDs))
+	if len(sessions) == 0 {
+		c.logger.Infof("AutoReconnect: no sessions found in database")
+		return results
+	}
+
+	c.logger.Infof("AutoReconnect: found %d sessions in database", len(sessions))
+
+	successCount := 0
+	failCount := 0
+	skippedCount := 0
 
 	// Attempt to reconnect each session
-	for _, sessionID := range sessionIDs {
-		c.logger.Infof("AutoReconnect: attempting to reconnect session: %s", sessionID)
+	for _, session := range sessions {
+		// Skip sessions that don't have a JID (never authenticated)
+		if session.JID == "" {
+			c.logger.Infof("AutoReconnect: skipping session %s (%s) - never authenticated", session.ID, session.Name)
+			skippedCount++
+			continue
+		}
 
-		err := c.Connect(ctx, sessionID)
+		c.logger.Infof("AutoReconnect: attempting to reconnect session %s (%s) with JID %s", session.ID, session.Name, session.JID)
+
+		// Set JID mapping so the client knows which device to use
+		c.SetSessionJIDMapping(session.ID, session.JID)
+
+		// Attempt to connect
+		err := c.Connect(ctx, session.ID)
 		if err != nil {
-			c.logger.Errorf("AutoReconnect: failed to reconnect session %s: %v", sessionID, err)
-			results[sessionID] = err
+			c.logger.Errorf("AutoReconnect: failed to reconnect session %s: %v", session.ID, err)
+			results[session.ID] = err
+			failCount++
 		} else {
-			c.logger.Infof("AutoReconnect: successfully reconnected session: %s", sessionID)
-			results[sessionID] = nil
+			c.logger.Infof("AutoReconnect: successfully reconnected session %s (%s)", session.ID, session.Name)
+			results[session.ID] = nil
+			successCount++
 		}
 	}
+
+	c.logger.Infof("AutoReconnect: complete - %d successful, %d failed, %d skipped out of %d total",
+		successCount, failCount, skippedCount, len(sessions))
 
 	return results
 }
