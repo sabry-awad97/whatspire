@@ -9,10 +9,9 @@ import (
 	"time"
 
 	"whatspire/internal/domain/entity"
-	"whatspire/internal/infrastructure/config"
-	"whatspire/internal/infrastructure/logger"
 	infraWs "whatspire/internal/infrastructure/websocket"
 	"whatspire/internal/presentation/ws"
+	"whatspire/test/helpers"
 
 	"github.com/gin-gonic/gin"
 	"github.com/gorilla/websocket"
@@ -22,15 +21,11 @@ import (
 
 // ==================== Test Setup ====================
 
-func createEventTestLogger() *logger.Logger {
-	return logger.New(config.LogConfig{Level: "error", Format: "json"})
-}
-
 func setupEventHandlerTestRouter(hub *infraWs.EventHub, config ws.EventHandlerConfig) (*gin.Engine, *ws.EventHandler) {
 	gin.SetMode(gin.TestMode)
 	router := gin.New()
 
-	log := createEventTestLogger()
+	log := helpers.CreateTestLogger()
 	eventHandler := ws.NewEventHandler(hub, config, log)
 	eventHandler.RegisterRoutes(router)
 

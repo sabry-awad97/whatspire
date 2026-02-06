@@ -15,17 +15,11 @@ import (
 	"time"
 
 	"whatspire/internal/domain/entity"
-	"whatspire/internal/infrastructure/config"
-	"whatspire/internal/infrastructure/logger"
 	"whatspire/internal/infrastructure/webhook"
+	"whatspire/test/helpers"
 
 	"pgregory.net/rapid"
 )
-
-// Helper to create test logger
-func createTestLogger() *logger.Logger {
-	return logger.New(config.LogConfig{Level: "info", Format: "json"})
-}
 
 // Helper to create test event
 func createTestEvent(eventType string, sessionID string) *entity.Event {
@@ -76,7 +70,7 @@ func TestProperty16_HMACSignatureVerification(t *testing.T) {
 			Secret: secret,
 			Events: []string{eventType},
 		}
-		publisher := webhook.NewWebhookPublisher(config, createTestLogger(), nil)
+		publisher := webhook.NewWebhookPublisher(config, helpers.CreateTestLogger(), nil)
 
 		// Create and publish event
 		event := createTestEvent(eventType, sessionID)
@@ -143,7 +137,7 @@ func TestProperty17_WebhookTimestampFreshness(t *testing.T) {
 			URL:    server.URL,
 			Events: []string{eventType},
 		}
-		publisher := webhook.NewWebhookPublisher(config, createTestLogger(), nil)
+		publisher := webhook.NewWebhookPublisher(config, helpers.CreateTestLogger(), nil)
 
 		// Record time before publishing (with buffer for timing variations)
 		beforePublish := time.Now().Add(-1 * time.Second)
@@ -231,7 +225,7 @@ func TestProperty18_HMACSignatureConditionalInclusion(t *testing.T) {
 		if hasSecret {
 			config.Secret = "test-secret-key"
 		}
-		publisher := webhook.NewWebhookPublisher(config, createTestLogger(), nil)
+		publisher := webhook.NewWebhookPublisher(config, helpers.CreateTestLogger(), nil)
 
 		// Create and publish event
 		event := createTestEvent(eventType, sessionID)
@@ -304,7 +298,7 @@ func TestProperty30_WebhookRetryPolicy(t *testing.T) {
 			URL:    server.URL,
 			Events: []string{eventType},
 		}
-		publisher := webhook.NewWebhookPublisher(config, createTestLogger(), nil)
+		publisher := webhook.NewWebhookPublisher(config, helpers.CreateTestLogger(), nil)
 
 		// Create and publish event
 		event := createTestEvent(eventType, sessionID)
@@ -366,7 +360,7 @@ func TestProperty31_WebhookRetryExhaustion(t *testing.T) {
 			URL:    server.URL,
 			Events: []string{eventType},
 		}
-		publisher := webhook.NewWebhookPublisher(config, createTestLogger(), nil)
+		publisher := webhook.NewWebhookPublisher(config, helpers.CreateTestLogger(), nil)
 
 		// Create and publish event
 		event := createTestEvent(eventType, sessionID)
@@ -425,7 +419,7 @@ func TestProperty32_WebhookSuccessLogging(t *testing.T) {
 			URL:    server.URL,
 			Events: []string{eventType},
 		}
-		publisher := webhook.NewWebhookPublisher(config, createTestLogger(), nil)
+		publisher := webhook.NewWebhookPublisher(config, helpers.CreateTestLogger(), nil)
 
 		// Create and publish event
 		event := createTestEvent(eventType, sessionID)
