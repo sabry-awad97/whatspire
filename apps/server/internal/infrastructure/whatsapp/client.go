@@ -9,6 +9,7 @@ import (
 	"whatspire/internal/domain/entity"
 	"whatspire/internal/domain/errors"
 	"whatspire/internal/domain/repository"
+	"whatspire/internal/infrastructure/logger"
 
 	"go.mau.fi/whatsmeow"
 	waCompanionReg "go.mau.fi/whatsmeow/proto/waCompanionReg"
@@ -16,7 +17,6 @@ import (
 	"go.mau.fi/whatsmeow/store/sqlstore"
 	"go.mau.fi/whatsmeow/types"
 	"go.mau.fi/whatsmeow/types/events"
-	waLog "go.mau.fi/whatsmeow/util/log"
 	"google.golang.org/protobuf/proto"
 
 	_ "modernc.org/sqlite" // SQLite driver for whatsmeow store
@@ -55,7 +55,7 @@ type WhatsmeowClient struct {
 	sessionToJID    map[string]string // Maps session UUID to WhatsApp JID user part
 	mu              sync.RWMutex
 	handlers        []repository.EventHandler
-	logger          waLog.Logger
+	logger          *logger.Logger
 	circuitBreaker  *CircuitBreaker
 	mediaUploader   *WhatsmeowMediaUploader
 	messageParser   *MessageParser
@@ -76,10 +76,7 @@ type HistorySyncConfig struct {
 }
 
 // NewWhatsmeowClient creates a new WhatsApp client
-func NewWhatsmeowClient(ctx context.Context, config ClientConfig) (*WhatsmeowClient, error) {
-	// Create a logger
-	logger := waLog.Stdout("WhatsApp", "INFO", true)
-
+func NewWhatsmeowClient(ctx context.Context, config ClientConfig, log *logger.Logger) (*WhatsmeowClient, error) {
 	// Set device properties for the linked device name shown in WhatsApp
 	store.DeviceProps.Os = proto.String("PharmaBroker")
 	store.DeviceProps.PlatformType = waCompanionReg.DeviceProps_DESKTOP.Enum()
@@ -88,7 +85,7 @@ func NewWhatsmeowClient(ctx context.Context, config ClientConfig) (*WhatsmeowCli
 	// Create the SQL store container with foreign keys enabled (required by whatsmeow)
 	// Using modernc.org/sqlite pragma syntax: _pragma=foreign_keys(1)
 	dsn := config.DBPath + "?_pragma=foreign_keys(1)&_pragma=journal_mode(WAL)&_pragma=busy_timeout(5000)"
-	container, err := sqlstore.New(ctx, "sqlite", dsn, logger)
+	container, err := sqlstore.New(ctx, "sqlite", dsn, log.Sub("whatsmeow"))
 	if err != nil {
 		return nil, errors.ErrDatabaseError.WithCause(err).WithMessage("failed to create whatsmeow store")
 	}
@@ -99,7 +96,7 @@ func NewWhatsmeowClient(ctx context.Context, config ClientConfig) (*WhatsmeowCli
 		clients:           make(map[string]*whatsmeow.Client),
 		sessionToJID:      make(map[string]string),
 		handlers:          make([]repository.EventHandler, 0),
-		logger:            logger,
+		logger:            log,
 		messageParser:     NewMessageParser(),
 		historySyncConfig: make(map[string]HistorySyncConfig),
 	}

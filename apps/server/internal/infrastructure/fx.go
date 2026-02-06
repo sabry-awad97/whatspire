@@ -3,7 +3,6 @@ package infrastructure
 import (
 	"context"
 	"fmt"
-	"log"
 	"os"
 	"path/filepath"
 	"time"
@@ -21,7 +20,6 @@ import (
 	"whatspire/internal/infrastructure/websocket"
 	"whatspire/internal/infrastructure/whatsapp"
 
-	waLog "go.mau.fi/whatsmeow/util/log"
 	"go.uber.org/fx"
 	"gorm.io/gorm"
 )
@@ -39,6 +37,7 @@ func ensureDir(path string) (string, error) {
 // Module provides all infrastructure layer dependencies
 var Module = fx.Module("infrastructure",
 	fx.Provide(
+		NewLogger,
 		NewDB,
 		fx.Annotate(
 			NewSessionRepository,
@@ -99,15 +98,20 @@ var Module = fx.Module("infrastructure",
 	fx.Invoke(StartAutoReconnect),
 )
 
+// NewLogger creates a new logger instance
+func NewLogger(cfg *config.Config) *logger.Logger {
+	return logger.New(cfg.Log)
+}
+
 // NewDB creates a new GORM database connection using the configured driver
-func NewDB(lc fx.Lifecycle, cfg *config.Config) (*gorm.DB, error) {
+func NewDB(lc fx.Lifecycle, cfg *config.Config, log *logger.Logger) (*gorm.DB, error) {
 	// Ensure the data directory exists for SQLite databases
 	if cfg.Database.Driver == "sqlite" {
 		dbDir, err := ensureDir(cfg.Database.DSN)
 		if err != nil {
 			return nil, err
 		}
-		log.Printf("✅ Database directory ensured: %s", dbDir)
+		log.Infof("✅ Database directory ensured: %s", dbDir)
 	}
 
 	// Create database factory
@@ -121,7 +125,7 @@ func NewDB(lc fx.Lifecycle, cfg *config.Config) (*gorm.DB, error) {
 
 	lc.Append(fx.Hook{
 		OnStop: func(ctx context.Context) error {
-			log.Println("🛑 Closing database connection...")
+			log.Info("🛑 Closing database connection...")
 			sqlDB, err := db.DB()
 			if err != nil {
 				return err
@@ -169,13 +173,13 @@ func NewAuditLogRepository(db *gorm.DB) *persistence.AuditLogRepository {
 }
 
 // NewWhatsmeowClient creates a new WhatsApp client
-func NewWhatsmeowClient(lc fx.Lifecycle, cfg *config.Config) (*whatsapp.WhatsmeowClient, error) {
+func NewWhatsmeowClient(lc fx.Lifecycle, cfg *config.Config, log *logger.Logger) (*whatsapp.WhatsmeowClient, error) {
 	// Ensure the data directory exists for WhatsApp database
 	dbDir, err := ensureDir(cfg.WhatsApp.DBPath)
 	if err != nil {
 		return nil, err
 	}
-	log.Printf("✅ WhatsApp database directory ensured: %s", dbDir)
+	log.Infof("✅ WhatsApp database directory ensured: %s", dbDir)
 
 	clientConfig := whatsapp.ClientConfig{
 		DBPath:           cfg.WhatsApp.DBPath,
@@ -185,22 +189,22 @@ func NewWhatsmeowClient(lc fx.Lifecycle, cfg *config.Config) (*whatsapp.Whatsmeo
 		MessageRateLimit: cfg.WhatsApp.MessageRateLimit,
 	}
 
-	client, err := whatsapp.NewWhatsmeowClient(context.Background(), clientConfig)
+	client, err := whatsapp.NewWhatsmeowClient(context.Background(), clientConfig, log)
 	if err != nil {
 		return nil, err
 	}
 
 	lc.Append(fx.Hook{
 		OnStop: func(ctx context.Context) error {
-			log.Println("🛑 Shutting down WhatsApp client...")
+			log.Info("🛑 Shutting down WhatsApp client...")
 
 			// Close all WhatsApp connections gracefully
 			if err := client.Close(); err != nil {
-				log.Printf("⚠️  WhatsApp client shutdown error: %v", err)
+				log.Warnf("⚠️  WhatsApp client shutdown error: %v", err)
 				return err
 			}
 
-			log.Println("✅ WhatsApp client stopped gracefully")
+			log.Info("✅ WhatsApp client stopped gracefully")
 			return nil
 		},
 	})
@@ -209,7 +213,7 @@ func NewWhatsmeowClient(lc fx.Lifecycle, cfg *config.Config) (*whatsapp.Whatsmeo
 }
 
 // NewGorillaEventPublisher creates a new WebSocket event publisher
-func NewGorillaEventPublisher(lc fx.Lifecycle, cfg *config.Config) repository.EventPublisher {
+func NewGorillaEventPublisher(lc fx.Lifecycle, cfg *config.Config, log *logger.Logger) repository.EventPublisher {
 	publisherConfig := websocket.PublisherConfig{
 		URL:            cfg.WebSocket.URL,
 		APIKey:         cfg.WebSocket.APIKey,
@@ -231,21 +235,21 @@ func NewGorillaEventPublisher(lc fx.Lifecycle, cfg *config.Config) repository.Ev
 			return nil
 		},
 		OnStop: func(ctx context.Context) error {
-			log.Println("🛑 Shutting down WebSocket publisher...")
+			log.Info("🛑 Shutting down WebSocket publisher...")
 
 			// Log queue status before shutdown
 			queueSize := publisher.QueueSize()
 			if queueSize > 0 {
-				log.Printf("📤 Flushing %d queued events before shutdown...", queueSize)
+				log.Infof("📤 Flushing %d queued events before shutdown...", queueSize)
 			}
 
 			// Disconnect will flush the queue automatically
 			if err := publisher.Disconnect(ctx); err != nil {
-				log.Printf("⚠️  WebSocket publisher shutdown error: %v", err)
+				log.Warnf("⚠️  WebSocket publisher shutdown error: %v", err)
 				return err
 			}
 
-			log.Println("✅ WebSocket publisher stopped gracefully")
+			log.Info("✅ WebSocket publisher stopped gracefully")
 			return nil
 		},
 	})
@@ -254,21 +258,18 @@ func NewGorillaEventPublisher(lc fx.Lifecycle, cfg *config.Config) repository.Ev
 }
 
 // NewAuditLogger creates a new audit logger
-func NewAuditLogger(cfg *config.Config) repository.AuditLogger {
-	// Create structured logger
-	structuredLogger := logger.NewStructuredLogger(logger.Config{
-		Level:  cfg.Log.Level,
-		Format: cfg.Log.Format,
-	})
+func NewAuditLogger(cfg *config.Config) (repository.AuditLogger, *logger.Logger) {
+	// Create zerolog logger
+	log := logger.New(cfg.Log)
 
 	// Create audit logger
-	auditLogger := logger.NewAuditLogger(structuredLogger)
+	auditLogger := logger.NewAuditLogger(log)
 
-	return auditLogger
+	return auditLogger, log
 }
 
 // NewWebhookPublisher creates a new webhook publisher (optional, based on config)
-func NewWebhookPublisher(cfg *config.Config, auditLogger repository.AuditLogger) *webhook.WebhookPublisher {
+func NewWebhookPublisher(cfg *config.Config, auditLogger repository.AuditLogger, log *logger.Logger) *webhook.WebhookPublisher {
 	// Return nil if webhooks are not enabled
 	if !cfg.Webhook.Enabled {
 		return nil
@@ -280,15 +281,9 @@ func NewWebhookPublisher(cfg *config.Config, auditLogger repository.AuditLogger)
 		Events: cfg.Webhook.Events,
 	}
 
-	// Create logger for webhook publisher
-	structuredLogger := logger.NewStructuredLogger(logger.Config{
-		Level:  cfg.Log.Level,
-		Format: cfg.Log.Format,
-	})
+	publisher := webhook.NewWebhookPublisher(webhookConfig, log, auditLogger)
 
-	publisher := webhook.NewWebhookPublisher(webhookConfig, structuredLogger, auditLogger)
-
-	log.Printf("✅ Webhook publisher created (URL: %s, Events: %v)", cfg.Webhook.URL, cfg.Webhook.Events)
+	log.Infof("✅ Webhook publisher created (URL: %s, Events: %v)", cfg.Webhook.URL, cfg.Webhook.Events)
 
 	return publisher
 }
@@ -297,15 +292,9 @@ func NewWebhookPublisher(cfg *config.Config, auditLogger repository.AuditLogger)
 func NewCompositeEventPublisher(
 	websocketPublisher repository.EventPublisher,
 	webhookPublisher *webhook.WebhookPublisher,
-	cfg *config.Config,
+	log *logger.Logger,
 ) repository.EventPublisher {
-	// Create logger for composite publisher
-	logger := logger.NewStructuredLogger(logger.Config{
-		Level:  cfg.Log.Level,
-		Format: cfg.Log.Format,
-	})
-
-	return webhook.NewCompositeEventPublisher(websocketPublisher, webhookPublisher, logger)
+	return webhook.NewCompositeEventPublisher(websocketPublisher, webhookPublisher, log)
 }
 
 // HealthCheckers holds all health checker instances
@@ -354,6 +343,7 @@ func WireEventHubToWhatsAppClient(
 	eventRepo repository.EventRepository,
 	sessionRepo repository.SessionRepository,
 	cfg *config.Config,
+	log *logger.Logger,
 ) {
 	// Register an event handler that broadcasts events to the EventHub (for frontend WebSocket clients)
 	waClient.RegisterEventHandler(func(event *entity.Event) {
@@ -379,11 +369,11 @@ func WireEventHubToWhatsAppClient(
 			go func() {
 				ctx := context.Background()
 				if err := eventRepo.Create(ctx, event); err != nil {
-					log.Printf("⚠️  Failed to persist event: %v", err)
+					log.Warnf("⚠️  Failed to persist event: %v", err)
 				}
 			}()
 		})
-		log.Println("✅ Event persistence enabled")
+		log.Info("✅ Event persistence enabled")
 	}
 
 	// Register an event handler that updates session status based on connection events
@@ -395,28 +385,28 @@ func WireEventHubToWhatsAppClient(
 			switch event.Type {
 			case entity.EventTypeConnected:
 				status = entity.StatusConnected
-				log.Printf("📱 Session %s connected - updating status to 'connected'", event.SessionID)
+				log.Infof("📱 Session %s connected - updating status to 'connected'", event.SessionID)
 			case entity.EventTypeDisconnected:
 				status = entity.StatusDisconnected
-				log.Printf("📱 Session %s disconnected - updating status to 'disconnected'", event.SessionID)
+				log.Infof("📱 Session %s disconnected - updating status to 'disconnected'", event.SessionID)
 			case entity.EventTypeLoggedOut:
 				status = entity.StatusLoggedOut
-				log.Printf("📱 Session %s logged out - updating status to 'logged_out'", event.SessionID)
+				log.Infof("📱 Session %s logged out - updating status to 'logged_out'", event.SessionID)
 			default:
 				return // Ignore other event types
 			}
 
 			// Update session status in database
 			if err := sessionRepo.UpdateStatus(ctx, event.SessionID, status); err != nil {
-				log.Printf("⚠️  Failed to update session status for %s: %v", event.SessionID, err)
+				log.Warnf("⚠️  Failed to update session status for %s: %v", event.SessionID, err)
 			}
 		}()
 	})
-	log.Println("✅ Session status auto-update handler registered")
+	log.Info("✅ Session status auto-update handler registered")
 }
 
 // NewEventHub creates a new WebSocket event hub for broadcasting events to connected clients
-func NewEventHub(lc fx.Lifecycle, cfg *config.Config) *websocket.EventHub {
+func NewEventHub(lc fx.Lifecycle, cfg *config.Config, log *logger.Logger) *websocket.EventHub {
 	hubConfig := websocket.EventHubConfig{
 		APIKey:       cfg.WebSocket.APIKey,
 		PingInterval: cfg.WebSocket.PingInterval,
@@ -433,18 +423,18 @@ func NewEventHub(lc fx.Lifecycle, cfg *config.Config) *websocket.EventHub {
 			return nil
 		},
 		OnStop: func(ctx context.Context) error {
-			log.Println("🛑 Shutting down WebSocket event hub...")
+			log.Info("🛑 Shutting down WebSocket event hub...")
 
 			// Log connected clients
 			clientCount := hub.ClientCount()
 			if clientCount > 0 {
-				log.Printf("📡 Closing %d WebSocket client connections...", clientCount)
+				log.Infof("📡 Closing %d WebSocket client connections...", clientCount)
 			}
 
 			// Stop the hub (will close all client connections)
 			hub.Stop()
 
-			log.Println("✅ WebSocket event hub stopped gracefully")
+			log.Info("✅ WebSocket event hub stopped gracefully")
 			return nil
 		},
 	})
@@ -476,6 +466,7 @@ func WireMessageHandler(
 	reactionRepo repository.ReactionRepository,
 	presenceRepo repository.PresenceRepository,
 	publisher repository.EventPublisher,
+	log *logger.Logger,
 ) {
 	// Create media download helper
 	mediaDownloadHelper := whatsapp.NewMediaDownloadHelper(mediaStorage)
@@ -483,23 +474,19 @@ func WireMessageHandler(
 	// Create message parser
 	messageParser := whatsapp.NewMessageParser()
 
-	// Create logger
-	logger := waLog.Stdout("MessageHandler", "INFO", true)
-
 	// Create message handler
 	messageHandler := whatsapp.NewMessageHandler(
 		messageParser,
 		mediaDownloadHelper,
 		mediaStorage,
-		logger,
+		log,
 	)
 
 	// Create reaction handler
-	reactionLogger := waLog.Stdout("ReactionHandler", "INFO", true)
 	reactionHandler := whatsapp.NewReactionHandler(
 		reactionRepo,
 		publisher,
-		reactionLogger,
+		log,
 	)
 
 	// Wire reaction handler to message handler
@@ -511,14 +498,14 @@ func WireMessageHandler(
 	// Wire presence repository to the client
 	waClient.SetPresenceRepository(presenceRepo)
 
-	log.Println("✅ Message handler and reaction handler wired to WhatsApp client")
+	log.Info("✅ Message handler and reaction handler wired to WhatsApp client")
 }
 
 // RunMigrations runs GORM auto-migration on startup with version tracking
-func RunMigrations(lc fx.Lifecycle, db *gorm.DB) {
+func RunMigrations(lc fx.Lifecycle, db *gorm.DB, log *logger.Logger) {
 	lc.Append(fx.Hook{
 		OnStart: func(ctx context.Context) error {
-			log.Println("🔄 Running database migrations...")
+			log.Info("🔄 Running database migrations...")
 
 			// Create migration runner
 			runner := persistence.NewGORMMigrationRunner(db)
@@ -526,14 +513,14 @@ func RunMigrations(lc fx.Lifecycle, db *gorm.DB) {
 			// Get current version
 			currentVersion, err := runner.Version(ctx)
 			if err != nil {
-				log.Printf("⚠️  Failed to get migration version: %v", err)
+				log.Warnf("⚠️  Failed to get migration version: %v", err)
 			} else {
-				log.Printf("📊 Current migration version: %d", currentVersion)
+				log.Infof("📊 Current migration version: %d", currentVersion)
 			}
 
 			// Run migrations
 			if err := runner.Up(ctx); err != nil {
-				log.Printf("⚠️  Migration error: %v", err)
+				log.Warnf("⚠️  Migration error: %v", err)
 				// Don't fail startup - continue with existing schema
 				return nil
 			}
@@ -541,12 +528,12 @@ func RunMigrations(lc fx.Lifecycle, db *gorm.DB) {
 			// Record migration if successful
 			newVersion := int(time.Now().Unix())
 			if err := runner.RecordMigration(ctx, newVersion, "auto_migration"); err != nil {
-				log.Printf("⚠️  Failed to record migration: %v", err)
+				log.Warnf("⚠️  Failed to record migration: %v", err)
 			} else {
-				log.Printf("✅ Migration recorded: version %d", newVersion)
+				log.Infof("✅ Migration recorded: version %d", newVersion)
 			}
 
-			log.Println("✅ Database migrations completed")
+			log.Info("✅ Database migrations completed")
 			return nil
 		},
 	})
@@ -558,7 +545,7 @@ func NewEventCleanupJob(eventRepo repository.EventRepository, cfg *config.Config
 }
 
 // StartEventCleanupJob starts the event cleanup job if event persistence is enabled
-func StartEventCleanupJob(lc fx.Lifecycle, job *jobs.EventCleanupJob, cfg *config.Config) {
+func StartEventCleanupJob(lc fx.Lifecycle, job *jobs.EventCleanupJob, cfg *config.Config, log *logger.Logger) {
 	// Only start if event persistence is enabled
 	if !cfg.Events.Enabled {
 		return
@@ -569,7 +556,7 @@ func StartEventCleanupJob(lc fx.Lifecycle, job *jobs.EventCleanupJob, cfg *confi
 			return job.Start(ctx)
 		},
 		OnStop: func(ctx context.Context) error {
-			log.Println("🛑 Stopping event cleanup job...")
+			log.Info("🛑 Stopping event cleanup job...")
 			return job.Stop()
 		},
 	})
@@ -580,12 +567,13 @@ func StartAutoReconnect(
 	lc fx.Lifecycle,
 	waClient *whatsapp.WhatsmeowClient,
 	sessionRepo repository.SessionRepository,
+	log *logger.Logger,
 ) {
 	lc.Append(fx.Hook{
 		OnStart: func(ctx context.Context) error {
 			// Run auto-reconnect in background to not block startup
 			go func() {
-				log.Println("🔄 Auto-reconnecting stored WhatsApp sessions...")
+				log.Info("🔄 Auto-reconnecting stored WhatsApp sessions...")
 				results := waClient.AutoReconnect(ctx, sessionRepo)
 
 				successCount := 0
@@ -595,12 +583,12 @@ func StartAutoReconnect(
 						successCount++
 					} else {
 						failCount++
-						log.Printf("⚠️  Session %s failed to reconnect: %v", sessionID, err)
+						log.Warnf("⚠️  Session %s failed to reconnect: %v", sessionID, err)
 					}
 				}
 
 				if len(results) > 0 {
-					log.Printf("📊 Auto-reconnect summary: %d successful, %d failed", successCount, failCount)
+					log.Infof("📊 Auto-reconnect summary: %d successful, %d failed", successCount, failCount)
 				}
 			}()
 			return nil

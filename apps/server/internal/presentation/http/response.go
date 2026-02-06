@@ -1,11 +1,11 @@
 package http
 
 import (
-	"log"
 	"net/http"
 
 	"whatspire/internal/application/dto"
 	"whatspire/internal/domain/errors"
+	"whatspire/internal/infrastructure/logger"
 
 	"github.com/gin-gonic/gin"
 )
@@ -21,12 +21,14 @@ func respondWithError(c *gin.Context, statusCode int, code, message string, deta
 }
 
 // handleDomainError converts domain errors to HTTP responses
-func handleDomainError(c *gin.Context, err error) {
+func handleDomainError(c *gin.Context, err error, log *logger.Logger) {
 	domainErr := errors.GetDomainError(err)
 	if domainErr == nil {
 		// Log full error details for unexpected errors
 		requestID, _ := c.Get(RequestIDKey)
-		log.Printf("[ERROR] [%v] Unexpected error: %+v", requestID, err)
+		log.WithStr("request_id", requestID.(string)).
+			WithError(err).
+			Error("Unexpected error")
 
 		// Return generic message to client
 		respondWithError(c, http.StatusInternalServerError, "INTERNAL_ERROR", "An internal error occurred", nil)
@@ -38,8 +40,11 @@ func handleDomainError(c *gin.Context, err error) {
 	// Log internal errors with full details
 	if statusCode == http.StatusInternalServerError {
 		requestID, _ := c.Get(RequestIDKey)
-		log.Printf("[ERROR] [%v] Domain error: code=%s, message=%s, cause=%+v",
-			requestID, domainErr.Code, domainErr.Message, domainErr.Cause)
+		log.WithStr("request_id", requestID.(string)).
+			WithStr("code", domainErr.Code).
+			WithStr("message", domainErr.Message).
+			WithFields(map[string]any{"cause": domainErr.Cause}).
+			Error("Domain error")
 	}
 
 	respondWithError(c, statusCode, domainErr.Code, domainErr.Message, nil)

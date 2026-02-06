@@ -5,6 +5,7 @@ services:
     image: pgvector/pgvector:pg18-trixie
     container_name: whatspire-postgres-prod
     environment:
+      TZ: Africa/Cairo
       POSTGRES_USER: whatspire
       POSTGRES_PASSWORD: ${DB_PASSWORD:-changeme}
       POSTGRES_DB: whatspire

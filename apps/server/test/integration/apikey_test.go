@@ -65,8 +65,12 @@ func setupAPIKeyTestRouter(sessionUC *usecase.SessionUseCase, apiKeyConfig *conf
 	// Create API key use case with the mock repository and mock audit components
 	apiKeyUC := usecase.NewAPIKeyUseCase(apiKeyRepo, &MockAuditLogger{}, &MockAuditLogRepository{})
 
-	handler := httpHandler.NewHandler(sessionUC, nil, nil, nil, nil, nil, nil, nil, nil, apiKeyUC)
-	return httpHandler.NewRouter(handler, routerConfig)
+	handler := helpers.NewTestHandlerBuilder().
+		WithSessionUseCase(sessionUC).
+		WithAPIKeyUseCase(apiKeyUC).
+		Build()
+	routerConfig.Logger = helpers.CreateTestLogger()
+	return helpers.CreateTestRouter(handler, routerConfig)
 }
 
 // ==================== API Key Authentication Tests ====================

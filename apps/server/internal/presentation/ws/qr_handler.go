@@ -3,7 +3,6 @@ package ws
 import (
 	"context"
 	"encoding/json"
-	"log"
 	"net/http"
 	"sync"
 	"time"
@@ -12,6 +11,7 @@ import (
 	"whatspire/internal/application/usecase"
 	"whatspire/internal/domain/errors"
 	"whatspire/internal/domain/repository"
+	"whatspire/internal/infrastructure/logger"
 	httpPkg "whatspire/internal/presentation/http"
 
 	"github.com/gin-gonic/gin"
@@ -46,6 +46,7 @@ type QRHandler struct {
 	sessionUC *usecase.SessionUseCase
 	upgrader  websocket.Upgrader
 	config    QRHandlerConfig
+	logger    *logger.Logger
 
 	// Track active connections per session for isolation
 	activeConns   map[string]*websocket.Conn
@@ -53,10 +54,11 @@ type QRHandler struct {
 }
 
 // NewQRHandler creates a new QR WebSocket handler
-func NewQRHandler(sessionUC *usecase.SessionUseCase, config QRHandlerConfig) *QRHandler {
+func NewQRHandler(sessionUC *usecase.SessionUseCase, config QRHandlerConfig, log *logger.Logger) *QRHandler {
 	h := &QRHandler{
 		sessionUC:   sessionUC,
 		config:      config,
+		logger:      log,
 		activeConns: make(map[string]*websocket.Conn),
 	}
 
@@ -100,7 +102,7 @@ func (h *QRHandler) HandleQRAuth(c *gin.Context) {
 	// Upgrade HTTP connection to WebSocket
 	conn, err := h.upgrader.Upgrade(c.Writer, c.Request, nil)
 	if err != nil {
-		log.Printf("Failed to upgrade WebSocket connection: %v", err)
+		h.logger.WithError(err).Error("Failed to upgrade WebSocket connection")
 		return
 	}
 	defer conn.Close()
@@ -193,14 +195,14 @@ func (h *QRHandler) processQREvents(ctx context.Context, conn *websocket.Conn, q
 			case "qr":
 				// Send QR code as base64 image
 				if err := h.sendQRCode(conn, event.Data); err != nil {
-					log.Printf("Failed to send QR code: %v", err)
+					h.logger.WithError(err).Error("Failed to send QR code")
 					return
 				}
 
 			case "authenticated":
 				// Authentication successful
 				if err := h.sendAuthenticated(conn, event.Data); err != nil {
-					log.Printf("Failed to send authenticated event: %v", err)
+					h.logger.WithError(err).Error("Failed to send authenticated event")
 				}
 				// Update session JID
 				_ = h.sessionUC.UpdateSessionJID(ctx, sessionID, event.Data)

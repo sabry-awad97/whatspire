@@ -52,7 +52,7 @@ func (h *Handler) SendMessage(c *gin.Context) {
 	}
 
 	if err != nil {
-		handleDomainError(c, err)
+		handleDomainError(c, err, h.logger)
 		return
 	}
 
@@ -92,7 +92,7 @@ func (h *Handler) SendReaction(c *gin.Context) {
 
 	reaction, err := h.reactionUC.SendReaction(c.Request.Context(), req)
 	if err != nil {
-		handleDomainError(c, err)
+		handleDomainError(c, err, h.logger)
 		return
 	}
 
@@ -129,7 +129,7 @@ func (h *Handler) RemoveReaction(c *gin.Context) {
 
 	err := h.reactionUC.RemoveReaction(c.Request.Context(), req)
 	if err != nil {
-		handleDomainError(c, err)
+		handleDomainError(c, err, h.logger)
 		return
 	}
 
@@ -157,7 +157,7 @@ func (h *Handler) SendReadReceipt(c *gin.Context) {
 
 	err := h.receiptUC.SendReadReceipt(c.Request.Context(), req)
 	if err != nil {
-		handleDomainError(c, err)
+		handleDomainError(c, err, h.logger)
 		return
 	}
 
@@ -186,7 +186,7 @@ func (h *Handler) SendPresence(c *gin.Context) {
 
 	err := h.presenceUC.SendPresence(c.Request.Context(), req)
 	if err != nil {
-		handleDomainError(c, err)
+		handleDomainError(c, err, h.logger)
 		return
 	}
 

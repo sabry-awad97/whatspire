@@ -34,7 +34,7 @@ func (h *Handler) CreateSession(c *gin.Context) {
 	// Create session in local repository for WhatsApp client tracking
 	session, err := h.sessionUC.CreateSessionWithID(c.Request.Context(), sessionID, req.Name)
 	if err != nil {
-		handleDomainError(c, err)
+		handleDomainError(c, err, h.logger)
 		return
 	}
 
@@ -57,7 +57,7 @@ func (h *Handler) RegisterSession(c *gin.Context) {
 	session, err := h.sessionUC.CreateSessionWithID(c.Request.Context(), req.ID, req.Name)
 	if err != nil {
 		// Session might already exist, which is fine
-		handleDomainError(c, err)
+		handleDomainError(c, err, h.logger)
 		return
 	}
 
@@ -77,7 +77,7 @@ func (h *Handler) UnregisterSession(c *gin.Context) {
 	if err := h.sessionUC.DeleteSession(c.Request.Context(), id); err != nil {
 		// Ignore not found errors - session might not exist locally
 		if !errors.IsNotFound(err) {
-			handleDomainError(c, err)
+			handleDomainError(c, err, h.logger)
 			return
 		}
 	}
@@ -110,14 +110,14 @@ func (h *Handler) UpdateSessionStatus(c *gin.Context) {
 	}
 
 	if err := h.sessionUC.UpdateSessionStatus(c.Request.Context(), id, status); err != nil {
-		handleDomainError(c, err)
+		handleDomainError(c, err, h.logger)
 		return
 	}
 
 	// Update JID if provided
 	if req.JID != "" {
 		if err := h.sessionUC.UpdateSessionJID(c.Request.Context(), id, req.JID); err != nil {
-			handleDomainError(c, err)
+			handleDomainError(c, err, h.logger)
 			return
 		}
 	}
@@ -142,7 +142,7 @@ func (h *Handler) ReconnectSession(c *gin.Context) {
 	_ = c.ShouldBindJSON(&req)
 
 	if err := h.sessionUC.ReconnectSessionWithJID(c.Request.Context(), id, req.JID); err != nil {
-		handleDomainError(c, err)
+		handleDomainError(c, err, h.logger)
 		return
 	}
 
@@ -162,7 +162,7 @@ func (h *Handler) DisconnectSession(c *gin.Context) {
 	}
 
 	if err := h.sessionUC.DisconnectSession(c.Request.Context(), id); err != nil {
-		handleDomainError(c, err)
+		handleDomainError(c, err, h.logger)
 		return
 	}
 
@@ -192,7 +192,7 @@ func (h *Handler) ConfigureHistorySync(c *gin.Context) {
 	}
 
 	if err := h.sessionUC.ConfigureHistorySync(c.Request.Context(), id, req.Enabled, req.FullSync, req.Since); err != nil {
-		handleDomainError(c, err)
+		handleDomainError(c, err, h.logger)
 		return
 	}
 
@@ -207,7 +207,7 @@ func (h *Handler) ConfigureHistorySync(c *gin.Context) {
 func (h *Handler) ListSessions(c *gin.Context) {
 	sessions, err := h.sessionUC.ListSessions(c.Request.Context())
 	if err != nil {
-		handleDomainError(c, err)
+		handleDomainError(c, err, h.logger)
 		return
 	}
 
@@ -240,7 +240,7 @@ func (h *Handler) GetSession(c *gin.Context) {
 
 	session, err := h.sessionUC.GetSession(c.Request.Context(), id)
 	if err != nil {
-		handleDomainError(c, err)
+		handleDomainError(c, err, h.logger)
 		return
 	}
 
@@ -265,7 +265,7 @@ func (h *Handler) DeleteSession(c *gin.Context) {
 
 	// Disconnect and cleanup WhatsApp client resources
 	if err := h.sessionUC.DeleteSession(c.Request.Context(), id); err != nil {
-		handleDomainError(c, err)
+		handleDomainError(c, err, h.logger)
 		return
 	}
 

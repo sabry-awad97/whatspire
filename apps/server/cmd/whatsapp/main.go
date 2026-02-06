@@ -3,7 +3,6 @@ package main
 import (
 	"context"
 	"fmt"
-	"log"
 	"net/http"
 	"os"
 	"os/signal"
@@ -12,6 +11,7 @@ import (
 
 	"whatspire/internal/app"
 	"whatspire/internal/infrastructure/config"
+	"whatspire/internal/infrastructure/logger"
 	"whatspire/internal/presentation/ws"
 
 	"github.com/gin-gonic/gin"
@@ -22,7 +22,14 @@ import (
 const Version = "2.0.0"
 
 func main() {
-	log.Printf("🚀 Starting Whatspire WhatsApp Service v%s", Version)
+	// Create logger for main
+	log := logger.New(config.LogConfig{
+		Level:  "info",
+		Format: "text",
+	})
+
+	log.Infof("🚀 Starting Whatspire WhatsApp Service v%s", Version)
+
 	// Set up signal handling for graceful shutdown
 	sigChan := make(chan os.Signal, 1)
 	signal.Notify(sigChan, os.Interrupt, syscall.SIGTERM, syscall.SIGINT)
@@ -51,7 +58,7 @@ func main() {
 
 	// Wait for shutdown signal
 	sig := <-sigChan
-	log.Printf("🛑 Received signal: %v - initiating graceful shutdown...", sig)
+	log.Infof("🛑 Received signal: %v - initiating graceful shutdown...", sig)
 
 	// Stop the application gracefully
 	stopCtx, stopCancel := context.WithTimeout(context.Background(), 40*time.Second)
@@ -61,7 +68,7 @@ func main() {
 		log.Fatalf("❌ Failed to stop application gracefully: %v", err)
 	}
 
-	log.Println("✅ Application stopped gracefully")
+	log.Info("✅ Application stopped gracefully")
 }
 
 // startServer starts the HTTP server with graceful shutdown
@@ -71,6 +78,7 @@ func startServer(
 	qrHandler *ws.QRHandler,
 	eventHandler *ws.EventHandler,
 	cfg *config.Config,
+	log *logger.Logger,
 ) {
 	// Register QR WebSocket routes on the router
 	qrHandler.RegisterRoutes(router)
@@ -89,32 +97,32 @@ func startServer(
 
 	lc.Append(fx.Hook{
 		OnStart: func(ctx context.Context) error {
-			log.Printf("🚀 WhatsApp service starting on %s", cfg.Server.Address())
-			log.Printf("📁 Whatsmeow database: %s", cfg.WhatsApp.DBPath)
-			log.Printf("🔌 WebSocket API URL: %s", cfg.WebSocket.URL)
+			log.Infof("🚀 WhatsApp service starting on %s", cfg.Server.Address())
+			log.Infof("📁 Whatsmeow database: %s", cfg.WhatsApp.DBPath)
+			log.Infof("🔌 WebSocket API URL: %s", cfg.WebSocket.URL)
 
 			// Start server in a goroutine
 			go func() {
 				if err := srv.ListenAndServe(); err != nil && err != http.ErrServerClosed {
-					log.Printf("❌ Server error: %v", err)
+					log.Errorf("❌ Server error: %v", err)
 				}
 			}()
 
 			return nil
 		},
 		OnStop: func(ctx context.Context) error {
-			log.Println("🛑 Shutting down HTTP server...")
+			log.Info("🛑 Shutting down HTTP server...")
 
 			// Create a deadline for graceful shutdown
 			shutdownCtx, cancel := context.WithTimeout(ctx, 30*time.Second)
 			defer cancel()
 
 			if err := srv.Shutdown(shutdownCtx); err != nil {
-				log.Printf("⚠️  HTTP server shutdown error: %v", err)
+				log.Warnf("⚠️  HTTP server shutdown error: %v", err)
 				return fmt.Errorf("server shutdown error: %w", err)
 			}
 
-			log.Println("✅ HTTP server stopped gracefully")
+			log.Info("✅ HTTP server stopped gracefully")
 			return nil
 		},
 	})

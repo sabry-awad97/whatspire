@@ -6,6 +6,7 @@ import (
 	"whatspire/internal/application/usecase"
 	"whatspire/internal/domain/repository"
 	"whatspire/internal/infrastructure/config"
+	"whatspire/internal/infrastructure/logger"
 	"whatspire/internal/infrastructure/ratelimit"
 	infraWs "whatspire/internal/infrastructure/websocket"
 	"whatspire/internal/presentation/http"
@@ -25,7 +26,7 @@ var Module = fx.Module("presentation",
 	),
 )
 
-// NewHTTPHandler creates a new HTTP handler with health use case
+// NewHTTPHandler creates a new HTTP handler with all use cases using builder pattern
 func NewHTTPHandler(
 	sessionUC *usecase.SessionUseCase,
 	messageUC *usecase.MessageUseCase,
@@ -37,8 +38,20 @@ func NewHTTPHandler(
 	contactUC *usecase.ContactUseCase,
 	eventUC *usecase.EventUseCase,
 	apikeyUC *usecase.APIKeyUseCase,
+	log *logger.Logger,
 ) *http.Handler {
-	return http.NewHandler(sessionUC, messageUC, healthUC, groupsUC, reactionUC, receiptUC, presenceUC, contactUC, eventUC, apikeyUC)
+	return http.NewHandlerBuilder(log).
+		WithSessionUseCase(sessionUC).
+		WithMessageUseCase(messageUC).
+		WithHealthUseCase(healthUC).
+		WithGroupsUseCase(groupsUC).
+		WithReactionUseCase(reactionUC).
+		WithReceiptUseCase(receiptUC).
+		WithPresenceUseCase(presenceUC).
+		WithContactUseCase(contactUC).
+		WithEventUseCase(eventUC).
+		WithAPIKeyUseCase(apikeyUC).
+		Build()
 }
 
 // NewRouter creates a new Gin router with all routes configured
@@ -47,6 +60,7 @@ func NewRouter(
 	cfg *config.Config,
 	auditLogger repository.AuditLogger,
 	apiKeyRepo repository.APIKeyRepository,
+	log *logger.Logger,
 ) *gin.Engine {
 	// Create rate limiter if enabled
 	var rateLimiter *ratelimit.Limiter
@@ -71,13 +85,14 @@ func NewRouter(
 		APIKeyConfig:         &cfg.APIKey,
 		APIKeyRepository:     apiKeyRepo,
 		AuditLogger:          auditLogger,
+		Logger:               log,
 	}
 
 	return http.NewRouter(handler, routerConfig)
 }
 
 // NewQRHandler creates a new QR WebSocket handler
-func NewQRHandler(sessionUC *usecase.SessionUseCase, cfg *config.Config) *ws.QRHandler {
+func NewQRHandler(sessionUC *usecase.SessionUseCase, cfg *config.Config, log *logger.Logger) *ws.QRHandler {
 	qrConfig := ws.QRHandlerConfig{
 		AuthTimeout:    cfg.WhatsApp.QRTimeout,
 		WriteTimeout:   10 * time.Second,
@@ -85,11 +100,11 @@ func NewQRHandler(sessionUC *usecase.SessionUseCase, cfg *config.Config) *ws.QRH
 		AllowedOrigins: cfg.CORS.AllowedOrigins,
 	}
 
-	return ws.NewQRHandler(sessionUC, qrConfig)
+	return ws.NewQRHandler(sessionUC, qrConfig, log)
 }
 
 // NewEventHandler creates a new Event WebSocket handler
-func NewEventHandler(hub *infraWs.EventHub, cfg *config.Config) *ws.EventHandler {
+func NewEventHandler(hub *infraWs.EventHub, cfg *config.Config, log *logger.Logger) *ws.EventHandler {
 	eventConfig := ws.EventHandlerConfig{
 		PingInterval:   cfg.WebSocket.PingInterval,
 		WriteTimeout:   cfg.WebSocket.PongTimeout,
@@ -97,5 +112,5 @@ func NewEventHandler(hub *infraWs.EventHub, cfg *config.Config) *ws.EventHandler
 		AllowedOrigins: cfg.CORS.AllowedOrigins,
 	}
 
-	return ws.NewEventHandler(hub, eventConfig)
+	return ws.NewEventHandler(hub, eventConfig, log)
 }

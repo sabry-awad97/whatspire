@@ -15,7 +15,7 @@ import (
 	"whatspire/internal/domain/repository"
 	"whatspire/internal/infrastructure/persistence"
 	"whatspire/internal/infrastructure/persistence/models"
-	httpHandler "whatspire/internal/presentation/http"
+	"whatspire/test/helpers"
 
 	"github.com/gin-gonic/gin"
 	"github.com/stretchr/testify/assert"
@@ -79,11 +79,12 @@ func setupEventReplayTest(t *testing.T) (*gorm.DB, repository.EventRepository, *
 	eventUC := usecase.NewEventUseCase(eventRepo, publisher)
 
 	// Create handler
-	handler := httpHandler.NewHandler(nil, nil, nil, nil, nil, nil, nil, nil, eventUC, nil)
+	handler := helpers.NewTestHandlerBuilder().
+		WithEventUseCase(eventUC).
+		Build()
 
 	// Create router
-	gin.SetMode(gin.TestMode)
-	router := httpHandler.NewRouter(handler, httpHandler.DefaultRouterConfig())
+	router := helpers.CreateTestRouterWithDefaults(handler)
 
 	return db, eventRepo, publisher, router
 }
@@ -386,9 +387,10 @@ func TestEventReplay_PartialFailure(t *testing.T) {
 
 	// Create use case with failing publisher
 	eventUC := usecase.NewEventUseCase(eventRepo, failingPublisher)
-	handler := httpHandler.NewHandler(nil, nil, nil, nil, nil, nil, nil, nil, eventUC, nil)
-	gin.SetMode(gin.TestMode)
-	testRouter := httpHandler.NewRouter(handler, httpHandler.DefaultRouterConfig())
+	handler := helpers.NewTestHandlerBuilder().
+		WithEventUseCase(eventUC).
+		Build()
+	testRouter := helpers.CreateTestRouterWithDefaults(handler)
 
 	// Create test events
 	sessionID := "test-session-fail"

@@ -27,18 +27,18 @@ type WebhookConfig struct {
 type WebhookPublisher struct {
 	config      WebhookConfig
 	httpClient  *http.Client
-	logger      logger.Logger
+	logger      *logger.Logger
 	auditLogger repository.AuditLogger
 }
 
 // NewWebhookPublisher creates a new webhook publisher
-func NewWebhookPublisher(config WebhookConfig, logger logger.Logger, auditLogger repository.AuditLogger) *WebhookPublisher {
+func NewWebhookPublisher(config WebhookConfig, log *logger.Logger, auditLogger repository.AuditLogger) *WebhookPublisher {
 	return &WebhookPublisher{
 		config: config,
 		httpClient: &http.Client{
 			Timeout: 10 * time.Second,
 		},
-		logger:      logger,
+		logger:      log,
 		auditLogger: auditLogger,
 	}
 }
@@ -53,14 +53,14 @@ func (wp *WebhookPublisher) Publish(ctx context.Context, event *entity.Event) er
 	// Serialize event to JSON
 	payload, err := json.Marshal(event)
 	if err != nil {
-		wp.logger.Error("Failed to marshal event", logger.Err(err), logger.String("event_type", string(event.Type)))
+		wp.logger.WithError(err).WithStr("event_type", string(event.Type)).Error("Failed to marshal event")
 		return fmt.Errorf("failed to marshal event: %w", err)
 	}
 
 	// Create HTTP request
 	req, err := http.NewRequestWithContext(ctx, http.MethodPost, wp.config.URL, bytes.NewReader(payload))
 	if err != nil {
-		wp.logger.Error("Failed to create webhook request", logger.Err(err), logger.String("url", wp.config.URL))
+		wp.logger.WithError(err).WithStr("url", wp.config.URL).Error("Failed to create webhook request")
 		return fmt.Errorf("failed to create request: %w", err)
 	}
 
@@ -128,10 +128,10 @@ func (wp *WebhookPublisher) sendWithRetry(ctx context.Context, req *http.Request
 		// Success case
 		if err == nil && resp.StatusCode >= 200 && resp.StatusCode < 300 {
 			resp.Body.Close()
-			wp.logger.Info("Webhook delivered successfully",
-				logger.String("url", wp.config.URL),
-				logger.Int("status_code", resp.StatusCode),
-				logger.Int("attempt", attempt+1))
+			wp.logger.WithStr("url", wp.config.URL).
+				WithInt("status_code", resp.StatusCode).
+				WithInt("attempt", attempt+1).
+				Info("Webhook delivered successfully")
 
 			// Log successful webhook delivery
 			if wp.auditLogger != nil {
@@ -151,10 +151,10 @@ func (wp *WebhookPublisher) sendWithRetry(ctx context.Context, req *http.Request
 		// Non-retryable error (4xx status codes)
 		if err == nil && resp.StatusCode >= 400 && resp.StatusCode < 500 {
 			resp.Body.Close()
-			wp.logger.Warn("Webhook delivery failed with client error (no retry)",
-				logger.String("url", wp.config.URL),
-				logger.Int("status_code", resp.StatusCode),
-				logger.Int("attempt", attempt+1))
+			wp.logger.WithStr("url", wp.config.URL).
+				WithInt("status_code", resp.StatusCode).
+				WithInt("attempt", attempt+1).
+				Warn("Webhook delivery failed with client error (no retry)")
 
 			// Log failed webhook delivery
 			if wp.auditLogger != nil {
@@ -181,16 +181,15 @@ func (wp *WebhookPublisher) sendWithRetry(ctx context.Context, req *http.Request
 
 		// Log retry attempt
 		if attempt < maxAttempts-1 {
-			fields := []logger.Field{
-				logger.String("url", wp.config.URL),
-				logger.Int("status_code", lastStatusCode),
-				logger.Int("attempt", attempt+1),
-				logger.Duration("retry_after", backoff[attempt].Seconds()*1000),
-			}
+			l := wp.logger.WithStr("url", wp.config.URL).
+				WithInt("status_code", lastStatusCode).
+				WithInt("attempt", attempt+1)
+
 			if lastErr != nil {
-				fields = append(fields, logger.Err(lastErr))
+				l = l.WithError(lastErr)
 			}
-			wp.logger.Warn("Webhook delivery failed, retrying", fields...)
+
+			l.Warnf("Webhook delivery failed, retrying after %v", backoff[attempt])
 
 			// Wait before retry
 			select {
@@ -203,15 +202,15 @@ func (wp *WebhookPublisher) sendWithRetry(ctx context.Context, req *http.Request
 	}
 
 	// All retries exhausted
-	fields := []logger.Field{
-		logger.String("url", wp.config.URL),
-		logger.Int("status_code", lastStatusCode),
-		logger.Int("attempts", maxAttempts),
-	}
+	l := wp.logger.WithStr("url", wp.config.URL).
+		WithInt("status_code", lastStatusCode).
+		WithInt("attempts", maxAttempts)
+
 	if lastErr != nil {
-		fields = append(fields, logger.Err(lastErr))
+		l = l.WithError(lastErr)
 	}
-	wp.logger.Error("Webhook delivery failed after all retries", fields...)
+
+	l.Error("Webhook delivery failed after all retries")
 
 	// Log failed webhook delivery after all retries
 	if wp.auditLogger != nil {

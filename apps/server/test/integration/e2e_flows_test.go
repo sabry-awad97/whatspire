@@ -1,15 +1,13 @@
 package integration
 
 import (
-	"context"
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
 
 	"whatspire/internal/application/usecase"
 	"whatspire/internal/domain/entity"
-	"whatspire/internal/infrastructure/logger"
-	httpHandler "whatspire/internal/presentation/http"
+	"whatspire/test/helpers"
 
 	"github.com/gin-gonic/gin"
 )
@@ -29,18 +27,6 @@ const (
 	testEventID   = "660e8400-e29b-41d4-a716-446655440001"
 )
 
-// noOpLogger is a no-op logger for testing
-type noOpLogger struct{}
-
-func (l *noOpLogger) Info(msg string, fields ...logger.Field)         {}
-func (l *noOpLogger) Warn(msg string, fields ...logger.Field)         {}
-func (l *noOpLogger) Error(msg string, fields ...logger.Field)        {}
-func (l *noOpLogger) Debug(msg string, fields ...logger.Field)        {}
-func (l *noOpLogger) WithContext(ctx context.Context) logger.Logger   { return l }
-func (l *noOpLogger) WithFields(fields ...logger.Field) logger.Logger { return l }
-func (l *noOpLogger) WithRequestID(requestID string) logger.Logger    { return l }
-func (l *noOpLogger) WithSessionID(sessionID string) logger.Logger    { return l }
-
 // setupE2ERouter creates a router with all use cases configured
 func setupE2ERouter(
 	sessionUC *usecase.SessionUseCase,
@@ -50,20 +36,15 @@ func setupE2ERouter(
 	presenceUC *usecase.PresenceUseCase,
 	contactUC *usecase.ContactUseCase,
 ) *gin.Engine {
-	gin.SetMode(gin.TestMode)
-	handler := httpHandler.NewHandler(
-		sessionUC,
-		messageUC,
-		nil, // healthUC
-		nil, // groupsUC
-		reactionUC,
-		receiptUC,
-		presenceUC,
-		contactUC,
-		nil, // eventUC
-		nil, // apikeyUC
-	)
-	return httpHandler.NewRouter(handler, httpHandler.DefaultRouterConfig())
+	handler := helpers.NewTestHandlerBuilder().
+		WithSessionUseCase(sessionUC).
+		WithMessageUseCase(messageUC).
+		WithReactionUseCase(reactionUC).
+		WithReceiptUseCase(receiptUC).
+		WithPresenceUseCase(presenceUC).
+		WithContactUseCase(contactUC).
+		Build()
+	return helpers.CreateTestRouterWithDefaults(handler)
 }
 
 // mockWebhookServer creates a test HTTP server that captures webhook deliveries

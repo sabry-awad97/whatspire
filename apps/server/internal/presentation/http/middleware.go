@@ -7,7 +7,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
-	"log"
 	"net/http"
 	"strconv"
 	"strings"
@@ -16,6 +15,7 @@ import (
 	"whatspire/internal/application/dto"
 	"whatspire/internal/domain/repository"
 	"whatspire/internal/infrastructure/config"
+	"whatspire/internal/infrastructure/logger"
 	"whatspire/internal/infrastructure/metrics"
 	"whatspire/internal/infrastructure/ratelimit"
 
@@ -40,7 +40,7 @@ func RequestIDMiddleware() gin.HandlerFunc {
 }
 
 // LoggingMiddleware logs request and response information
-func LoggingMiddleware() gin.HandlerFunc {
+func LoggingMiddleware(log *logger.Logger) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		start := time.Now()
 		path := c.Request.URL.Path
@@ -56,30 +56,31 @@ func LoggingMiddleware() gin.HandlerFunc {
 		latency := time.Since(start)
 
 		// Log request details
-		log.Printf(
-			"[%s] %s %s %s | %d | %v | %s",
-			requestID,
-			c.Request.Method,
-			path,
-			query,
-			c.Writer.Status(),
-			latency,
-			c.ClientIP(),
-		)
+		log.WithStr("request_id", requestID.(string)).
+			WithStr("method", c.Request.Method).
+			WithStr("path", path).
+			WithStr("query", query).
+			WithInt("status", c.Writer.Status()).
+			WithStr("latency", latency.String()).
+			WithStr("client_ip", c.ClientIP()).
+			Info("HTTP request")
 	}
 }
 
 // ErrorHandlerMiddleware handles panics and converts them to error responses
-func ErrorHandlerMiddleware() gin.HandlerFunc {
+func ErrorHandlerMiddleware(log *logger.Logger) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		defer func() {
 			if err := recover(); err != nil {
 				// Get request ID for correlation
 				requestID, _ := c.Get(RequestIDKey)
 
-				// Log full panic details with stack trace
-				log.Printf("[PANIC] [%v] Panic recovered: %v", requestID, err)
-				log.Printf("[PANIC] [%v] Request: %s %s", requestID, c.Request.Method, c.Request.URL.Path)
+				// Log full panic details
+				log.WithStr("request_id", requestID.(string)).
+					WithStr("method", c.Request.Method).
+					WithStr("path", c.Request.URL.Path).
+					WithFields(map[string]any{"panic": err}).
+					Error("Panic recovered")
 
 				// Return generic error to client
 				c.JSON(500, dto.NewErrorResponse[interface{}](
@@ -213,7 +214,7 @@ func ContentTypeMiddleware() gin.HandlerFunc {
 }
 
 // RequestBodyLoggerMiddleware logs request bodies for debugging (use with caution in production)
-func RequestBodyLoggerMiddleware() gin.HandlerFunc {
+func RequestBodyLoggerMiddleware(log *logger.Logger) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		// Only log for POST/PUT/PATCH requests
 		if c.Request.Method == "POST" || c.Request.Method == "PUT" || c.Request.Method == "PATCH" {
@@ -231,7 +232,7 @@ func RequestBodyLoggerMiddleware() gin.HandlerFunc {
 			if len(body) > 0 {
 				var prettyJSON bytes.Buffer
 				if json.Indent(&prettyJSON, body, "", "  ") == nil {
-					log.Printf("Request body: %s", prettyJSON.String())
+					log.Debug(prettyJSON.String())
 				}
 			}
 		}

@@ -13,6 +13,7 @@ import (
 	"whatspire/internal/application/usecase"
 	"whatspire/internal/domain/entity"
 	"whatspire/internal/infrastructure/webhook"
+	"whatspire/test/helpers"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -43,7 +44,7 @@ func TestE2E_MessageReception_ProcessingAndWebhookDelivery(t *testing.T) {
 		Secret: "test-secret",
 		Events: []string{"message.received"},
 	}
-	testLogger := &noOpLogger{}
+	testLogger := helpers.CreateTestLogger()
 	webhookPublisher := webhook.NewWebhookPublisher(webhookConfig, testLogger, nil)
 
 	// Simulate incoming message event

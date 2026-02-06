@@ -41,8 +41,10 @@ func TestAPIKeyRevocation_RevokedKeyRejected(t *testing.T) {
 	routerConfig.APIKeyRepository = apiKeyRepo
 	routerConfig.AuditLogger = &MockAuditLogger{}
 
-	handler := httpHandler.NewHandler(sessionUC, nil, nil, nil, nil, nil, nil, nil, nil, nil)
-	router := httpHandler.NewRouter(handler, routerConfig)
+	handler := helpers.NewTestHandlerBuilder().
+		WithSessionUseCase(sessionUC).
+		Build()
+	router := helpers.CreateTestRouter(handler, routerConfig)
 
 	// Try to use revoked key
 	req := httptest.NewRequest(http.MethodGet, "/api/sessions", nil)
@@ -83,8 +85,10 @@ func TestAPIKeyRevocation_ActiveKeyAccepted(t *testing.T) {
 	routerConfig.APIKeyRepository = apiKeyRepo
 	routerConfig.AuditLogger = &MockAuditLogger{}
 
-	handler := httpHandler.NewHandler(sessionUC, nil, nil, nil, nil, nil, nil, nil, nil, nil)
-	router := httpHandler.NewRouter(handler, routerConfig)
+	handler := helpers.NewTestHandlerBuilder().
+		WithSessionUseCase(sessionUC).
+		Build()
+	router := helpers.CreateTestRouter(handler, routerConfig)
 
 	// Use active key
 	req := httptest.NewRequest(http.MethodGet, "/api/sessions", nil)
@@ -117,8 +121,10 @@ func TestAPIKeyRevocation_RevokedKeyWithBearerToken(t *testing.T) {
 	routerConfig.APIKeyRepository = apiKeyRepo
 	routerConfig.AuditLogger = &MockAuditLogger{}
 
-	handler := httpHandler.NewHandler(sessionUC, nil, nil, nil, nil, nil, nil, nil, nil, nil)
-	router := httpHandler.NewRouter(handler, routerConfig)
+	handler := helpers.NewTestHandlerBuilder().
+		WithSessionUseCase(sessionUC).
+		Build()
+	router := helpers.CreateTestRouter(handler, routerConfig)
 
 	// Try to use revoked key with Bearer token format
 	req := httptest.NewRequest(http.MethodGet, "/api/sessions", nil)
@@ -158,8 +164,10 @@ func TestAPIKeyRevocation_InactiveKeyRejected(t *testing.T) {
 	routerConfig.APIKeyRepository = apiKeyRepo
 	routerConfig.AuditLogger = &MockAuditLogger{}
 
-	handler := httpHandler.NewHandler(sessionUC, nil, nil, nil, nil, nil, nil, nil, nil, nil)
-	router := httpHandler.NewRouter(handler, routerConfig)
+	handler := helpers.NewTestHandlerBuilder().
+		WithSessionUseCase(sessionUC).
+		Build()
+	router := helpers.CreateTestRouter(handler, routerConfig)
 
 	// Try to use inactive key
 	req := httptest.NewRequest(http.MethodGet, "/api/sessions", nil)
@@ -204,8 +212,10 @@ func TestAPIKeyRevocation_MultipleRevokedKeys(t *testing.T) {
 	routerConfig.APIKeyRepository = apiKeyRepo
 	routerConfig.AuditLogger = &MockAuditLogger{}
 
-	handler := httpHandler.NewHandler(sessionUC, nil, nil, nil, nil, nil, nil, nil, nil, nil)
-	router := httpHandler.NewRouter(handler, routerConfig)
+	handler := helpers.NewTestHandlerBuilder().
+		WithSessionUseCase(sessionUC).
+		Build()
+	router := helpers.CreateTestRouter(handler, routerConfig)
 
 	// Try each revoked key
 	for i, testKey := range revokedKeys {
@@ -245,8 +255,10 @@ func TestAPIKeyRevocation_RevokedKeyCannotAccessAnyEndpoint(t *testing.T) {
 	routerConfig.APIKeyRepository = apiKeyRepo
 	routerConfig.AuditLogger = &MockAuditLogger{}
 
-	handler := httpHandler.NewHandler(sessionUC, nil, nil, nil, nil, nil, nil, nil, nil, nil)
-	router := httpHandler.NewRouter(handler, routerConfig)
+	handler := helpers.NewTestHandlerBuilder().
+		WithSessionUseCase(sessionUC).
+		Build()
+	router := helpers.CreateTestRouter(handler, routerConfig)
 
 	// Test multiple endpoints with correct HTTP methods
 	// Format: [method, endpoint]
@@ -304,8 +316,10 @@ func TestAPIKeyRevocation_RevokedKeyWithDifferentRoles(t *testing.T) {
 	routerConfig.APIKeyRepository = apiKeyRepo
 	routerConfig.AuditLogger = &MockAuditLogger{}
 
-	handler := httpHandler.NewHandler(sessionUC, nil, nil, nil, nil, nil, nil, nil, nil, nil)
-	router := httpHandler.NewRouter(handler, routerConfig)
+	handler := helpers.NewTestHandlerBuilder().
+		WithSessionUseCase(sessionUC).
+		Build()
+	router := helpers.CreateTestRouter(handler, routerConfig)
 
 	// Try each revoked key with different role
 	for i, testKey := range revokedKeys {
@@ -346,8 +360,10 @@ func TestAPIKeyRevocation_RevokedKeyDoesNotBypassRoleCheck(t *testing.T) {
 	routerConfig.APIKeyRepository = apiKeyRepo
 	routerConfig.AuditLogger = &MockAuditLogger{}
 
-	handler := httpHandler.NewHandler(sessionUC, nil, nil, nil, nil, nil, nil, nil, nil, nil)
-	router := httpHandler.NewRouter(handler, routerConfig)
+	handler := helpers.NewTestHandlerBuilder().
+		WithSessionUseCase(sessionUC).
+		Build()
+	router := helpers.CreateTestRouter(handler, routerConfig)
 
 	// Try to access endpoint that requires write role with revoked read key
 	req := httptest.NewRequest(http.MethodPost, "/api/messages", nil)
@@ -386,8 +402,10 @@ func TestAPIKeyRevocation_RevokeAndRetry(t *testing.T) {
 	routerConfig.APIKeyRepository = apiKeyRepo
 	routerConfig.AuditLogger = &MockAuditLogger{}
 
-	handler := httpHandler.NewHandler(sessionUC, nil, nil, nil, nil, nil, nil, nil, nil, nil)
-	router := httpHandler.NewRouter(handler, routerConfig)
+	handler := helpers.NewTestHandlerBuilder().
+		WithSessionUseCase(sessionUC).
+		Build()
+	router := helpers.CreateTestRouter(handler, routerConfig)
 
 	// First request should succeed
 	req1 := httptest.NewRequest(http.MethodGet, "/api/sessions", nil)
@@ -434,8 +452,10 @@ func TestAPIKeyRevocation_AuthenticationEnabledByDefault(t *testing.T) {
 	routerConfig.APIKeyRepository = apiKeyRepo
 	routerConfig.AuditLogger = &MockAuditLogger{}
 
-	handler := httpHandler.NewHandler(sessionUC, nil, nil, nil, nil, nil, nil, nil, nil, nil)
-	router := httpHandler.NewRouter(handler, routerConfig)
+	handler := helpers.NewTestHandlerBuilder().
+		WithSessionUseCase(sessionUC).
+		Build()
+	router := helpers.CreateTestRouter(handler, routerConfig)
 
 	// Request without API key should fail
 	req := httptest.NewRequest(http.MethodGet, "/api/sessions", nil)
@@ -467,8 +487,10 @@ func TestAPIKeyRevocation_AuthenticationDisabledAllowsAccess(t *testing.T) {
 	routerConfig.APIKeyRepository = nil
 	routerConfig.AuditLogger = &MockAuditLogger{}
 
-	handler := httpHandler.NewHandler(sessionUC, nil, nil, nil, nil, nil, nil, nil, nil, nil)
-	router := httpHandler.NewRouter(handler, routerConfig)
+	handler := helpers.NewTestHandlerBuilder().
+		WithSessionUseCase(sessionUC).
+		Build()
+	router := helpers.CreateTestRouter(handler, routerConfig)
 
 	// Request without API key should succeed when auth is disabled
 	req := httptest.NewRequest(http.MethodGet, "/api/sessions", nil)
@@ -498,8 +520,10 @@ func TestAPIKeyRevocation_RevokedKeyErrorMessage(t *testing.T) {
 	routerConfig.APIKeyRepository = apiKeyRepo
 	routerConfig.AuditLogger = &MockAuditLogger{}
 
-	handler := httpHandler.NewHandler(sessionUC, nil, nil, nil, nil, nil, nil, nil, nil, nil)
-	router := httpHandler.NewRouter(handler, routerConfig)
+	handler := helpers.NewTestHandlerBuilder().
+		WithSessionUseCase(sessionUC).
+		Build()
+	router := helpers.CreateTestRouter(handler, routerConfig)
 
 	req := httptest.NewRequest(http.MethodGet, "/api/sessions", nil)
 	req.Header.Set("X-API-Key", testKey.PlainText)

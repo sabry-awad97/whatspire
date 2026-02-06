@@ -9,7 +9,8 @@ import (
 
 	"whatspire/internal/application/usecase"
 	"whatspire/internal/domain/repository"
-	httpHandler "whatspire/internal/presentation/http"
+
+	"whatspire/test/helpers"
 
 	"github.com/gin-gonic/gin"
 	"github.com/stretchr/testify/assert"
@@ -51,13 +52,10 @@ func (m *MockHealthChecker) Name() string {
 // ==================== Test Setup ====================
 
 func setupHealthTestRouter(healthUC *usecase.HealthUseCase) *gin.Engine {
-	gin.SetMode(gin.TestMode)
-
-	// Create handler with health use case
-	handler := httpHandler.NewHandler(nil, nil, healthUC, nil, nil, nil, nil, nil, nil, nil)
-
-	// Register routes with health-enabled handler
-	return httpHandler.NewRouter(handler, httpHandler.DefaultRouterConfig())
+	handler := helpers.NewTestHandlerBuilder().
+		WithHealthUseCase(healthUC).
+		Build()
+	return helpers.CreateTestRouterWithDefaults(handler)
 }
 
 // ==================== GET /health Tests ====================
@@ -108,9 +106,8 @@ func TestHealth_WithDetails(t *testing.T) {
 
 func TestHealth_WithoutHealthUseCase(t *testing.T) {
 	// Create router without health use case
-	gin.SetMode(gin.TestMode)
-	handler := httpHandler.NewHandler(nil, nil, nil, nil, nil, nil, nil, nil, nil, nil)
-	router := httpHandler.NewRouter(handler, httpHandler.DefaultRouterConfig())
+	handler := helpers.NewTestHandlerBuilder().Build()
+	router := helpers.CreateTestRouterWithDefaults(handler)
 
 	req := httptest.NewRequest(http.MethodGet, "/health", nil)
 	w := httptest.NewRecorder()
@@ -266,9 +263,8 @@ func TestReady_NoCheckers(t *testing.T) {
 
 func TestReady_WithoutHealthUseCase(t *testing.T) {
 	// Create router without health use case
-	gin.SetMode(gin.TestMode)
-	handler := httpHandler.NewHandler(nil, nil, nil, nil, nil, nil, nil, nil, nil, nil)
-	router := httpHandler.NewRouter(handler, httpHandler.DefaultRouterConfig())
+	handler := helpers.NewTestHandlerBuilder().Build()
+	router := helpers.CreateTestRouterWithDefaults(handler)
 
 	req := httptest.NewRequest(http.MethodGet, "/ready", nil)
 	w := httptest.NewRecorder()

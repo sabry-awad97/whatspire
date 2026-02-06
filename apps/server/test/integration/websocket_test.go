@@ -12,6 +12,7 @@ import (
 	"whatspire/internal/domain/entity"
 	"whatspire/internal/domain/repository"
 	"whatspire/internal/presentation/ws"
+	"whatspire/test/helpers"
 
 	"github.com/gin-gonic/gin"
 	"github.com/gorilla/websocket"
@@ -25,7 +26,8 @@ func setupWebSocketTestRouter(sessionUC *usecase.SessionUseCase, config ws.QRHan
 	gin.SetMode(gin.TestMode)
 	router := gin.New()
 
-	qrHandler := ws.NewQRHandler(sessionUC, config)
+	log := helpers.CreateTestLogger()
+	qrHandler := ws.NewQRHandler(sessionUC, config, log)
 	qrHandler.RegisterRoutes(router)
 
 	return router, qrHandler

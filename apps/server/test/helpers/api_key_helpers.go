@@ -197,7 +197,7 @@ func (m *MockAPIKeyRepository) List(ctx context.Context, limit, offset int, role
 	if offset >= len(result) {
 		return []*entity.APIKey{}, nil
 	}
-	end := min(offset + limit, len(result))
+	end := min(offset+limit, len(result))
 	return result[offset:end], nil
 }
 

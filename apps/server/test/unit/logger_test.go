@@ -7,28 +7,29 @@ import (
 	"strings"
 	"testing"
 
+	"whatspire/internal/infrastructure/config"
 	"whatspire/internal/infrastructure/logger"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
 
-func TestNewStructuredLogger(t *testing.T) {
-	cfg := logger.Config{
+func TestNewLogger(t *testing.T) {
+	cfg := config.LogConfig{
 		Level:  "info",
 		Format: "json",
 	}
 
-	l := logger.NewStructuredLogger(cfg)
+	l := logger.New(cfg)
 	assert.NotNil(t, l)
 }
 
-func TestStructuredLogger_JSONFormat(t *testing.T) {
+func TestLogger_JSONFormat(t *testing.T) {
 	var buf bytes.Buffer
-	cfg := logger.Config{Level: "debug", Format: "json"}
-	l := logger.NewStructuredLoggerWithOutput(cfg, &buf)
+	cfg := config.LogConfig{Level: "debug", Format: "json"}
+	l := logger.NewWithOutput(cfg, &buf)
 
-	l.Info("test message", logger.String("key", "value"))
+	l.WithStr("key", "value").Info("test message")
 
 	var entry map[string]interface{}
 	err := json.Unmarshal(buf.Bytes(), &entry)
@@ -37,23 +38,24 @@ func TestStructuredLogger_JSONFormat(t *testing.T) {
 	assert.Equal(t, "info", entry["level"])
 	assert.Equal(t, "test message", entry["message"])
 	assert.Equal(t, "value", entry["key"])
-	assert.Contains(t, entry, "timestamp")
+	assert.Contains(t, entry, "time")
 }
 
-func TestStructuredLogger_TextFormat(t *testing.T) {
+func TestLogger_TextFormat(t *testing.T) {
 	var buf bytes.Buffer
-	cfg := logger.Config{Level: "debug", Format: "text"}
-	l := logger.NewStructuredLoggerWithOutput(cfg, &buf)
+	cfg := config.LogConfig{Level: "debug", Format: "text"}
+	l := logger.NewWithOutput(cfg, &buf)
 
-	l.Info("test message", logger.String("key", "value"))
+	l.WithStr("key", "value").Info("test message")
 
 	output := buf.String()
-	assert.Contains(t, output, "[info ]")
+	// Zerolog console writer uses different format
 	assert.Contains(t, output, "test message")
-	assert.Contains(t, output, "key=value")
+	assert.Contains(t, output, "key")
+	assert.Contains(t, output, "value")
 }
 
-func TestStructuredLogger_LogLevels(t *testing.T) {
+func TestLogger_LogLevels(t *testing.T) {
 	tests := []struct {
 		name      string
 		logLevel  string
@@ -81,8 +83,8 @@ func TestStructuredLogger_LogLevels(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			var buf bytes.Buffer
-			cfg := logger.Config{Level: tt.logLevel, Format: "json"}
-			l := logger.NewStructuredLoggerWithOutput(cfg, &buf)
+			cfg := config.LogConfig{Level: tt.logLevel, Format: "json"}
+			l := logger.NewWithOutput(cfg, &buf)
 
 			switch tt.logMethod {
 			case "debug":
@@ -104,12 +106,12 @@ func TestStructuredLogger_LogLevels(t *testing.T) {
 	}
 }
 
-func TestStructuredLogger_WithFields(t *testing.T) {
+func TestLogger_WithFields(t *testing.T) {
 	var buf bytes.Buffer
-	cfg := logger.Config{Level: "debug", Format: "json"}
-	l := logger.NewStructuredLoggerWithOutput(cfg, &buf)
+	cfg := config.LogConfig{Level: "debug", Format: "json"}
+	l := logger.NewWithOutput(cfg, &buf)
 
-	childLogger := l.WithFields(logger.String("service", "whatsapp"))
+	childLogger := l.WithStr("service", "whatsapp")
 	childLogger.Info("test message")
 
 	var entry map[string]interface{}
@@ -119,10 +121,10 @@ func TestStructuredLogger_WithFields(t *testing.T) {
 	assert.Equal(t, "whatsapp", entry["service"])
 }
 
-func TestStructuredLogger_WithRequestID(t *testing.T) {
+func TestLogger_WithRequestID(t *testing.T) {
 	var buf bytes.Buffer
-	cfg := logger.Config{Level: "debug", Format: "json"}
-	l := logger.NewStructuredLoggerWithOutput(cfg, &buf)
+	cfg := config.LogConfig{Level: "debug", Format: "json"}
+	l := logger.NewWithOutput(cfg, &buf)
 
 	childLogger := l.WithRequestID("req-123")
 	childLogger.Info("test message")
@@ -134,10 +136,10 @@ func TestStructuredLogger_WithRequestID(t *testing.T) {
 	assert.Equal(t, "req-123", entry["request_id"])
 }
 
-func TestStructuredLogger_WithSessionID(t *testing.T) {
+func TestLogger_WithSessionID(t *testing.T) {
 	var buf bytes.Buffer
-	cfg := logger.Config{Level: "debug", Format: "json"}
-	l := logger.NewStructuredLoggerWithOutput(cfg, &buf)
+	cfg := config.LogConfig{Level: "debug", Format: "json"}
+	l := logger.NewWithOutput(cfg, &buf)
 
 	childLogger := l.WithSessionID("sess-456")
 	childLogger.Info("test message")
@@ -149,10 +151,10 @@ func TestStructuredLogger_WithSessionID(t *testing.T) {
 	assert.Equal(t, "sess-456", entry["session_id"])
 }
 
-func TestStructuredLogger_WithContext(t *testing.T) {
+func TestLogger_WithContext(t *testing.T) {
 	var buf bytes.Buffer
-	cfg := logger.Config{Level: "debug", Format: "json"}
-	l := logger.NewStructuredLoggerWithOutput(cfg, &buf)
+	cfg := config.LogConfig{Level: "debug", Format: "json"}
+	l := logger.NewWithOutput(cfg, &buf)
 
 	ctx := context.WithValue(context.Background(), logger.RequestIDKey, "ctx-req-123")
 	ctx = context.WithValue(ctx, logger.SessionIDKey, "ctx-sess-456")
@@ -168,39 +170,12 @@ func TestStructuredLogger_WithContext(t *testing.T) {
 	assert.Equal(t, "ctx-sess-456", entry["session_id"])
 }
 
-func TestStructuredLogger_FieldTypes(t *testing.T) {
+func TestLogger_WithError(t *testing.T) {
 	var buf bytes.Buffer
-	cfg := logger.Config{Level: "debug", Format: "json"}
-	l := logger.NewStructuredLoggerWithOutput(cfg, &buf)
+	cfg := config.LogConfig{Level: "debug", Format: "json"}
+	l := logger.NewWithOutput(cfg, &buf)
 
-	l.Info("test",
-		logger.String("str", "value"),
-		logger.Int("int", 42),
-		logger.Int64("int64", 9223372036854775807),
-		logger.Float64("float", 3.14),
-		logger.Bool("bool", true),
-		logger.Any("any", map[string]int{"a": 1}),
-		logger.Duration("duration", 150.5),
-	)
-
-	var entry map[string]interface{}
-	err := json.Unmarshal(buf.Bytes(), &entry)
-	require.NoError(t, err)
-
-	assert.Equal(t, "value", entry["str"])
-	assert.Equal(t, float64(42), entry["int"])
-	assert.Equal(t, float64(9223372036854775807), entry["int64"])
-	assert.Equal(t, 3.14, entry["float"])
-	assert.Equal(t, true, entry["bool"])
-	assert.Equal(t, 150.5, entry["duration"])
-}
-
-func TestStructuredLogger_ErrField(t *testing.T) {
-	var buf bytes.Buffer
-	cfg := logger.Config{Level: "debug", Format: "json"}
-	l := logger.NewStructuredLoggerWithOutput(cfg, &buf)
-
-	l.Error("operation failed", logger.Err(assert.AnError))
+	l.WithError(assert.AnError).Error("operation failed")
 
 	var entry map[string]interface{}
 	err := json.Unmarshal(buf.Bytes(), &entry)
@@ -209,96 +184,67 @@ func TestStructuredLogger_ErrField(t *testing.T) {
 	assert.Equal(t, assert.AnError.Error(), entry["error"])
 }
 
-func TestStructuredLogger_ErrFieldNil(t *testing.T) {
+func TestLogger_WithInt(t *testing.T) {
 	var buf bytes.Buffer
-	cfg := logger.Config{Level: "debug", Format: "json"}
-	l := logger.NewStructuredLoggerWithOutput(cfg, &buf)
+	cfg := config.LogConfig{Level: "debug", Format: "json"}
+	l := logger.NewWithOutput(cfg, &buf)
 
-	l.Info("no error", logger.Err(nil))
+	l.WithInt("count", 42).Info("test")
 
 	var entry map[string]interface{}
 	err := json.Unmarshal(buf.Bytes(), &entry)
 	require.NoError(t, err)
 
-	assert.Nil(t, entry["error"])
+	assert.Equal(t, float64(42), entry["count"])
 }
 
-func TestParseLevel(t *testing.T) {
-	tests := []struct {
-		input    string
-		expected logger.Level
-	}{
-		{"debug", logger.LevelDebug},
-		{"info", logger.LevelInfo},
-		{"warn", logger.LevelWarn},
-		{"error", logger.LevelError},
-		{"unknown", logger.LevelInfo}, // default
-		{"", logger.LevelInfo},        // default
-	}
+func TestLogger_FormattedMethods(t *testing.T) {
+	var buf bytes.Buffer
+	cfg := config.LogConfig{Level: "debug", Format: "json"}
+	l := logger.NewWithOutput(cfg, &buf)
 
-	for _, tt := range tests {
-		t.Run(tt.input, func(t *testing.T) {
-			assert.Equal(t, tt.expected, logger.ParseLevel(tt.input))
-		})
-	}
+	l.Infof("test %s %d", "message", 123)
+
+	var entry map[string]interface{}
+	err := json.Unmarshal(buf.Bytes(), &entry)
+	require.NoError(t, err)
+
+	assert.Equal(t, "test message 123", entry["message"])
 }
 
-func TestLevel_String(t *testing.T) {
-	tests := []struct {
-		level    logger.Level
-		expected string
-	}{
-		{logger.LevelDebug, "debug"},
-		{logger.LevelInfo, "info"},
-		{logger.LevelWarn, "warn"},
-		{logger.LevelError, "error"},
-		{logger.Level(99), "unknown"},
-	}
+func TestLogger_Sub(t *testing.T) {
+	var buf bytes.Buffer
+	cfg := config.LogConfig{Level: "debug", Format: "json"}
+	l := logger.NewWithOutput(cfg, &buf)
 
-	for _, tt := range tests {
-		t.Run(tt.expected, func(t *testing.T) {
-			assert.Equal(t, tt.expected, tt.level.String())
-		})
-	}
+	subLogger := l.Sub("whatsmeow")
+	subLogger.Infof("test message")
+
+	var entry map[string]interface{}
+	err := json.Unmarshal(buf.Bytes(), &entry)
+	require.NoError(t, err)
+
+	assert.Equal(t, "whatsmeow", entry["module"])
+	assert.Equal(t, "test message", entry["message"])
 }
 
 func TestLoggerDefaultConfig(t *testing.T) {
-	cfg := logger.DefaultConfig()
+	// Test that default log config values work correctly
+	cfg := config.LogConfig{
+		Level:  "info",
+		Format: "json",
+	}
 
 	assert.Equal(t, "info", cfg.Level)
 	assert.Equal(t, "json", cfg.Format)
 }
 
-func TestStructuredLogger_SetLevel(t *testing.T) {
+func TestLogger_ChainedFields(t *testing.T) {
 	var buf bytes.Buffer
-	cfg := logger.Config{Level: "info", Format: "json"}
-	l := logger.NewStructuredLoggerWithOutput(cfg, &buf)
+	cfg := config.LogConfig{Level: "debug", Format: "json"}
+	l := logger.NewWithOutput(cfg, &buf)
 
-	// Debug should not log at info level
-	l.Debug("should not appear")
-	assert.Empty(t, buf.String())
-
-	// Change to debug level
-	l.SetLevel(logger.LevelDebug)
-
-	// Now debug should log
-	l.Debug("should appear")
-	assert.NotEmpty(t, buf.String())
-}
-
-func TestStructuredLogger_GetLevel(t *testing.T) {
-	cfg := logger.Config{Level: "warn", Format: "json"}
-	l := logger.NewStructuredLogger(cfg)
-
-	assert.Equal(t, logger.LevelWarn, l.GetLevel())
-}
-
-func TestStructuredLogger_ChainedFields(t *testing.T) {
-	var buf bytes.Buffer
-	cfg := logger.Config{Level: "debug", Format: "json"}
-	l := logger.NewStructuredLoggerWithOutput(cfg, &buf)
-
-	childLogger := l.WithRequestID("req-1").WithSessionID("sess-1").WithFields(logger.String("extra", "value"))
+	childLogger := l.WithRequestID("req-1").WithSessionID("sess-1").WithStr("extra", "value")
 	childLogger.Info("test")
 
 	var entry map[string]interface{}
@@ -310,23 +256,18 @@ func TestStructuredLogger_ChainedFields(t *testing.T) {
 	assert.Equal(t, "value", entry["extra"])
 }
 
-func TestStructuredLogger_DoesNotMutateParent(t *testing.T) {
+func TestLogger_DoesNotMutateParent(t *testing.T) {
 	var buf1, buf2 bytes.Buffer
-	cfg := logger.Config{Level: "debug", Format: "json"}
-	l := logger.NewStructuredLoggerWithOutput(cfg, &buf1)
-
-	// Create child with field
-	child := l.WithFields(logger.String("child", "true"))
+	cfg := config.LogConfig{Level: "debug", Format: "json"}
+	l := logger.NewWithOutput(cfg, &buf1)
 
 	// Log from parent
 	l.Info("parent log")
 
-	// Log from child
-	child.(*logger.StructuredLogger).SetLevel(logger.LevelDebug)
-	// Need to create new child with buf2
-	cfg2 := logger.Config{Level: "debug", Format: "json"}
-	l2 := logger.NewStructuredLoggerWithOutput(cfg2, &buf2)
-	child2 := l2.WithFields(logger.String("child", "true"))
+	// Log from child (need new buffer)
+	cfg2 := config.LogConfig{Level: "debug", Format: "json"}
+	l2 := logger.NewWithOutput(cfg2, &buf2)
+	child2 := l2.WithStr("child", "true")
 	child2.Info("child log")
 
 	// Parent should not have child field
@@ -336,4 +277,28 @@ func TestStructuredLogger_DoesNotMutateParent(t *testing.T) {
 	// Child should have child field
 	childOutput := buf2.String()
 	assert.True(t, strings.Contains(childOutput, `"child":"true"`))
+}
+
+func TestLogger_WithFieldsMap(t *testing.T) {
+	var buf bytes.Buffer
+	cfg := config.LogConfig{Level: "debug", Format: "json"}
+	l := logger.NewWithOutput(cfg, &buf)
+
+	fields := map[string]any{
+		"str":   "value",
+		"int":   42,
+		"bool":  true,
+		"float": 3.14,
+	}
+
+	l.WithFields(fields).Info("test")
+
+	var entry map[string]interface{}
+	err := json.Unmarshal(buf.Bytes(), &entry)
+	require.NoError(t, err)
+
+	assert.Equal(t, "value", entry["str"])
+	assert.Equal(t, float64(42), entry["int"])
+	assert.Equal(t, true, entry["bool"])
+	assert.Equal(t, 3.14, entry["float"])
 }

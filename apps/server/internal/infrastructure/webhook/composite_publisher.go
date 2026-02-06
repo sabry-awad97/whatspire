@@ -12,19 +12,19 @@ import (
 type CompositeEventPublisher struct {
 	websocketPublisher repository.EventPublisher
 	webhookPublisher   *WebhookPublisher
-	logger             logger.Logger
+	logger             *logger.Logger
 }
 
 // NewCompositeEventPublisher creates a new composite event publisher
 func NewCompositeEventPublisher(
 	websocketPublisher repository.EventPublisher,
 	webhookPublisher *WebhookPublisher,
-	logger logger.Logger,
+	log *logger.Logger,
 ) *CompositeEventPublisher {
 	return &CompositeEventPublisher{
 		websocketPublisher: websocketPublisher,
 		webhookPublisher:   webhookPublisher,
-		logger:             logger,
+		logger:             log,
 	}
 }
 
@@ -32,7 +32,7 @@ func NewCompositeEventPublisher(
 func (p *CompositeEventPublisher) Publish(ctx context.Context, event *entity.Event) error {
 	// Publish to WebSocket (primary channel)
 	if err := p.websocketPublisher.Publish(ctx, event); err != nil {
-		p.logger.Warn("Failed to publish event to WebSocket", logger.Err(err), logger.String("event_type", string(event.Type)))
+		p.logger.WithError(err).WithStr("event_type", string(event.Type)).Warn("Failed to publish event to WebSocket")
 		// Continue to webhook even if WebSocket fails
 	}
 
@@ -42,7 +42,7 @@ func (p *CompositeEventPublisher) Publish(ctx context.Context, event *entity.Eve
 			// Use background context to avoid cancellation
 			bgCtx := context.Background()
 			if err := p.webhookPublisher.Publish(bgCtx, event); err != nil {
-				p.logger.Warn("Failed to publish event to webhook", logger.Err(err), logger.String("event_type", string(event.Type)))
+				p.logger.WithError(err).WithStr("event_type", string(event.Type)).Warn("Failed to publish event to webhook")
 			}
 		}()
 	}

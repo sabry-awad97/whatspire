@@ -21,7 +21,7 @@ func (h *Handler) SyncGroups(c *gin.Context) {
 
 	result, err := h.groupsUC.SyncGroups(c.Request.Context(), sessionID)
 	if err != nil {
-		handleDomainError(c, err)
+		handleDomainError(c, err, h.logger)
 		return
 	}
 

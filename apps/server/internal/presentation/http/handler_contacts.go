@@ -37,7 +37,7 @@ func (h *Handler) CheckPhoneNumber(c *gin.Context) {
 
 	contact, err := h.contactUC.CheckPhoneNumber(c.Request.Context(), req)
 	if err != nil {
-		handleDomainError(c, err)
+		handleDomainError(c, err, h.logger)
 		return
 	}
 
@@ -72,7 +72,7 @@ func (h *Handler) GetUserProfile(c *gin.Context) {
 
 	contact, err := h.contactUC.GetUserProfile(c.Request.Context(), req)
 	if err != nil {
-		handleDomainError(c, err)
+		handleDomainError(c, err, h.logger)
 		return
 	}
 
@@ -94,7 +94,7 @@ func (h *Handler) ListContacts(c *gin.Context) {
 
 	contacts, err := h.contactUC.ListContacts(c.Request.Context(), sessionID)
 	if err != nil {
-		handleDomainError(c, err)
+		handleDomainError(c, err, h.logger)
 		return
 	}
 
@@ -116,7 +116,7 @@ func (h *Handler) ListChats(c *gin.Context) {
 
 	chats, err := h.contactUC.ListChats(c.Request.Context(), sessionID)
 	if err != nil {
-		handleDomainError(c, err)
+		handleDomainError(c, err, h.logger)
 		return
 	}
 

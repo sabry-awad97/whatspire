@@ -54,7 +54,7 @@ func (h *Handler) CreateAPIKey(c *gin.Context) {
 	// Create API key
 	plainKey, apiKey, err := h.apikeyUC.CreateAPIKey(c.Request.Context(), req.Role, req.Description, createdBy)
 	if err != nil {
-		handleDomainError(c, err)
+		handleDomainError(c, err, h.logger)
 		return
 	}
 
@@ -127,7 +127,7 @@ func (h *Handler) RevokeAPIKey(c *gin.Context) {
 	// Revoke API key
 	apiKey, err := h.apikeyUC.RevokeAPIKey(c.Request.Context(), id, revokedBy, req.Reason)
 	if err != nil {
-		handleDomainError(c, err)
+		handleDomainError(c, err, h.logger)
 		return
 	}
 
@@ -188,7 +188,7 @@ func (h *Handler) ListAPIKeys(c *gin.Context) {
 	// List API keys
 	apiKeys, total, err := h.apikeyUC.ListAPIKeys(c.Request.Context(), page, limit, req.Role, req.Status)
 	if err != nil {
-		handleDomainError(c, err)
+		handleDomainError(c, err, h.logger)
 		return
 	}
 
@@ -259,7 +259,7 @@ func (h *Handler) GetAPIKeyDetails(c *gin.Context) {
 	// Get API key details with usage statistics
 	apiKey, totalRequests, last7Days, err := h.apikeyUC.GetAPIKeyDetails(c.Request.Context(), id)
 	if err != nil {
-		handleDomainError(c, err)
+		handleDomainError(c, err, h.logger)
 		return
 	}
 

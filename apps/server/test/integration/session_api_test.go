@@ -12,7 +12,7 @@ import (
 	"whatspire/internal/application/usecase"
 	"whatspire/internal/domain/entity"
 	"whatspire/internal/domain/errors"
-	httpHandler "whatspire/internal/presentation/http"
+	"whatspire/test/helpers"
 
 	"github.com/gin-gonic/gin"
 	"github.com/stretchr/testify/assert"
@@ -22,9 +22,10 @@ import (
 // ==================== Test Setup ====================
 
 func setupTestRouter(sessionUC *usecase.SessionUseCase) *gin.Engine {
-	gin.SetMode(gin.TestMode)
-	handler := httpHandler.NewHandler(sessionUC, nil, nil, nil, nil, nil, nil, nil, nil, nil)
-	return httpHandler.NewRouter(handler, httpHandler.DefaultRouterConfig())
+	handler := helpers.NewTestHandlerBuilder().
+		WithSessionUseCase(sessionUC).
+		Build()
+	return helpers.CreateTestRouterWithDefaults(handler)
 }
 
 // ==================== POST /api/internal/sessions/register Tests ====================

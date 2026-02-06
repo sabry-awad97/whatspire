@@ -13,7 +13,7 @@ import (
 	"whatspire/internal/application/usecase"
 	"whatspire/internal/domain/repository"
 	"whatspire/internal/infrastructure/persistence"
-	httpHandler "whatspire/internal/presentation/http"
+	"whatspire/test/helpers"
 
 	"github.com/gin-gonic/gin"
 	"github.com/stretchr/testify/assert"
@@ -42,8 +42,10 @@ func setupAPIKeyCRUDTestRouter(t *testing.T) (*gin.Engine, *usecase.APIKeyUseCas
 	apiKeyUC := usecase.NewAPIKeyUseCase(repo, auditLogger, auditLogRepo)
 
 	// Create handler and router
-	handler := httpHandler.NewHandler(nil, nil, nil, nil, nil, nil, nil, nil, nil, apiKeyUC)
-	router := httpHandler.NewRouter(handler, httpHandler.DefaultRouterConfig())
+	handler := helpers.NewTestHandlerBuilder().
+		WithAPIKeyUseCase(apiKeyUC).
+		Build()
+	router := helpers.CreateTestRouterWithDefaults(handler)
 
 	return router, apiKeyUC, db
 }

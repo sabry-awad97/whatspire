@@ -5,6 +5,8 @@ import (
 	"testing"
 	"time"
 
+	"whatspire/internal/infrastructure/config"
+	"whatspire/internal/infrastructure/logger"
 	"whatspire/internal/presentation/ws"
 
 	"github.com/google/uuid"
@@ -19,6 +21,11 @@ import (
 // each should receive only their own QR codes and events.
 // **Validates: Requirements 3.7**
 
+// Helper to create test logger
+func createQRTestLogger() *logger.Logger {
+	return logger.New(config.LogConfig{Level: "error", Format: "json"})
+}
+
 func TestConcurrentQRAuthenticationIsolation_Property6(t *testing.T) {
 	parameters := gopter.DefaultTestParameters()
 	parameters.MinSuccessfulTests = 100
@@ -31,7 +38,8 @@ func TestConcurrentQRAuthenticationIsolation_Property6(t *testing.T) {
 				return true // skip edge cases
 			}
 
-			handler := ws.NewQRHandler(nil, ws.DefaultQRHandlerConfig())
+			log := createQRTestLogger()
+			handler := ws.NewQRHandler(nil, ws.DefaultQRHandlerConfig(), log)
 
 			// Generate unique session IDs
 			sessionIDs := make([]string, numSessions)
@@ -62,7 +70,8 @@ func TestConcurrentQRAuthenticationIsolation_Property6(t *testing.T) {
 	// Property 6.2: Same session cannot have multiple concurrent authentications
 	properties.Property("Same session cannot have multiple concurrent authentications", prop.ForAll(
 		func(_ int) bool {
-			handler := ws.NewQRHandler(nil, ws.DefaultQRHandlerConfig())
+			log := createQRTestLogger()
+			handler := ws.NewQRHandler(nil, ws.DefaultQRHandlerConfig(), log)
 			sessionID := uuid.New().String()
 
 			// Simulate first registration (using internal tracking)
@@ -91,7 +100,8 @@ func TestConcurrentQRAuthenticationIsolation_Property6(t *testing.T) {
 				return true // skip edge cases
 			}
 
-			handler := ws.NewQRHandler(nil, ws.DefaultQRHandlerConfig())
+			log := createQRTestLogger()
+			handler := ws.NewQRHandler(nil, ws.DefaultQRHandlerConfig(), log)
 
 			// Generate unique session IDs
 			sessionIDs := make([]string, numSessions)
@@ -128,7 +138,8 @@ func TestConcurrentQRAuthenticationIsolation_Property6(t *testing.T) {
 				return true // skip edge cases
 			}
 
-			handler := ws.NewQRHandler(nil, ws.DefaultQRHandlerConfig())
+			log := createQRTestLogger()
+			handler := ws.NewQRHandler(nil, ws.DefaultQRHandlerConfig(), log)
 
 			var wg sync.WaitGroup
 			errors := make(chan error, numGoroutines)
@@ -175,7 +186,8 @@ func TestConcurrentQRAuthenticationIsolation_Property6(t *testing.T) {
 				PingInterval: 30 * time.Second,
 			}
 
-			handler := ws.NewQRHandler(nil, config)
+			log := createQRTestLogger()
+			handler := ws.NewQRHandler(nil, config, log)
 
 			// Handler should be created successfully
 			if handler == nil {
@@ -258,9 +270,10 @@ func TestConcurrentQRAuthenticationIsolation_Property6(t *testing.T) {
 				return true // skip edge cases
 			}
 
+			log := createQRTestLogger()
 			handlers := make([]*ws.QRHandler, numHandlers)
 			for i := range numHandlers {
-				handlers[i] = ws.NewQRHandler(nil, ws.DefaultQRHandlerConfig())
+				handlers[i] = ws.NewQRHandler(nil, ws.DefaultQRHandlerConfig(), log)
 			}
 
 			// Each handler should have independent state

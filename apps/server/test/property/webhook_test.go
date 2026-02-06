@@ -15,6 +15,7 @@ import (
 	"time"
 
 	"whatspire/internal/domain/entity"
+	"whatspire/internal/infrastructure/config"
 	"whatspire/internal/infrastructure/logger"
 	"whatspire/internal/infrastructure/webhook"
 
@@ -22,8 +23,8 @@ import (
 )
 
 // Helper to create test logger
-func createTestLogger() logger.Logger {
-	return logger.NewStructuredLogger(logger.Config{Level: "info", Format: "json"})
+func createTestLogger() *logger.Logger {
+	return logger.New(config.LogConfig{Level: "info", Format: "json"})
 }
 
 // Helper to create test event

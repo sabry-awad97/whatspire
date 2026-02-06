@@ -7,10 +7,10 @@ import (
 	"whatspire/internal/domain/entity"
 	"whatspire/internal/domain/errors"
 	"whatspire/internal/domain/repository"
+	"whatspire/internal/infrastructure/logger"
 
 	"go.mau.fi/whatsmeow"
 	"go.mau.fi/whatsmeow/types/events"
-	waLog "go.mau.fi/whatsmeow/util/log"
 )
 
 // MessageHandler handles incoming WhatsApp messages with media download support
@@ -19,7 +19,7 @@ type MessageHandler struct {
 	mediaDownloader    *MediaDownloadHelper
 	mediaStorage       repository.MediaStorage
 	reactionHandler    *ReactionHandler
-	logger             waLog.Logger
+	logger             *logger.Logger
 	eventQueue         *EventQueue
 	sessionConnections map[string]bool // Track session connection status
 }
@@ -29,13 +29,13 @@ func NewMessageHandler(
 	messageParser *MessageParser,
 	mediaDownloader *MediaDownloadHelper,
 	mediaStorage repository.MediaStorage,
-	logger waLog.Logger,
+	log *logger.Logger,
 ) *MessageHandler {
 	return &MessageHandler{
 		messageParser:      messageParser,
 		mediaDownloader:    mediaDownloader,
 		mediaStorage:       mediaStorage,
-		logger:             logger,
+		logger:             log,
 		eventQueue:         NewEventQueue(),
 		sessionConnections: make(map[string]bool),
 	}

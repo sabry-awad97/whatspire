@@ -1,10 +1,10 @@
 package ws
 
 import (
-	"log"
 	"net/http"
 	"time"
 
+	"whatspire/internal/infrastructure/logger"
 	infraWs "whatspire/internal/infrastructure/websocket"
 	httpPkg "whatspire/internal/presentation/http"
 
@@ -39,13 +39,15 @@ type EventHandler struct {
 	hub      *infraWs.EventHub
 	upgrader websocket.Upgrader
 	config   EventHandlerConfig
+	logger   *logger.Logger
 }
 
 // NewEventHandler creates a new Event WebSocket handler
-func NewEventHandler(hub *infraWs.EventHub, config EventHandlerConfig) *EventHandler {
+func NewEventHandler(hub *infraWs.EventHub, config EventHandlerConfig, log *logger.Logger) *EventHandler {
 	h := &EventHandler{
 		hub:    hub,
 		config: config,
+		logger: log,
 	}
 
 	h.upgrader = websocket.Upgrader{
@@ -75,7 +77,7 @@ func (h *EventHandler) HandleEvents(c *gin.Context) {
 	// Upgrade HTTP connection to WebSocket
 	conn, err := h.upgrader.Upgrade(c.Writer, c.Request, nil)
 	if err != nil {
-		log.Printf("Failed to upgrade WebSocket connection: %v", err)
+		h.logger.WithError(err).Error("Failed to upgrade WebSocket connection")
 		return
 	}
 

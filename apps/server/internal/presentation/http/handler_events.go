@@ -43,7 +43,7 @@ func (h *Handler) QueryEvents(c *gin.Context) {
 	// Query events
 	response, err := h.eventUC.QueryEvents(c.Request.Context(), req)
 	if err != nil {
-		handleDomainError(c, err)
+		handleDomainError(c, err, h.logger)
 		return
 	}
 
@@ -78,7 +78,7 @@ func (h *Handler) GetEventByID(c *gin.Context) {
 	// Get event
 	event, err := h.eventUC.GetEventByID(c.Request.Context(), id)
 	if err != nil {
-		handleDomainError(c, err)
+		handleDomainError(c, err, h.logger)
 		return
 	}
 
@@ -122,7 +122,7 @@ func (h *Handler) ReplayEvents(c *gin.Context) {
 	// Replay events
 	response, err := h.eventUC.ReplayEvents(c.Request.Context(), req)
 	if err != nil {
-		handleDomainError(c, err)
+		handleDomainError(c, err, h.logger)
 		return
 	}
 

@@ -3,6 +3,7 @@ package http
 import (
 	"whatspire/internal/domain/repository"
 	"whatspire/internal/infrastructure/config"
+	"whatspire/internal/infrastructure/logger"
 	"whatspire/internal/infrastructure/metrics"
 	"whatspire/internal/infrastructure/ratelimit"
 
@@ -30,6 +31,8 @@ type RouterConfig struct {
 	MetricsConfig *config.MetricsConfig
 	// AuditLogger is the audit logger instance (optional)
 	AuditLogger repository.AuditLogger
+	// Logger is the logger instance (required)
+	Logger *logger.Logger
 }
 
 // DefaultRouterConfig returns the default router configuration
@@ -44,6 +47,7 @@ func DefaultRouterConfig() RouterConfig {
 		Metrics:              nil,
 		MetricsConfig:        nil,
 		AuditLogger:          nil,
+		Logger:               nil,
 	}
 }
 
@@ -57,9 +61,9 @@ func setupRouter(routerConfig RouterConfig) *gin.Engine {
 
 	// Apply global middleware
 	router.Use(gin.Recovery())
-	router.Use(ErrorHandlerMiddleware())
+	router.Use(ErrorHandlerMiddleware(routerConfig.Logger))
 	router.Use(RequestIDMiddleware())
-	router.Use(LoggingMiddleware())
+	router.Use(LoggingMiddleware(routerConfig.Logger))
 
 	// Apply CORS middleware
 	if routerConfig.CORSConfig != nil {
@@ -82,7 +86,7 @@ func setupRouter(routerConfig RouterConfig) *gin.Engine {
 
 	// Optional request body logging
 	if routerConfig.EnableRequestLogging {
-		router.Use(RequestBodyLoggerMiddleware())
+		router.Use(RequestBodyLoggerMiddleware(routerConfig.Logger))
 	}
 
 	return router

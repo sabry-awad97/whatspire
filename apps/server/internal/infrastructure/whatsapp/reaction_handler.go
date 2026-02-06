@@ -5,28 +5,28 @@ import (
 
 	"whatspire/internal/domain/entity"
 	"whatspire/internal/domain/repository"
+	"whatspire/internal/infrastructure/logger"
 
 	"github.com/google/uuid"
-	waLog "go.mau.fi/whatsmeow/util/log"
 )
 
 // ReactionHandler handles incoming WhatsApp reaction events
 type ReactionHandler struct {
 	reactionRepo   repository.ReactionRepository
 	eventPublisher repository.EventPublisher
-	logger         waLog.Logger
+	logger         *logger.Logger
 }
 
 // NewReactionHandler creates a new reaction handler
 func NewReactionHandler(
 	reactionRepo repository.ReactionRepository,
 	eventPublisher repository.EventPublisher,
-	logger waLog.Logger,
+	log *logger.Logger,
 ) *ReactionHandler {
 	return &ReactionHandler{
 		reactionRepo:   reactionRepo,
 		eventPublisher: eventPublisher,
-		logger:         logger,
+		logger:         log,
 	}
 }
 

@@ -9,7 +9,7 @@ import (
 
 	"whatspire/internal/application/dto"
 	"whatspire/internal/application/usecase"
-	httpHandler "whatspire/internal/presentation/http"
+	"whatspire/test/helpers"
 
 	"github.com/gin-gonic/gin"
 	"github.com/stretchr/testify/assert"
@@ -19,9 +19,10 @@ import (
 // ==================== Test Setup ====================
 
 func setupMessageTestRouter(messageUC *usecase.MessageUseCase) *gin.Engine {
-	gin.SetMode(gin.TestMode)
-	handler := httpHandler.NewHandler(nil, messageUC, nil, nil, nil, nil, nil, nil, nil, nil)
-	return httpHandler.NewRouter(handler, httpHandler.DefaultRouterConfig())
+	handler := helpers.NewTestHandlerBuilder().
+		WithMessageUseCase(messageUC).
+		Build()
+	return helpers.CreateTestRouterWithDefaults(handler)
 }
 
 // ==================== POST /api/messages Tests ====================

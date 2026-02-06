@@ -11,6 +11,7 @@ import (
 	"whatspire/internal/application/usecase"
 	"whatspire/internal/infrastructure/ratelimit"
 	httpHandler "whatspire/internal/presentation/http"
+	"whatspire/test/helpers"
 
 	"github.com/gin-gonic/gin"
 	"github.com/stretchr/testify/assert"
@@ -25,8 +26,11 @@ func setupRateLimitTestRouter(sessionUC *usecase.SessionUseCase, limiter *rateli
 	config := httpHandler.DefaultRouterConfig()
 	config.RateLimiter = limiter
 
-	handler := httpHandler.NewHandler(sessionUC, nil, nil, nil, nil, nil, nil, nil, nil, nil)
-	return httpHandler.NewRouter(handler, config)
+	handler := helpers.NewTestHandlerBuilder().
+		WithSessionUseCase(sessionUC).
+		Build()
+	config.Logger = helpers.CreateTestLogger()
+	return helpers.CreateTestRouter(handler, config)
 }
 
 // ==================== Rate Limiting Tests ====================

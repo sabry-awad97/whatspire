@@ -7,6 +7,7 @@ import (
 
 	"whatspire/internal/domain/entity"
 	"whatspire/internal/infrastructure/webhook"
+	"whatspire/test/helpers"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -28,7 +29,7 @@ func TestE2E_WebhookRetry_ExponentialBackoff(t *testing.T) {
 		Secret: "test-secret",
 		Events: []string{"message.received"},
 	}
-	testLogger := &noOpLogger{}
+	testLogger := helpers.CreateTestLogger()
 	webhookPublisher := webhook.NewWebhookPublisher(webhookConfig, testLogger, nil)
 
 	// Create event
@@ -73,7 +74,7 @@ func TestE2E_WebhookRetry_NoRetryOn4xx(t *testing.T) {
 		Secret: "test-secret",
 		Events: []string{"message.received"},
 	}
-	testLogger := &noOpLogger{}
+	testLogger := helpers.CreateTestLogger()
 	webhookPublisher := webhook.NewWebhookPublisher(webhookConfig, testLogger, nil)
 
 	// Create event
@@ -116,7 +117,7 @@ func TestE2E_WebhookHMAC_SignatureVerification(t *testing.T) {
 		Secret: "test-secret-key",
 		Events: []string{"message.received"},
 	}
-	testLogger := &noOpLogger{}
+	testLogger := helpers.CreateTestLogger()
 	webhookPublisher := webhook.NewWebhookPublisher(webhookConfig, testLogger, nil)
 
 	// Create event
@@ -159,7 +160,7 @@ func TestE2E_WebhookHMAC_NoSignatureWithoutSecret(t *testing.T) {
 		Secret: "", // No secret
 		Events: []string{"message.received"},
 	}
-	testLogger := &noOpLogger{}
+	testLogger := helpers.CreateTestLogger()
 	webhookPublisher := webhook.NewWebhookPublisher(webhookConfig, testLogger, nil)
 
 	// Create event

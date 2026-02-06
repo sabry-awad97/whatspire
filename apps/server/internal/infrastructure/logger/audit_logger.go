@@ -6,13 +6,13 @@ import (
 	"whatspire/internal/domain/repository"
 )
 
-// AuditLogger implements the repository.AuditLogger interface using structured logging
+// AuditLogger implements the repository.AuditLogger interface using zerolog
 type AuditLogger struct {
-	logger Logger
+	logger *Logger
 }
 
 // NewAuditLogger creates a new AuditLogger
-func NewAuditLogger(logger Logger) *AuditLogger {
+func NewAuditLogger(logger *Logger) *AuditLogger {
 	return &AuditLogger{
 		logger: logger,
 	}
@@ -20,101 +20,90 @@ func NewAuditLogger(logger Logger) *AuditLogger {
 
 // LogAPIKeyUsage logs an API key usage event
 func (al *AuditLogger) LogAPIKeyUsage(ctx context.Context, event repository.APIKeyUsageEvent) {
-	al.logger.WithContext(ctx).Info("API key used",
-		String("event_type", "api_key_usage"),
-		String("api_key_id", event.APIKeyID),
-		String("endpoint", event.Endpoint),
-		String("method", event.Method),
-		String("ip_address", event.IPAddress),
-		Any("timestamp", event.Timestamp),
-	)
+	al.logger.WithContext(ctx).
+		WithStr("event_type", "api_key_usage").
+		WithStr("api_key_id", event.APIKeyID).
+		WithStr("endpoint", event.Endpoint).
+		WithStr("method", event.Method).
+		WithStr("ip_address", event.IPAddress).
+		Info("API key used")
 }
 
 // LogAPIKeyCreated logs an API key creation event
 func (al *AuditLogger) LogAPIKeyCreated(ctx context.Context, event repository.APIKeyCreatedEvent) {
-	fields := []Field{
-		String("event_type", "api_key_created"),
-		String("api_key_id", event.APIKeyID),
-		String("role", event.Role),
-		String("created_by", event.CreatedBy),
-		Any("timestamp", event.Timestamp),
-	}
+	l := al.logger.WithContext(ctx).
+		WithStr("event_type", "api_key_created").
+		WithStr("api_key_id", event.APIKeyID).
+		WithStr("role", event.Role).
+		WithStr("created_by", event.CreatedBy)
 
 	if event.Description != nil {
-		fields = append(fields, String("description", *event.Description))
+		l = l.WithStr("description", *event.Description)
 	}
 
-	al.logger.WithContext(ctx).Info("API key created", fields...)
+	l.Info("API key created")
 }
 
 // LogAPIKeyRevoked logs an API key revocation event
 func (al *AuditLogger) LogAPIKeyRevoked(ctx context.Context, event repository.APIKeyRevokedEvent) {
-	fields := []Field{
-		String("event_type", "api_key_revoked"),
-		String("api_key_id", event.APIKeyID),
-		String("revoked_by", event.RevokedBy),
-		Any("timestamp", event.Timestamp),
-	}
+	l := al.logger.WithContext(ctx).
+		WithStr("event_type", "api_key_revoked").
+		WithStr("api_key_id", event.APIKeyID).
+		WithStr("revoked_by", event.RevokedBy)
 
 	if event.RevocationReason != nil {
-		fields = append(fields, String("revocation_reason", *event.RevocationReason))
+		l = l.WithStr("revocation_reason", *event.RevocationReason)
 	}
 
-	al.logger.WithContext(ctx).Warn("API key revoked", fields...)
+	l.Warn("API key revoked")
 }
 
 // LogSessionAction logs a session action event
 func (al *AuditLogger) LogSessionAction(ctx context.Context, event repository.SessionActionEvent) {
-	al.logger.WithContext(ctx).Info("Session action",
-		String("event_type", "session_action"),
-		String("session_id", event.SessionID),
-		String("action", event.Action),
-		String("api_key_id", event.APIKeyID),
-		Any("timestamp", event.Timestamp),
-	)
+	al.logger.WithContext(ctx).
+		WithStr("event_type", "session_action").
+		WithStr("session_id", event.SessionID).
+		WithStr("action", event.Action).
+		WithStr("api_key_id", event.APIKeyID).
+		Info("Session action")
 }
 
 // LogMessageSent logs a message sent event
 func (al *AuditLogger) LogMessageSent(ctx context.Context, event repository.MessageSentEvent) {
-	al.logger.WithContext(ctx).Info("Message sent",
-		String("event_type", "message_sent"),
-		String("session_id", event.SessionID),
-		String("recipient", event.Recipient),
-		String("message_type", event.MessageType),
-		Any("timestamp", event.Timestamp),
-	)
+	al.logger.WithContext(ctx).
+		WithStr("event_type", "message_sent").
+		WithStr("session_id", event.SessionID).
+		WithStr("recipient", event.Recipient).
+		WithStr("message_type", event.MessageType).
+		Info("Message sent")
 }
 
 // LogAuthFailure logs an authentication failure event
 func (al *AuditLogger) LogAuthFailure(ctx context.Context, event repository.AuthFailureEvent) {
-	al.logger.WithContext(ctx).Warn("Authentication failed",
-		String("event_type", "auth_failure"),
-		String("api_key", event.APIKey),
-		String("endpoint", event.Endpoint),
-		String("reason", event.Reason),
-		String("ip_address", event.IPAddress),
-		Any("timestamp", event.Timestamp),
-	)
+	al.logger.WithContext(ctx).
+		WithStr("event_type", "auth_failure").
+		WithStr("api_key", event.APIKey).
+		WithStr("endpoint", event.Endpoint).
+		WithStr("reason", event.Reason).
+		WithStr("ip_address", event.IPAddress).
+		Warn("Authentication failed")
 }
 
 // LogWebhookDelivery logs a webhook delivery event
 func (al *AuditLogger) LogWebhookDelivery(ctx context.Context, event repository.WebhookDeliveryEvent) {
-	fields := []Field{
-		String("event_type", "webhook_delivery"),
-		String("webhook_url", event.WebhookURL),
-		String("event_type_name", event.EventType),
-		Int("status_code", event.StatusCode),
-		Bool("success", event.Success),
-		Any("timestamp", event.Timestamp),
-	}
+	l := al.logger.WithContext(ctx).
+		WithStr("event_type", "webhook_delivery").
+		WithStr("webhook_url", event.WebhookURL).
+		WithStr("event_type_name", event.EventType).
+		WithInt("status_code", event.StatusCode)
 
 	if event.Error != nil {
-		fields = append(fields, String("error", *event.Error))
+		l = l.WithStr("error", *event.Error)
 	}
 
 	if event.Success {
-		al.logger.WithContext(ctx).Info("Webhook delivered", fields...)
+		l.Info("Webhook delivered")
 	} else {
-		al.logger.WithContext(ctx).Error("Webhook delivery failed", fields...)
+		l.Error("Webhook delivery failed")
 	}
 }

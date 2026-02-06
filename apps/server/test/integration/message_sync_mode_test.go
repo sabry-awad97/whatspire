@@ -9,7 +9,7 @@ import (
 
 	"whatspire/internal/application/dto"
 	"whatspire/internal/application/usecase"
-	httpHandler "whatspire/internal/presentation/http"
+	"whatspire/test/helpers"
 
 	"github.com/gin-gonic/gin"
 	"github.com/stretchr/testify/assert"
@@ -31,8 +31,10 @@ func TestSendMessage_AsyncMode_ReturnsPending(t *testing.T) {
 	defer messageUC.Close()
 
 	gin.SetMode(gin.TestMode)
-	handler := httpHandler.NewHandler(nil, messageUC, nil, nil, nil, nil, nil, nil, nil, nil)
-	router := httpHandler.NewRouter(handler, httpHandler.DefaultRouterConfig())
+	handler := helpers.NewTestHandlerBuilder().
+		WithMessageUseCase(messageUC).
+		Build()
+	router := helpers.CreateTestRouterWithDefaults(handler)
 
 	text := "Test message"
 	reqBody := dto.SendMessageRequest{
@@ -75,8 +77,10 @@ func TestSendMessage_SyncMode_ReturnsActualStatus(t *testing.T) {
 	defer messageUC.Close()
 
 	gin.SetMode(gin.TestMode)
-	handler := httpHandler.NewHandler(nil, messageUC, nil, nil, nil, nil, nil, nil, nil, nil)
-	router := httpHandler.NewRouter(handler, httpHandler.DefaultRouterConfig())
+	handler := helpers.NewTestHandlerBuilder().
+		WithMessageUseCase(messageUC).
+		Build()
+	router := helpers.CreateTestRouterWithDefaults(handler)
 
 	text := "Test message"
 	reqBody := dto.SendMessageRequest{
@@ -124,8 +128,10 @@ func TestSendMessage_SyncMode_WithoutWhatsAppClient(t *testing.T) {
 	defer messageUC.Close()
 
 	gin.SetMode(gin.TestMode)
-	handler := httpHandler.NewHandler(nil, messageUC, nil, nil, nil, nil, nil, nil, nil, nil)
-	router := httpHandler.NewRouter(handler, httpHandler.DefaultRouterConfig())
+	handler := helpers.NewTestHandlerBuilder().
+		WithMessageUseCase(messageUC).
+		Build()
+	router := helpers.CreateTestRouterWithDefaults(handler)
 
 	text := "Test message"
 	reqBody := dto.SendMessageRequest{
@@ -166,8 +172,10 @@ func TestSendMessage_SyncMode_QueryParameterCaseSensitive(t *testing.T) {
 	defer messageUC.Close()
 
 	gin.SetMode(gin.TestMode)
-	handler := httpHandler.NewHandler(nil, messageUC, nil, nil, nil, nil, nil, nil, nil, nil)
-	router := httpHandler.NewRouter(handler, httpHandler.DefaultRouterConfig())
+	handler := helpers.NewTestHandlerBuilder().
+		WithMessageUseCase(messageUC).
+		Build()
+	router := helpers.CreateTestRouterWithDefaults(handler)
 
 	text := "Test message"
 	reqBody := dto.SendMessageRequest{
@@ -209,8 +217,10 @@ func TestSendMessage_SyncMode_WithInvalidValue(t *testing.T) {
 	defer messageUC.Close()
 
 	gin.SetMode(gin.TestMode)
-	handler := httpHandler.NewHandler(nil, messageUC, nil, nil, nil, nil, nil, nil, nil, nil)
-	router := httpHandler.NewRouter(handler, httpHandler.DefaultRouterConfig())
+	handler := helpers.NewTestHandlerBuilder().
+		WithMessageUseCase(messageUC).
+		Build()
+	router := helpers.CreateTestRouterWithDefaults(handler)
 
 	text := "Test message"
 	reqBody := dto.SendMessageRequest{
@@ -252,8 +262,10 @@ func TestSendMessage_AsyncMode_WithMultipleMessages(t *testing.T) {
 	defer messageUC.Close()
 
 	gin.SetMode(gin.TestMode)
-	handler := httpHandler.NewHandler(nil, messageUC, nil, nil, nil, nil, nil, nil, nil, nil)
-	router := httpHandler.NewRouter(handler, httpHandler.DefaultRouterConfig())
+	handler := helpers.NewTestHandlerBuilder().
+		WithMessageUseCase(messageUC).
+		Build()
+	router := helpers.CreateTestRouterWithDefaults(handler)
 
 	// Send multiple messages in async mode
 	messageIDs := make([]string, 5)
@@ -304,8 +316,10 @@ func TestSendMessage_SyncMode_WithValidation(t *testing.T) {
 	defer messageUC.Close()
 
 	gin.SetMode(gin.TestMode)
-	handler := httpHandler.NewHandler(nil, messageUC, nil, nil, nil, nil, nil, nil, nil, nil)
-	router := httpHandler.NewRouter(handler, httpHandler.DefaultRouterConfig())
+	handler := helpers.NewTestHandlerBuilder().
+		WithMessageUseCase(messageUC).
+		Build()
+	router := helpers.CreateTestRouterWithDefaults(handler)
 
 	// Invalid phone number
 	text := "Test message"
@@ -348,8 +362,10 @@ func TestSendMessage_AsyncVsSyncResponseTime(t *testing.T) {
 	defer messageUC.Close()
 
 	gin.SetMode(gin.TestMode)
-	handler := httpHandler.NewHandler(nil, messageUC, nil, nil, nil, nil, nil, nil, nil, nil)
-	router := httpHandler.NewRouter(handler, httpHandler.DefaultRouterConfig())
+	handler := helpers.NewTestHandlerBuilder().
+		WithMessageUseCase(messageUC).
+		Build()
+	router := helpers.CreateTestRouterWithDefaults(handler)
 
 	text := "Test message"
 	reqBody := dto.SendMessageRequest{
