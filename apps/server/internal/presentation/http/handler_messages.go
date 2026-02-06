@@ -5,6 +5,7 @@ import (
 	"time"
 
 	"whatspire/internal/application/dto"
+	"whatspire/internal/domain/entity"
 	"whatspire/pkg/validator"
 
 	"github.com/gin-gonic/gin"
@@ -30,13 +31,32 @@ func (h *Handler) SendMessage(c *gin.Context) {
 		return
 	}
 
-	msg, err := h.messageUC.SendMessage(c.Request.Context(), req)
+	// Check if sync mode is requested via query parameter
+	// Usage: POST /api/messages?sync=true
+	// - sync=true: Wait for actual send result (HTTP 200 OK)
+	// - sync=false or omitted: Return immediately with pending status (HTTP 202 Accepted)
+	syncMode := c.Query("sync") == "true"
+
+	var msg *entity.Message
+	var err error
+	var statusCode int
+
+	if syncMode {
+		// Synchronous mode: wait for actual send result
+		msg, err = h.messageUC.SendMessageSync(c.Request.Context(), req)
+		statusCode = http.StatusOK
+	} else {
+		// Asynchronous mode: return immediately with pending status
+		msg, err = h.messageUC.SendMessage(c.Request.Context(), req)
+		statusCode = http.StatusAccepted
+	}
+
 	if err != nil {
 		handleDomainError(c, err)
 		return
 	}
 
-	respondWithSuccess(c, http.StatusAccepted, map[string]any{
+	respondWithSuccess(c, statusCode, map[string]any{
 		"message_id": msg.ID,
 		"status":     msg.GetStatus().String(),
 	})

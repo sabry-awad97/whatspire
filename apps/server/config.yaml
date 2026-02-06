@@ -67,7 +67,7 @@ cors:
 
 # API Key authentication configuration
 apikey:
-  enabled: false # Disabled for development mode
+  enabled: true # Enable API key authentication
   header: "X-API-Key"
   keys: [] # Legacy: List of valid API keys
   keys_map: # Recommended: Map of API keys to roles
