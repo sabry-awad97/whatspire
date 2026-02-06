@@ -9,6 +9,7 @@ import (
 	"whatspire/internal/domain/repository"
 	"whatspire/internal/infrastructure/config"
 	"whatspire/internal/infrastructure/jobs"
+	"whatspire/test/helpers"
 
 	"github.com/stretchr/testify/assert"
 )
@@ -50,7 +51,7 @@ func TestEventCleanupJob_Start(t *testing.T) {
 		CleanupInterval: 100 * time.Millisecond,
 	}
 
-	job := jobs.NewEventCleanupJob(mockRepo, cfg)
+	job := jobs.NewEventCleanupJob(mockRepo, cfg, helpers.CreateTestLogger())
 
 	// Start the job
 	err := job.Start(context.Background())
@@ -72,7 +73,7 @@ func TestEventCleanupJob_StartTwice(t *testing.T) {
 		CleanupInterval: 100 * time.Millisecond,
 	}
 
-	job := jobs.NewEventCleanupJob(mockRepo, cfg)
+	job := jobs.NewEventCleanupJob(mockRepo, cfg, helpers.CreateTestLogger())
 
 	// Start the job
 	err := job.Start(context.Background())
@@ -96,7 +97,7 @@ func TestEventCleanupJob_StopWithoutStart(t *testing.T) {
 		CleanupInterval: 100 * time.Millisecond,
 	}
 
-	job := jobs.NewEventCleanupJob(mockRepo, cfg)
+	job := jobs.NewEventCleanupJob(mockRepo, cfg, helpers.CreateTestLogger())
 
 	// Stop without starting (should be no-op)
 	err := job.Stop()
@@ -112,7 +113,7 @@ func TestEventCleanupJob_ZeroRetention(t *testing.T) {
 		CleanupInterval: 50 * time.Millisecond,
 	}
 
-	job := jobs.NewEventCleanupJob(mockRepo, cfg)
+	job := jobs.NewEventCleanupJob(mockRepo, cfg, helpers.CreateTestLogger())
 
 	// Start the job
 	err := job.Start(context.Background())
@@ -138,7 +139,7 @@ func TestEventCleanupJob_GetLastRunResult(t *testing.T) {
 		CleanupInterval: 100 * time.Millisecond,
 	}
 
-	job := jobs.NewEventCleanupJob(mockRepo, cfg)
+	job := jobs.NewEventCleanupJob(mockRepo, cfg, helpers.CreateTestLogger())
 
 	// Initially no result
 	result := job.GetLastRunResult()

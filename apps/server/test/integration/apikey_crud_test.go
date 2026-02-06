@@ -32,7 +32,7 @@ func setupAPIKeyCRUDTestRouter(t *testing.T) (*gin.Engine, *usecase.APIKeyUseCas
 	require.NoError(t, err)
 
 	// Run migrations
-	err = persistence.RunAutoMigration(db)
+	err = persistence.RunAutoMigration(db, helpers.CreateTestLogger())
 	require.NoError(t, err)
 
 	// Create repository and use case
@@ -765,7 +765,7 @@ func TestGetAPIKeyDetails_WithUsageStatistics(t *testing.T) {
 	defer db.Exec("DELETE FROM audit_logs WHERE 1=1")
 
 	// Run migrations
-	err = persistence.RunAutoMigration(db)
+	err = persistence.RunAutoMigration(db, helpers.CreateTestLogger())
 	require.NoError(t, err)
 
 	repo := persistence.NewAPIKeyRepository(db)
@@ -810,7 +810,7 @@ func TestGetAPIKeyDetails_UsageStatisticsLast7Days(t *testing.T) {
 	defer db.Exec("DELETE FROM audit_logs WHERE 1=1")
 
 	// Run migrations
-	err = persistence.RunAutoMigration(db)
+	err = persistence.RunAutoMigration(db, helpers.CreateTestLogger())
 	require.NoError(t, err)
 
 	repo := persistence.NewAPIKeyRepository(db)
@@ -866,7 +866,7 @@ func TestGetAPIKeyDetails_NoUsageStatistics(t *testing.T) {
 	defer db.Exec("DELETE FROM audit_logs WHERE 1=1")
 
 	// Run migrations
-	err = persistence.RunAutoMigration(db)
+	err = persistence.RunAutoMigration(db, helpers.CreateTestLogger())
 	require.NoError(t, err)
 
 	repo := persistence.NewAPIKeyRepository(db)

@@ -7,6 +7,7 @@ import (
 
 	"whatspire/internal/domain/entity"
 	"whatspire/internal/infrastructure/websocket"
+	"whatspire/test/helpers"
 
 	"github.com/leanovate/gopter"
 	"github.com/leanovate/gopter/gen"
@@ -32,7 +33,7 @@ func TestEventQueuePreservation_Property12(t *testing.T) {
 
 			config := websocket.DefaultPublisherConfig()
 			config.QueueSize = 100
-			publisher := websocket.NewGorillaEventPublisher(config)
+			publisher := websocket.NewGorillaEventPublisher(config, helpers.CreateTestLogger())
 
 			ctx := context.Background()
 
@@ -63,7 +64,7 @@ func TestEventQueuePreservation_Property12(t *testing.T) {
 
 			config := websocket.DefaultPublisherConfig()
 			config.QueueSize = 100
-			publisher := websocket.NewGorillaEventPublisher(config)
+			publisher := websocket.NewGorillaEventPublisher(config, helpers.CreateTestLogger())
 
 			ctx := context.Background()
 
@@ -111,7 +112,7 @@ func TestEventQueuePreservation_Property12(t *testing.T) {
 
 			config := websocket.DefaultPublisherConfig()
 			config.QueueSize = queueSize
-			publisher := websocket.NewGorillaEventPublisher(config)
+			publisher := websocket.NewGorillaEventPublisher(config, helpers.CreateTestLogger())
 
 			ctx := context.Background()
 
@@ -138,7 +139,7 @@ func TestEventQueuePreservation_Property12(t *testing.T) {
 	properties.Property("IsConnected returns false when not connected", prop.ForAll(
 		func(_ int) bool {
 			config := websocket.DefaultPublisherConfig()
-			publisher := websocket.NewGorillaEventPublisher(config)
+			publisher := websocket.NewGorillaEventPublisher(config, helpers.CreateTestLogger())
 
 			return !publisher.IsConnected()
 		},
@@ -149,7 +150,7 @@ func TestEventQueuePreservation_Property12(t *testing.T) {
 	properties.Property("QueueSize returns 0 for empty queue", prop.ForAll(
 		func(_ int) bool {
 			config := websocket.DefaultPublisherConfig()
-			publisher := websocket.NewGorillaEventPublisher(config)
+			publisher := websocket.NewGorillaEventPublisher(config, helpers.CreateTestLogger())
 
 			return publisher.QueueSize() == 0
 		},
@@ -165,7 +166,7 @@ func TestEventQueuePreservation_Property12(t *testing.T) {
 
 			config := websocket.DefaultPublisherConfig()
 			config.QueueSize = 100
-			publisher := websocket.NewGorillaEventPublisher(config)
+			publisher := websocket.NewGorillaEventPublisher(config, helpers.CreateTestLogger())
 
 			ctx := context.Background()
 
@@ -204,7 +205,7 @@ func TestEventQueuePreservation_Property12(t *testing.T) {
 
 			config := websocket.DefaultPublisherConfig()
 			config.QueueSize = 100
-			publisher := websocket.NewGorillaEventPublisher(config)
+			publisher := websocket.NewGorillaEventPublisher(config, helpers.CreateTestLogger())
 
 			ctx := context.Background()
 
@@ -237,7 +238,7 @@ func TestEventQueuePreservation_Property12(t *testing.T) {
 
 			config := websocket.DefaultPublisherConfig()
 			config.QueueSize = 100
-			publisher := websocket.NewGorillaEventPublisher(config)
+			publisher := websocket.NewGorillaEventPublisher(config, helpers.CreateTestLogger())
 
 			ctx := context.Background()
 

@@ -8,7 +8,6 @@ import (
 	"testing"
 
 	"whatspire/internal/application/dto"
-	"whatspire/internal/application/usecase"
 	"whatspire/test/helpers"
 
 	"github.com/gin-gonic/gin"
@@ -26,8 +25,7 @@ func TestSendMessage_AsyncMode_ReturnsPending(t *testing.T) {
 	publisher := NewEventPublisherMock()
 	mediaUploader := NewMediaUploaderMock()
 
-	config := usecase.DefaultMessageUseCaseConfig()
-	messageUC := usecase.NewMessageUseCase(waClient, publisher, mediaUploader, nil, config)
+	messageUC := helpers.NewTestMessageUseCase(waClient, publisher, mediaUploader, nil)
 	defer messageUC.Close()
 
 	gin.SetMode(gin.TestMode)
@@ -72,8 +70,7 @@ func TestSendMessage_SyncMode_ReturnsActualStatus(t *testing.T) {
 	publisher := NewEventPublisherMock()
 	mediaUploader := NewMediaUploaderMock()
 
-	config := usecase.DefaultMessageUseCaseConfig()
-	messageUC := usecase.NewMessageUseCase(waClient, publisher, mediaUploader, nil, config)
+	messageUC := helpers.NewTestMessageUseCase(waClient, publisher, mediaUploader, nil)
 	defer messageUC.Close()
 
 	gin.SetMode(gin.TestMode)
@@ -123,8 +120,7 @@ func TestSendMessage_SyncMode_WithoutWhatsAppClient(t *testing.T) {
 	publisher := NewEventPublisherMock()
 	mediaUploader := NewMediaUploaderMock()
 
-	config := usecase.DefaultMessageUseCaseConfig()
-	messageUC := usecase.NewMessageUseCase(nil, publisher, mediaUploader, nil, config)
+	messageUC := helpers.NewTestMessageUseCase(nil, publisher, mediaUploader, nil)
 	defer messageUC.Close()
 
 	gin.SetMode(gin.TestMode)
@@ -167,8 +163,7 @@ func TestSendMessage_SyncMode_QueryParameterCaseSensitive(t *testing.T) {
 	publisher := NewEventPublisherMock()
 	mediaUploader := NewMediaUploaderMock()
 
-	config := usecase.DefaultMessageUseCaseConfig()
-	messageUC := usecase.NewMessageUseCase(waClient, publisher, mediaUploader, nil, config)
+	messageUC := helpers.NewTestMessageUseCase(waClient, publisher, mediaUploader, nil)
 	defer messageUC.Close()
 
 	gin.SetMode(gin.TestMode)
@@ -212,8 +207,7 @@ func TestSendMessage_SyncMode_WithInvalidValue(t *testing.T) {
 	publisher := NewEventPublisherMock()
 	mediaUploader := NewMediaUploaderMock()
 
-	config := usecase.DefaultMessageUseCaseConfig()
-	messageUC := usecase.NewMessageUseCase(waClient, publisher, mediaUploader, nil, config)
+	messageUC := helpers.NewTestMessageUseCase(waClient, publisher, mediaUploader, nil)
 	defer messageUC.Close()
 
 	gin.SetMode(gin.TestMode)
@@ -257,8 +251,7 @@ func TestSendMessage_AsyncMode_WithMultipleMessages(t *testing.T) {
 	publisher := NewEventPublisherMock()
 	mediaUploader := NewMediaUploaderMock()
 
-	config := usecase.DefaultMessageUseCaseConfig()
-	messageUC := usecase.NewMessageUseCase(waClient, publisher, mediaUploader, nil, config)
+	messageUC := helpers.NewTestMessageUseCase(waClient, publisher, mediaUploader, nil)
 	defer messageUC.Close()
 
 	gin.SetMode(gin.TestMode)
@@ -311,8 +304,7 @@ func TestSendMessage_SyncMode_WithValidation(t *testing.T) {
 	publisher := NewEventPublisherMock()
 	mediaUploader := NewMediaUploaderMock()
 
-	config := usecase.DefaultMessageUseCaseConfig()
-	messageUC := usecase.NewMessageUseCase(waClient, publisher, mediaUploader, nil, config)
+	messageUC := helpers.NewTestMessageUseCase(waClient, publisher, mediaUploader, nil)
 	defer messageUC.Close()
 
 	gin.SetMode(gin.TestMode)
@@ -357,8 +349,7 @@ func TestSendMessage_AsyncVsSyncResponseTime(t *testing.T) {
 	publisher := NewEventPublisherMock()
 	mediaUploader := NewMediaUploaderMock()
 
-	config := usecase.DefaultMessageUseCaseConfig()
-	messageUC := usecase.NewMessageUseCase(waClient, publisher, mediaUploader, nil, config)
+	messageUC := helpers.NewTestMessageUseCase(waClient, publisher, mediaUploader, nil)
 	defer messageUC.Close()
 
 	gin.SetMode(gin.TestMode)

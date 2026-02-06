@@ -2,11 +2,11 @@ package jobs
 
 import (
 	"context"
-	"log"
 	"time"
 
 	"whatspire/internal/domain/repository"
 	"whatspire/internal/infrastructure/config"
+	"whatspire/internal/infrastructure/logger"
 )
 
 // EventCleanupJob handles periodic cleanup of old events based on retention policy
@@ -18,6 +18,7 @@ type EventCleanupJob struct {
 	running       bool
 	lastRunTime   time.Time
 	lastRunResult *CleanupResult
+	logger        *logger.Logger
 }
 
 // CleanupResult holds the result of a cleanup operation
@@ -29,11 +30,12 @@ type CleanupResult struct {
 }
 
 // NewEventCleanupJob creates a new event cleanup job
-func NewEventCleanupJob(eventRepo repository.EventRepository, cfg *config.EventsConfig) *EventCleanupJob {
+func NewEventCleanupJob(eventRepo repository.EventRepository, cfg *config.EventsConfig, log *logger.Logger) *EventCleanupJob {
 	return &EventCleanupJob{
 		eventRepo: eventRepo,
 		cfg:       cfg,
 		stopCh:    make(chan struct{}),
+		logger:    log.Sub("event_cleanup_job"),
 	}
 }
 
@@ -46,8 +48,12 @@ func (j *EventCleanupJob) Start(ctx context.Context) error {
 	j.running = true
 	j.ticker = time.NewTicker(j.cfg.CleanupInterval)
 
-	log.Printf("✅ Event cleanup job started (retention: %d days, interval: %v, cleanup time: %s)",
-		j.cfg.RetentionDays, j.cfg.CleanupInterval, j.cfg.CleanupTime)
+	j.logger.WithInt("retention_days", j.cfg.RetentionDays).
+		WithFields(map[string]interface{}{
+			"interval":     j.cfg.CleanupInterval.String(),
+			"cleanup_time": j.cfg.CleanupTime,
+		}).
+		Info("Event cleanup job started successfully")
 
 	// Run initial cleanup if we're past the scheduled time today
 	go j.runIfScheduled(ctx)
@@ -71,7 +77,7 @@ func (j *EventCleanupJob) Stop() error {
 		j.ticker.Stop()
 	}
 
-	log.Println("✅ Event cleanup job stopped")
+	j.logger.Info("Event cleanup job stopped gracefully")
 	return nil
 }
 
@@ -107,7 +113,9 @@ func (j *EventCleanupJob) runIfScheduled(ctx context.Context) {
 	// Parse cleanup time (HH:MM format)
 	scheduledTime, err := parseCleanupTime(j.cfg.CleanupTime)
 	if err != nil {
-		log.Printf("⚠️  Invalid cleanup time format: %v", err)
+		j.logger.WithError(err).
+			WithFields(map[string]interface{}{"cleanup_time": j.cfg.CleanupTime}).
+			Warn("Invalid cleanup time format, skipping scheduled cleanup")
 		return
 	}
 
@@ -124,7 +132,8 @@ func (j *EventCleanupJob) runIfScheduled(ctx context.Context) {
 func (j *EventCleanupJob) runCleanup(ctx context.Context) {
 	startTime := time.Now()
 
-	log.Printf("🧹 Starting event cleanup (retention: %d days)...", j.cfg.RetentionDays)
+	j.logger.WithInt("retention_days", j.cfg.RetentionDays).
+		Info("Starting scheduled event cleanup operation")
 
 	// Calculate cutoff timestamp
 	cutoff := time.Now().AddDate(0, 0, -j.cfg.RetentionDays)
@@ -145,14 +154,29 @@ func (j *EventCleanupJob) runCleanup(ctx context.Context) {
 	}
 
 	if err != nil {
-		log.Printf("❌ Event cleanup failed: %v (duration: %v)", err, duration)
+		j.logger.WithError(err).
+			WithFields(map[string]interface{}{
+				"duration":       duration.String(),
+				"retention_days": j.cfg.RetentionDays,
+				"cutoff_date":    cutoff.Format(time.RFC3339),
+			}).
+			Error("Event cleanup operation failed")
 		return
 	}
 
 	if deleted > 0 {
-		log.Printf("✅ Event cleanup completed: deleted %d events (duration: %v)", deleted, duration)
+		j.logger.WithFields(map[string]interface{}{
+			"deleted_count":  deleted,
+			"duration":       duration.String(),
+			"retention_days": j.cfg.RetentionDays,
+			"cutoff_date":    cutoff.Format(time.RFC3339),
+		}).Info("Event cleanup completed successfully, events deleted")
 	} else {
-		log.Printf("✅ Event cleanup completed: no events to delete (duration: %v)", duration)
+		j.logger.WithFields(map[string]interface{}{
+			"duration":       duration.String(),
+			"retention_days": j.cfg.RetentionDays,
+			"cutoff_date":    cutoff.Format(time.RFC3339),
+		}).Debug("Event cleanup completed, no events to delete")
 	}
 }
 

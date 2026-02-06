@@ -2,7 +2,6 @@ package usecase
 
 import (
 	"context"
-	"log"
 	"sync"
 	"time"
 
@@ -11,6 +10,7 @@ import (
 	"whatspire/internal/domain/errors"
 	"whatspire/internal/domain/repository"
 	"whatspire/internal/domain/valueobject"
+	"whatspire/internal/infrastructure/logger"
 
 	"github.com/google/uuid"
 )
@@ -41,6 +41,7 @@ type MessageUseCase struct {
 	mediaUploader repository.MediaUploader
 	auditLogger   repository.AuditLogger
 	config        MessageUseCaseConfig
+	logger        *logger.Logger
 
 	// Rate limiting
 	mu            sync.Mutex
@@ -53,29 +54,54 @@ type MessageUseCase struct {
 	done  chan struct{}
 }
 
-// NewMessageUseCase creates a new MessageUseCase
-func NewMessageUseCase(
-	waClient repository.WhatsAppClient,
-	publisher repository.EventPublisher,
-	mediaUploader repository.MediaUploader,
-	auditLogger repository.AuditLogger,
-	config MessageUseCaseConfig,
-) *MessageUseCase {
-	uc := &MessageUseCase{
-		waClient:      waClient,
-		publisher:     publisher,
-		mediaUploader: mediaUploader,
-		auditLogger:   auditLogger,
-		config:        config,
-		rateLimitChan: make(chan struct{}, config.RateLimitPerSecond),
-		queue:         make(chan *entity.Message, config.QueueSize),
-		done:          make(chan struct{}),
+// MessageUseCaseBuilder provides a builder pattern for creating MessageUseCase instances
+type MessageUseCaseBuilder struct {
+	usecase *MessageUseCase
+}
+
+// NewMessageUseCaseBuilder creates a new MessageUseCaseBuilder with required fields
+func NewMessageUseCaseBuilder(config MessageUseCaseConfig, log *logger.Logger) *MessageUseCaseBuilder {
+	return &MessageUseCaseBuilder{
+		usecase: &MessageUseCase{
+			config:        config,
+			logger:        log.Sub("message_usecase"),
+			rateLimitChan: make(chan struct{}, config.RateLimitPerSecond),
+			queue:         make(chan *entity.Message, config.QueueSize),
+			done:          make(chan struct{}),
+		},
 	}
+}
 
+// WithWhatsAppClient sets the WhatsApp client
+func (b *MessageUseCaseBuilder) WithWhatsAppClient(client repository.WhatsAppClient) *MessageUseCaseBuilder {
+	b.usecase.waClient = client
+	return b
+}
+
+// WithEventPublisher sets the event publisher
+func (b *MessageUseCaseBuilder) WithEventPublisher(publisher repository.EventPublisher) *MessageUseCaseBuilder {
+	b.usecase.publisher = publisher
+	return b
+}
+
+// WithMediaUploader sets the media uploader
+func (b *MessageUseCaseBuilder) WithMediaUploader(uploader repository.MediaUploader) *MessageUseCaseBuilder {
+	b.usecase.mediaUploader = uploader
+	return b
+}
+
+// WithAuditLogger sets the audit logger
+func (b *MessageUseCaseBuilder) WithAuditLogger(auditLogger repository.AuditLogger) *MessageUseCaseBuilder {
+	b.usecase.auditLogger = auditLogger
+	return b
+}
+
+// Build returns the constructed MessageUseCase and starts the message processor
+func (b *MessageUseCaseBuilder) Build() *MessageUseCase {
 	// Start the message processor
-	go uc.processQueue()
+	go b.usecase.processQueue()
 
-	return uc
+	return b.usecase
 }
 
 // SendMessage sends a WhatsApp message
@@ -223,14 +249,22 @@ func (uc *MessageUseCase) QueueSize() int {
 
 // processQueue processes messages from the queue with rate limiting
 func (uc *MessageUseCase) processQueue() {
-	log.Println("[MessageUseCase] processQueue started")
+	uc.logger.WithInt("queue_size", uc.config.QueueSize).
+		Debug("Message queue processor started")
+
 	for {
 		select {
 		case <-uc.done:
-			log.Println("[MessageUseCase] processQueue stopped")
+			uc.logger.Info("Message queue processor stopped gracefully")
 			return
 		case msg := <-uc.queue:
-			log.Printf("[MessageUseCase] Processing message from queue: sessionID=%s, to=%s, type=%s", msg.SessionID, msg.To, msg.Type)
+			uc.logger.WithFields(map[string]interface{}{
+				"session_id":   msg.SessionID,
+				"recipient":    msg.To,
+				"message_id":   msg.ID,
+				"message_type": msg.Type.String(),
+			}).Debug("Processing message from queue")
+
 			ctx := context.Background()
 
 			// Apply rate limiting
@@ -238,12 +272,24 @@ func (uc *MessageUseCase) processQueue() {
 
 			// Send with retry
 			if err := uc.sendWithRetry(ctx, msg); err != nil {
-				log.Printf("[MessageUseCase] Message send failed after retries: %v", err)
+				uc.logger.WithError(err).
+					WithFields(map[string]interface{}{
+						"message_id":  msg.ID,
+						"session_id":  msg.SessionID,
+						"recipient":   msg.To,
+						"retry_count": uc.config.MaxRetries,
+					}).
+					Error("Message send failed after all retry attempts")
+
 				// Message failed after all retries
 				msg.SetStatus(entity.MessageStatusFailed)
 				uc.emitMessageStatusEvent(ctx, msg, entity.MessageStatusFailed)
 			} else {
-				log.Printf("[MessageUseCase] Message sent successfully: messageID=%s", msg.ID)
+				uc.logger.WithFields(map[string]interface{}{
+					"message_id": msg.ID,
+					"session_id": msg.SessionID,
+					"recipient":  msg.To,
+				}).Info("Message sent successfully")
 			}
 		}
 	}
@@ -254,18 +300,28 @@ func (uc *MessageUseCase) sendWithRetry(ctx context.Context, msg *entity.Message
 	var lastErr error
 
 	for attempt := 0; attempt < uc.config.MaxRetries; attempt++ {
-		log.Printf("[MessageUseCase] sendWithRetry attempt %d/%d for sessionID=%s", attempt+1, uc.config.MaxRetries, msg.SessionID)
+		uc.logger.WithFields(map[string]interface{}{
+			"attempt":     attempt + 1,
+			"max_retries": uc.config.MaxRetries,
+			"session_id":  msg.SessionID,
+			"message_id":  msg.ID,
+		}).Debug("Attempting to send message")
 
 		if uc.waClient == nil {
 			lastErr = errors.ErrConnectionFailed.WithMessage("WhatsApp client not available")
-			log.Printf("[MessageUseCase] waClient is nil")
+			uc.logger.Warn("WhatsApp client is nil, cannot send message")
 			continue
 		}
 
 		err := uc.waClient.SendMessage(ctx, msg)
 		if err == nil {
 			// Success
-			log.Printf("[MessageUseCase] waClient.SendMessage succeeded")
+			uc.logger.WithFields(map[string]interface{}{
+				"message_id": msg.ID,
+				"session_id": msg.SessionID,
+				"recipient":  msg.To,
+			}).Debug("WhatsApp client successfully sent message")
+
 			msg.SetStatus(entity.MessageStatusSent)
 			uc.emitMessageStatusEvent(ctx, msg, entity.MessageStatusSent)
 
@@ -283,7 +339,13 @@ func (uc *MessageUseCase) sendWithRetry(ctx context.Context, msg *entity.Message
 		}
 
 		lastErr = err
-		log.Printf("[MessageUseCase] waClient.SendMessage failed: %v", err)
+		uc.logger.WithError(err).
+			WithFields(map[string]interface{}{
+				"attempt":    attempt + 1,
+				"message_id": msg.ID,
+				"session_id": msg.SessionID,
+			}).
+			Warn("WhatsApp client failed to send message, will retry")
 
 		// Exponential backoff: 1s, 2s, 4s
 		backoff := time.Duration(1<<attempt) * time.Second

@@ -32,8 +32,7 @@ func TestSendMessage_TextSuccess(t *testing.T) {
 	publisher := NewEventPublisherMock()
 	mediaUploader := NewMediaUploaderMock()
 
-	config := usecase.DefaultMessageUseCaseConfig()
-	messageUC := usecase.NewMessageUseCase(waClient, publisher, mediaUploader, nil, config)
+	messageUC := helpers.NewTestMessageUseCase(waClient, publisher, mediaUploader, nil)
 	defer messageUC.Close()
 
 	router := setupMessageTestRouter(messageUC)
@@ -67,8 +66,7 @@ func TestSendMessage_TextSuccess(t *testing.T) {
 }
 
 func TestSendMessage_InvalidJSON(t *testing.T) {
-	config := usecase.DefaultMessageUseCaseConfig()
-	messageUC := usecase.NewMessageUseCase(nil, nil, nil, nil, config)
+	messageUC := helpers.NewTestMessageUseCase(nil, nil, nil, nil)
 	defer messageUC.Close()
 
 	router := setupMessageTestRouter(messageUC)
@@ -90,8 +88,7 @@ func TestSendMessage_InvalidJSON(t *testing.T) {
 }
 
 func TestSendMessage_ValidationFailed_MissingSessionID(t *testing.T) {
-	config := usecase.DefaultMessageUseCaseConfig()
-	messageUC := usecase.NewMessageUseCase(nil, nil, nil, nil, config)
+	messageUC := helpers.NewTestMessageUseCase(nil, nil, nil, nil)
 	defer messageUC.Close()
 
 	router := setupMessageTestRouter(messageUC)
@@ -127,8 +124,7 @@ func TestSendMessage_ValidationFailed_InvalidPhoneNumber(t *testing.T) {
 	waClient := NewWhatsAppClientMock()
 	publisher := NewEventPublisherMock()
 
-	config := usecase.DefaultMessageUseCaseConfig()
-	messageUC := usecase.NewMessageUseCase(waClient, publisher, nil, nil, config)
+	messageUC := helpers.NewTestMessageUseCase(waClient, publisher, nil, nil)
 	defer messageUC.Close()
 
 	router := setupMessageTestRouter(messageUC)
@@ -163,8 +159,7 @@ func TestSendMessage_ValidationFailed_EmptyTextContent(t *testing.T) {
 	waClient := NewWhatsAppClientMock()
 	publisher := NewEventPublisherMock()
 
-	config := usecase.DefaultMessageUseCaseConfig()
-	messageUC := usecase.NewMessageUseCase(waClient, publisher, nil, nil, config)
+	messageUC := helpers.NewTestMessageUseCase(waClient, publisher, nil, nil)
 	defer messageUC.Close()
 
 	router := setupMessageTestRouter(messageUC)
@@ -197,8 +192,7 @@ func TestSendMessage_ImageSuccess(t *testing.T) {
 	publisher := NewEventPublisherMock()
 	mediaUploader := NewMediaUploaderMock()
 
-	config := usecase.DefaultMessageUseCaseConfig()
-	messageUC := usecase.NewMessageUseCase(waClient, publisher, mediaUploader, nil, config)
+	messageUC := helpers.NewTestMessageUseCase(waClient, publisher, mediaUploader, nil)
 	defer messageUC.Close()
 
 	router := setupMessageTestRouter(messageUC)
@@ -236,9 +230,8 @@ func TestSendMessage_ImageWithoutUploader(t *testing.T) {
 	waClient := NewWhatsAppClientMock()
 	publisher := NewEventPublisherMock()
 
-	config := usecase.DefaultMessageUseCaseConfig()
 	// No media uploader
-	messageUC := usecase.NewMessageUseCase(waClient, publisher, nil, nil, config)
+	messageUC := helpers.NewTestMessageUseCase(waClient, publisher, nil, nil)
 	defer messageUC.Close()
 
 	router := setupMessageTestRouter(messageUC)
@@ -276,8 +269,7 @@ func TestSendMessage_DocumentSuccess(t *testing.T) {
 	publisher := NewEventPublisherMock()
 	mediaUploader := NewMediaUploaderMock()
 
-	config := usecase.DefaultMessageUseCaseConfig()
-	messageUC := usecase.NewMessageUseCase(waClient, publisher, mediaUploader, nil, config)
+	messageUC := helpers.NewTestMessageUseCase(waClient, publisher, mediaUploader, nil)
 	defer messageUC.Close()
 
 	router := setupMessageTestRouter(messageUC)
@@ -316,8 +308,7 @@ func TestSendMessage_DocumentWithoutURL(t *testing.T) {
 	publisher := NewEventPublisherMock()
 	mediaUploader := NewMediaUploaderMock()
 
-	config := usecase.DefaultMessageUseCaseConfig()
-	messageUC := usecase.NewMessageUseCase(waClient, publisher, mediaUploader, nil, config)
+	messageUC := helpers.NewTestMessageUseCase(waClient, publisher, mediaUploader, nil)
 	defer messageUC.Close()
 
 	router := setupMessageTestRouter(messageUC)

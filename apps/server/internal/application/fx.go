@@ -7,6 +7,7 @@ import (
 	"whatspire/internal/domain/repository"
 	"whatspire/internal/infrastructure"
 	"whatspire/internal/infrastructure/config"
+	"whatspire/internal/infrastructure/logger"
 	"whatspire/internal/infrastructure/persistence"
 
 	"go.uber.org/fx"
@@ -46,6 +47,7 @@ func NewMessageUseCase(
 	mediaUploader repository.MediaUploader,
 	auditLogger repository.AuditLogger,
 	cfg *config.Config,
+	log *logger.Logger,
 ) *usecase.MessageUseCase {
 	// Convert rate limit from per minute to per second
 	rateLimitPerSecond := max(cfg.WhatsApp.MessageRateLimit/60, 1)
@@ -56,7 +58,12 @@ func NewMessageUseCase(
 		QueueSize:          1000,
 	}
 
-	uc := usecase.NewMessageUseCase(waClient, publisher, mediaUploader, auditLogger, msgConfig)
+	uc := usecase.NewMessageUseCaseBuilder(msgConfig, log).
+		WithWhatsAppClient(waClient).
+		WithEventPublisher(publisher).
+		WithMediaUploader(mediaUploader).
+		WithAuditLogger(auditLogger).
+		Build()
 
 	lc.Append(fx.Hook{
 		OnStop: func(ctx context.Context) error {

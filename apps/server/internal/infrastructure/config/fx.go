@@ -2,8 +2,8 @@ package config
 
 import (
 	"context"
-	"log"
 	"os"
+	"whatspire/internal/infrastructure/logger"
 
 	"go.uber.org/fx"
 )
@@ -33,7 +33,7 @@ var Module = fx.Module("config",
 )
 
 // ProvideConfig provides the configuration instance
-func ProvideConfig() (*Config, error) {
+func ProvideConfig(log *logger.Logger) (*Config, error) {
 	// Load config from file (if specified) or auto-discover
 	cfg, err := LoadWithConfigFile(configFileFlag)
 	if err != nil {
@@ -41,18 +41,19 @@ func ProvideConfig() (*Config, error) {
 	}
 
 	if configFileFlag != "" {
-		log.Printf("✅ Configuration loaded from: %s", configFileFlag)
+		log.WithFields(map[string]interface{}{"config_file": configFileFlag}).
+			Info("Configuration loaded from file successfully")
 	} else {
-		log.Println("✅ Configuration loaded from environment variables and defaults")
+		log.Info("Configuration loaded from environment variables and defaults")
 	}
 
 	return cfg, nil
 }
 
 // ProvideConfigWatcher provides the configuration watcher for hot reload
-func ProvideConfigWatcher() (*ConfigWatcher, error) {
+func ProvideConfigWatcher(log *logger.Logger) (*ConfigWatcher, error) {
 	// Create watcher
-	watcher, err := NewConfigWatcher(configFileFlag)
+	watcher, err := NewConfigWatcher(configFileFlag, log)
 	if err != nil {
 		return nil, err
 	}
@@ -61,21 +62,23 @@ func ProvideConfigWatcher() (*ConfigWatcher, error) {
 }
 
 // StartConfigWatcher starts the configuration watcher if a config file is being used
-func StartConfigWatcher(lc fx.Lifecycle, watcher *ConfigWatcher) {
+func StartConfigWatcher(lc fx.Lifecycle, watcher *ConfigWatcher, log *logger.Logger) {
 	// Only start watcher if a config file is being used
 	if watcher.GetViper().ConfigFileUsed() == "" {
-		log.Println("ℹ️  Config watcher not started (no config file in use)")
+		log.Info("Configuration watcher not started (no config file in use)")
 		return
 	}
 
 	lc.Append(fx.Hook{
 		OnStart: func(ctx context.Context) error {
 			if err := watcher.Start(ctx); err != nil {
-				log.Printf("⚠️  Failed to start config watcher: %v", err)
+				log.WithError(err).Warn("Failed to start configuration watcher, continuing without hot reload")
 				// Don't fail startup if watcher fails
 				return nil
 			}
-			log.Printf("✅ Config watcher monitoring: %s", watcher.GetViper().ConfigFileUsed())
+			log.WithFields(map[string]interface{}{
+				"config_file": watcher.GetViper().ConfigFileUsed(),
+			}).Info("Configuration watcher monitoring file for changes")
 			return nil
 		},
 		OnStop: func(ctx context.Context) error {

@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"whatspire/internal/infrastructure/config"
+	"whatspire/test/helpers"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -31,7 +32,7 @@ log:
 	require.NoError(t, err)
 
 	// Create watcher
-	watcher, err := config.NewConfigWatcher(configFile)
+	watcher, err := config.NewConfigWatcher(configFile, helpers.CreateTestLogger())
 	require.NoError(t, err)
 	require.NotNil(t, watcher)
 
@@ -57,7 +58,7 @@ server:
 	require.NoError(t, err)
 
 	// Create watcher
-	watcher, err := config.NewConfigWatcher(configFile)
+	watcher, err := config.NewConfigWatcher(configFile, helpers.CreateTestLogger())
 	require.NoError(t, err)
 
 	// Start watcher
@@ -95,7 +96,7 @@ ratelimit:
 	require.NoError(t, err)
 
 	// Create watcher
-	watcher, err := config.NewConfigWatcher(configFile)
+	watcher, err := config.NewConfigWatcher(configFile, helpers.CreateTestLogger())
 	require.NoError(t, err)
 
 	// Verify initial config
@@ -173,7 +174,7 @@ log:
 	require.NoError(t, err)
 
 	// Create watcher
-	watcher, err := config.NewConfigWatcher(configFile)
+	watcher, err := config.NewConfigWatcher(configFile, helpers.CreateTestLogger())
 	require.NoError(t, err)
 
 	// Verify initial config
@@ -215,7 +216,7 @@ log:
 
 func TestConfigWatcher_NoFile(t *testing.T) {
 	// Create watcher without config file (should use defaults)
-	watcher, err := config.NewConfigWatcher("")
+	watcher, err := config.NewConfigWatcher("", helpers.CreateTestLogger())
 	require.NoError(t, err)
 	require.NotNil(t, watcher)
 
@@ -244,7 +245,7 @@ log:
 	require.NoError(t, err)
 
 	// Create watcher
-	watcher, err := config.NewConfigWatcher(configFile)
+	watcher, err := config.NewConfigWatcher(configFile, helpers.CreateTestLogger())
 	require.NoError(t, err)
 
 	// Start watcher

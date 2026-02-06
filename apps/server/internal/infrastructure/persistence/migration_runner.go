@@ -6,29 +6,34 @@ import (
 	"time"
 
 	"whatspire/internal/domain/repository"
+	"whatspire/internal/infrastructure/logger"
 
 	"gorm.io/gorm"
 )
 
 // GORMMigrationRunner implements MigrationRunner using GORM auto-migration
 type GORMMigrationRunner struct {
-	db *gorm.DB
+	db     *gorm.DB
+	logger *logger.Logger
 }
 
 // NewGORMMigrationRunner creates a new GORM migration runner
-func NewGORMMigrationRunner(db *gorm.DB) *GORMMigrationRunner {
-	return &GORMMigrationRunner{db: db}
+func NewGORMMigrationRunner(db *gorm.DB, log *logger.Logger) *GORMMigrationRunner {
+	return &GORMMigrationRunner{
+		db:     db,
+		logger: log.Sub("migration_runner"),
+	}
 }
 
 // Up runs all pending migrations using GORM AutoMigrate
 func (r *GORMMigrationRunner) Up(ctx context.Context) error {
 	// Run auto-migration for all models
-	if err := RunAutoMigration(r.db); err != nil {
+	if err := RunAutoMigration(r.db, r.logger); err != nil {
 		return fmt.Errorf("failed to run migrations: %w", err)
 	}
 
 	// Verify schema after migration
-	if err := VerifySchema(r.db); err != nil {
+	if err := VerifySchema(r.db, r.logger); err != nil {
 		return fmt.Errorf("schema verification failed: %w", err)
 	}
 

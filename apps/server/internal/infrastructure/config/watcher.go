@@ -2,9 +2,9 @@ package config
 
 import (
 	"context"
-	"log"
 	"strings"
 	"sync"
+	"whatspire/internal/infrastructure/logger"
 
 	"github.com/fsnotify/fsnotify"
 	"github.com/spf13/viper"
@@ -18,6 +18,7 @@ type ConfigWatcher struct {
 	stopCh      chan struct{}
 	callbacks   []func(*Config)
 	running     bool
+	logger      *logger.Logger
 }
 
 // GetViper returns the underlying viper instance (for checking if config file is used)
@@ -26,7 +27,7 @@ func (w *ConfigWatcher) GetViper() *viper.Viper {
 }
 
 // NewConfigWatcher creates a new configuration watcher
-func NewConfigWatcher(configFile string) (*ConfigWatcher, error) {
+func NewConfigWatcher(configFile string, log *logger.Logger) (*ConfigWatcher, error) {
 	v := viper.New()
 
 	// Set default values
@@ -50,7 +51,7 @@ func NewConfigWatcher(configFile string) (*ConfigWatcher, error) {
 
 		if err := v.ReadInConfig(); err != nil {
 			// No config file found, use defaults and env vars only
-			log.Println("⚠️  No config file found, using defaults and environment variables")
+			log.Warn("No configuration file found, using defaults and environment variables")
 		}
 	}
 
@@ -78,6 +79,7 @@ func NewConfigWatcher(configFile string) (*ConfigWatcher, error) {
 		config:    &cfg,
 		stopCh:    make(chan struct{}),
 		callbacks: make([]func(*Config), 0),
+		logger:    log.Sub("config_watcher"),
 	}, nil
 }
 
@@ -92,24 +94,27 @@ func (w *ConfigWatcher) Start(ctx context.Context) error {
 	// Watch for config file changes
 	w.viper.WatchConfig()
 	w.viper.OnConfigChange(func(e fsnotify.Event) {
-		log.Printf("🔄 Config file changed: %s", e.Name)
+		w.logger.WithFields(map[string]interface{}{
+			"file":      e.Name,
+			"operation": e.Op.String(),
+		}).Info("Configuration file changed, reloading")
 
 		// Reload configuration
 		if err := w.reload(); err != nil {
-			log.Printf("⚠️  Failed to reload config: %v", err)
+			w.logger.WithError(err).Error("Failed to reload configuration after file change")
 			return
 		}
 
-		log.Println("✅ Configuration reloaded successfully")
+		w.logger.Info("Configuration reloaded successfully")
 	})
 
-	log.Println("✅ Config watcher started")
+	w.logger.Info("Configuration watcher started successfully")
 
 	// Keep watcher running
 	go func() {
 		<-ctx.Done()
 		if err := w.Stop(); err != nil {
-			log.Printf("⚠️ Error stopping config watcher: %v", err)
+			w.logger.WithError(err).Warn("Error occurred while stopping configuration watcher")
 		}
 	}()
 
@@ -124,7 +129,7 @@ func (w *ConfigWatcher) Stop() error {
 
 	w.running = false
 	close(w.stopCh)
-	log.Println("✅ Config watcher stopped")
+	w.logger.Info("Configuration watcher stopped gracefully")
 	return nil
 }
 
@@ -146,7 +151,7 @@ func (w *ConfigWatcher) reload() error {
 
 	// Check if critical settings changed (these require restart)
 	if w.hasCriticalChanges(&newCfg) {
-		log.Println("⚠️  Critical configuration changes detected - restart required for full effect")
+		w.logger.Warn("Critical configuration changes detected - application restart required for full effect")
 	}
 
 	// Update config
@@ -203,24 +208,34 @@ func (w *ConfigWatcher) hasCriticalChanges(newCfg *Config) bool {
 func (w *ConfigWatcher) logConfigChanges(oldCfg, newCfg *Config) {
 	// Log level changes
 	if oldCfg.Log.Level != newCfg.Log.Level {
-		log.Printf("📝 Log level changed: %s -> %s", oldCfg.Log.Level, newCfg.Log.Level)
+		w.logger.WithFields(map[string]interface{}{
+			"old_level": oldCfg.Log.Level,
+			"new_level": newCfg.Log.Level,
+		}).Info("Log level configuration changed")
 	}
 
 	// Rate limit changes
 	if oldCfg.RateLimit.RequestsPerSecond != newCfg.RateLimit.RequestsPerSecond {
-		log.Printf("🚦 Rate limit changed: %.2f -> %.2f requests/second",
-			oldCfg.RateLimit.RequestsPerSecond, newCfg.RateLimit.RequestsPerSecond)
+		w.logger.WithFields(map[string]interface{}{
+			"old_rate": oldCfg.RateLimit.RequestsPerSecond,
+			"new_rate": newCfg.RateLimit.RequestsPerSecond,
+		}).Info("Rate limit configuration changed")
 	}
 
 	// Event retention changes
 	if oldCfg.Events.RetentionDays != newCfg.Events.RetentionDays {
-		log.Printf("🗄️  Event retention changed: %d -> %d days",
-			oldCfg.Events.RetentionDays, newCfg.Events.RetentionDays)
+		w.logger.WithFields(map[string]interface{}{
+			"old_retention_days": oldCfg.Events.RetentionDays,
+			"new_retention_days": newCfg.Events.RetentionDays,
+		}).Info("Event retention policy changed")
 	}
 
 	// Webhook changes
 	if oldCfg.Webhook.Enabled != newCfg.Webhook.Enabled {
-		log.Printf("🔔 Webhook enabled changed: %v -> %v", oldCfg.Webhook.Enabled, newCfg.Webhook.Enabled)
+		w.logger.WithFields(map[string]interface{}{
+			"old_enabled": oldCfg.Webhook.Enabled,
+			"new_enabled": newCfg.Webhook.Enabled,
+		}).Info("Webhook configuration changed")
 	}
 }
 

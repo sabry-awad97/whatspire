@@ -6,9 +6,9 @@ import (
 	"time"
 
 	"whatspire/internal/application/dto"
-	"whatspire/internal/application/usecase"
 	"whatspire/internal/domain/entity"
 	"whatspire/internal/domain/errors"
+	"whatspire/test/helpers"
 	"whatspire/test/mocks"
 
 	"github.com/stretchr/testify/assert"
@@ -22,8 +22,7 @@ func TestMessageUseCase_SendMessage_Text(t *testing.T) {
 	publisher := mocks.NewEventPublisherMock()
 	mediaUploader := mocks.NewMediaUploaderMock()
 
-	config := usecase.DefaultMessageUseCaseConfig()
-	uc := usecase.NewMessageUseCase(waClient, publisher, mediaUploader, nil, config)
+	uc := helpers.NewTestMessageUseCase(waClient, publisher, mediaUploader, nil)
 	defer uc.Close()
 
 	text := "Hello, World!"
@@ -46,8 +45,7 @@ func TestMessageUseCase_SendMessage_Text(t *testing.T) {
 }
 
 func TestMessageUseCase_SendMessage_InvalidPhoneNumber(t *testing.T) {
-	config := usecase.DefaultMessageUseCaseConfig()
-	uc := usecase.NewMessageUseCase(nil, nil, nil, nil, config)
+	uc := helpers.NewTestMessageUseCase(nil, nil, nil, nil)
 	defer uc.Close()
 
 	text := "Hello"
@@ -70,9 +68,8 @@ func TestMessageUseCase_SendMessage_ImageWithoutUploader(t *testing.T) {
 	waClient := mocks.NewWhatsAppClientMock()
 	publisher := mocks.NewEventPublisherMock()
 
-	config := usecase.DefaultMessageUseCaseConfig()
 	// No media uploader
-	uc := usecase.NewMessageUseCase(waClient, publisher, nil, nil, config)
+	uc := helpers.NewTestMessageUseCase(waClient, publisher, nil, nil)
 	defer uc.Close()
 
 	imageURL := "https://example.com/image.jpg"
@@ -96,8 +93,7 @@ func TestMessageUseCase_SendMessage_ImageWithUploader(t *testing.T) {
 	publisher := mocks.NewEventPublisherMock()
 	mediaUploader := mocks.NewMediaUploaderMock()
 
-	config := usecase.DefaultMessageUseCaseConfig()
-	uc := usecase.NewMessageUseCase(waClient, publisher, mediaUploader, nil, config)
+	uc := helpers.NewTestMessageUseCase(waClient, publisher, mediaUploader, nil)
 	defer uc.Close()
 
 	imageURL := "https://example.com/image.jpg"
@@ -122,8 +118,7 @@ func TestMessageUseCase_SendMessage_DocumentWithoutURL(t *testing.T) {
 	publisher := mocks.NewEventPublisherMock()
 	mediaUploader := mocks.NewMediaUploaderMock()
 
-	config := usecase.DefaultMessageUseCaseConfig()
-	uc := usecase.NewMessageUseCase(waClient, publisher, mediaUploader, nil, config)
+	uc := helpers.NewTestMessageUseCase(waClient, publisher, mediaUploader, nil)
 	defer uc.Close()
 
 	req := dto.SendMessageRequest{
@@ -144,8 +139,7 @@ func TestMessageUseCase_SendMessageSync(t *testing.T) {
 	publisher := mocks.NewEventPublisherMock()
 	mediaUploader := mocks.NewMediaUploaderMock()
 
-	config := usecase.DefaultMessageUseCaseConfig()
-	uc := usecase.NewMessageUseCase(waClient, publisher, mediaUploader, nil, config)
+	uc := helpers.NewTestMessageUseCase(waClient, publisher, mediaUploader, nil)
 	defer uc.Close()
 
 	text := "Hello, World!"
@@ -167,8 +161,7 @@ func TestMessageUseCase_SendMessageSync(t *testing.T) {
 }
 
 func TestMessageUseCase_SendMessageSync_InvalidPhoneNumber(t *testing.T) {
-	config := usecase.DefaultMessageUseCaseConfig()
-	uc := usecase.NewMessageUseCase(nil, nil, nil, nil, config)
+	uc := helpers.NewTestMessageUseCase(nil, nil, nil, nil)
 	defer uc.Close()
 
 	text := "Hello"
@@ -190,8 +183,7 @@ func TestMessageUseCase_SendMessageSync_InvalidPhoneNumber(t *testing.T) {
 func TestMessageUseCase_HandleIncomingMessage(t *testing.T) {
 	publisher := mocks.NewEventPublisherMock()
 
-	config := usecase.DefaultMessageUseCaseConfig()
-	uc := usecase.NewMessageUseCase(nil, publisher, nil, nil, config)
+	uc := helpers.NewTestMessageUseCase(nil, publisher, nil, nil)
 	defer uc.Close()
 
 	text := "Incoming message"
@@ -210,8 +202,7 @@ func TestMessageUseCase_HandleIncomingMessage(t *testing.T) {
 }
 
 func TestMessageUseCase_HandleIncomingMessage_NilMessage(t *testing.T) {
-	config := usecase.DefaultMessageUseCaseConfig()
-	uc := usecase.NewMessageUseCase(nil, nil, nil, nil, config)
+	uc := helpers.NewTestMessageUseCase(nil, nil, nil, nil)
 	defer uc.Close()
 
 	err := uc.HandleIncomingMessage(context.Background(), nil)
@@ -222,8 +213,7 @@ func TestMessageUseCase_HandleIncomingMessage_NilMessage(t *testing.T) {
 func TestMessageUseCase_HandleMessageStatusUpdate_Sent(t *testing.T) {
 	publisher := mocks.NewEventPublisherMock()
 
-	config := usecase.DefaultMessageUseCaseConfig()
-	uc := usecase.NewMessageUseCase(nil, publisher, nil, nil, config)
+	uc := helpers.NewTestMessageUseCase(nil, publisher, nil, nil)
 	defer uc.Close()
 
 	err := uc.HandleMessageStatusUpdate(context.Background(), "msg-1", "session-1", entity.MessageStatusSent)
@@ -236,8 +226,7 @@ func TestMessageUseCase_HandleMessageStatusUpdate_Sent(t *testing.T) {
 func TestMessageUseCase_HandleMessageStatusUpdate_Delivered(t *testing.T) {
 	publisher := mocks.NewEventPublisherMock()
 
-	config := usecase.DefaultMessageUseCaseConfig()
-	uc := usecase.NewMessageUseCase(nil, publisher, nil, nil, config)
+	uc := helpers.NewTestMessageUseCase(nil, publisher, nil, nil)
 	defer uc.Close()
 
 	err := uc.HandleMessageStatusUpdate(context.Background(), "msg-1", "session-1", entity.MessageStatusDelivered)
@@ -249,8 +238,7 @@ func TestMessageUseCase_HandleMessageStatusUpdate_Delivered(t *testing.T) {
 func TestMessageUseCase_HandleMessageStatusUpdate_Read(t *testing.T) {
 	publisher := mocks.NewEventPublisherMock()
 
-	config := usecase.DefaultMessageUseCaseConfig()
-	uc := usecase.NewMessageUseCase(nil, publisher, nil, nil, config)
+	uc := helpers.NewTestMessageUseCase(nil, publisher, nil, nil)
 	defer uc.Close()
 
 	err := uc.HandleMessageStatusUpdate(context.Background(), "msg-1", "session-1", entity.MessageStatusRead)
@@ -262,8 +250,7 @@ func TestMessageUseCase_HandleMessageStatusUpdate_Read(t *testing.T) {
 func TestMessageUseCase_HandleMessageStatusUpdate_Failed(t *testing.T) {
 	publisher := mocks.NewEventPublisherMock()
 
-	config := usecase.DefaultMessageUseCaseConfig()
-	uc := usecase.NewMessageUseCase(nil, publisher, nil, nil, config)
+	uc := helpers.NewTestMessageUseCase(nil, publisher, nil, nil)
 	defer uc.Close()
 
 	err := uc.HandleMessageStatusUpdate(context.Background(), "msg-1", "session-1", entity.MessageStatusFailed)
@@ -273,8 +260,7 @@ func TestMessageUseCase_HandleMessageStatusUpdate_Failed(t *testing.T) {
 }
 
 func TestMessageUseCase_QueueSize(t *testing.T) {
-	config := usecase.DefaultMessageUseCaseConfig()
-	uc := usecase.NewMessageUseCase(nil, nil, nil, nil, config)
+	uc := helpers.NewTestMessageUseCase(nil, nil, nil, nil)
 	defer uc.Close()
 
 	// Initially queue should be empty
@@ -284,16 +270,14 @@ func TestMessageUseCase_QueueSize(t *testing.T) {
 func TestMessageUseCase_IsMediaUploadAvailable(t *testing.T) {
 	t.Run("with uploader", func(t *testing.T) {
 		mediaUploader := mocks.NewMediaUploaderMock()
-		config := usecase.DefaultMessageUseCaseConfig()
-		uc := usecase.NewMessageUseCase(nil, nil, mediaUploader, nil, config)
+		uc := helpers.NewTestMessageUseCase(nil, nil, mediaUploader, nil)
 		defer uc.Close()
 
 		assert.True(t, uc.IsMediaUploadAvailable())
 	})
 
 	t.Run("without uploader", func(t *testing.T) {
-		config := usecase.DefaultMessageUseCaseConfig()
-		uc := usecase.NewMessageUseCase(nil, nil, nil, nil, config)
+		uc := helpers.NewTestMessageUseCase(nil, nil, nil, nil)
 		defer uc.Close()
 
 		assert.False(t, uc.IsMediaUploadAvailable())
@@ -303,8 +287,7 @@ func TestMessageUseCase_IsMediaUploadAvailable(t *testing.T) {
 func TestMessageUseCase_GetMediaConstraints(t *testing.T) {
 	t.Run("with uploader", func(t *testing.T) {
 		mediaUploader := mocks.NewMediaUploaderMock()
-		config := usecase.DefaultMessageUseCaseConfig()
-		uc := usecase.NewMessageUseCase(nil, nil, mediaUploader, nil, config)
+		uc := helpers.NewTestMessageUseCase(nil, nil, mediaUploader, nil)
 		defer uc.Close()
 
 		constraints := uc.GetMediaConstraints()
@@ -312,8 +295,7 @@ func TestMessageUseCase_GetMediaConstraints(t *testing.T) {
 	})
 
 	t.Run("without uploader", func(t *testing.T) {
-		config := usecase.DefaultMessageUseCaseConfig()
-		uc := usecase.NewMessageUseCase(nil, nil, nil, nil, config)
+		uc := helpers.NewTestMessageUseCase(nil, nil, nil, nil)
 		defer uc.Close()
 
 		constraints := uc.GetMediaConstraints()
@@ -325,8 +307,7 @@ func TestMessageUseCase_SendMessage_TextWithoutContent(t *testing.T) {
 	waClient := mocks.NewWhatsAppClientMock()
 	publisher := mocks.NewEventPublisherMock()
 
-	config := usecase.DefaultMessageUseCaseConfig()
-	uc := usecase.NewMessageUseCase(waClient, publisher, nil, nil, config)
+	uc := helpers.NewTestMessageUseCase(waClient, publisher, nil, nil)
 	defer uc.Close()
 
 	req := dto.SendMessageRequest{
@@ -345,9 +326,7 @@ func TestMessageUseCase_SendMessage_TextWithoutContent(t *testing.T) {
 func TestMessageUseCase_SendMessageSync_NoClient(t *testing.T) {
 	publisher := mocks.NewEventPublisherMock()
 
-	config := usecase.DefaultMessageUseCaseConfig()
-	config.MaxRetries = 1 // Reduce retries for faster test
-	uc := usecase.NewMessageUseCase(nil, publisher, nil, nil, config)
+	uc := helpers.NewTestMessageUseCase(nil, publisher, nil, nil)
 	defer uc.Close()
 
 	text := "Hello"

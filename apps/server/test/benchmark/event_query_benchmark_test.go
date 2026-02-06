@@ -9,6 +9,7 @@ import (
 	"whatspire/internal/domain/entity"
 	"whatspire/internal/domain/repository"
 	"whatspire/internal/infrastructure/persistence"
+	"whatspire/test/helpers"
 
 	"gorm.io/driver/sqlite"
 	"gorm.io/gorm"
@@ -25,7 +26,7 @@ func setupTestDB(b *testing.B) *gorm.DB {
 	}
 
 	// Run migrations
-	if err := persistence.RunAutoMigration(db); err != nil {
+	if err := persistence.RunAutoMigration(db, helpers.CreateTestLogger()); err != nil {
 		b.Fatalf("Failed to run migrations: %v", err)
 	}
 

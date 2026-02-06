@@ -84,8 +84,9 @@ func NewWhatsmeowClient(ctx context.Context, config ClientConfig, log *logger.Lo
 
 	// Create the SQL store container with foreign keys enabled (required by whatsmeow)
 	// Using modernc.org/sqlite pragma syntax: _pragma=foreign_keys(1)
+	// Pass nil for logger to disable whatsmeow internal logging (we use our own logger)
 	dsn := config.DBPath + "?_pragma=foreign_keys(1)&_pragma=journal_mode(WAL)&_pragma=busy_timeout(5000)"
-	container, err := sqlstore.New(ctx, "sqlite", dsn, log.Sub("whatsmeow"))
+	container, err := sqlstore.New(ctx, "sqlite", dsn, nil)
 	if err != nil {
 		return nil, errors.ErrDatabaseError.WithCause(err).WithMessage("failed to create whatsmeow store")
 	}

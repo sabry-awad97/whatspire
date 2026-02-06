@@ -39,8 +39,8 @@ func (c *WhatsmeowClient) connectInternal(ctx context.Context, sessionID string)
 		return err
 	}
 
-	// Create client
-	client := whatsmeow.NewClient(device, c.logger)
+	// Create client (pass nil for logger to disable whatsmeow internal logging)
+	client := whatsmeow.NewClient(device, nil)
 
 	// Register event handler
 	client.AddEventHandler(func(evt interface{}) {
@@ -111,8 +111,8 @@ func (c *WhatsmeowClient) GetQRChannel(ctx context.Context, sessionID string) (<
 		return nil, err
 	}
 
-	// Create client
-	client := whatsmeow.NewClient(device, c.logger)
+	// Create client (pass nil for logger to disable whatsmeow internal logging)
+	client := whatsmeow.NewClient(device, nil)
 
 	// Create QR event channel
 	qrChan := make(chan repository.QREvent, 10)

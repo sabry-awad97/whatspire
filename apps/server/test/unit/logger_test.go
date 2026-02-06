@@ -7,7 +7,6 @@ import (
 	"strings"
 	"testing"
 
-	"whatspire/internal/infrastructure/config"
 	"whatspire/internal/infrastructure/logger"
 
 	"github.com/stretchr/testify/assert"
@@ -15,19 +14,13 @@ import (
 )
 
 func TestNewLogger(t *testing.T) {
-	cfg := config.LogConfig{
-		Level:  "info",
-		Format: "json",
-	}
-
-	l := logger.New(cfg)
+	l := logger.New("info", "json")
 	assert.NotNil(t, l)
 }
 
 func TestLogger_JSONFormat(t *testing.T) {
 	var buf bytes.Buffer
-	cfg := config.LogConfig{Level: "debug", Format: "json"}
-	l := logger.NewWithOutput(cfg, &buf)
+	l := logger.NewWithOutput("debug", "json", &buf)
 
 	l.WithStr("key", "value").Info("test message")
 
@@ -43,8 +36,7 @@ func TestLogger_JSONFormat(t *testing.T) {
 
 func TestLogger_TextFormat(t *testing.T) {
 	var buf bytes.Buffer
-	cfg := config.LogConfig{Level: "debug", Format: "text"}
-	l := logger.NewWithOutput(cfg, &buf)
+	l := logger.NewWithOutput("debug", "text", &buf)
 
 	l.WithStr("key", "value").Info("test message")
 
@@ -83,8 +75,7 @@ func TestLogger_LogLevels(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			var buf bytes.Buffer
-			cfg := config.LogConfig{Level: tt.logLevel, Format: "json"}
-			l := logger.NewWithOutput(cfg, &buf)
+			l := logger.NewWithOutput(tt.logLevel, "json", &buf)
 
 			switch tt.logMethod {
 			case "debug":
@@ -108,8 +99,7 @@ func TestLogger_LogLevels(t *testing.T) {
 
 func TestLogger_WithFields(t *testing.T) {
 	var buf bytes.Buffer
-	cfg := config.LogConfig{Level: "debug", Format: "json"}
-	l := logger.NewWithOutput(cfg, &buf)
+	l := logger.NewWithOutput("debug", "json", &buf)
 
 	childLogger := l.WithStr("service", "whatsapp")
 	childLogger.Info("test message")
@@ -123,8 +113,7 @@ func TestLogger_WithFields(t *testing.T) {
 
 func TestLogger_WithRequestID(t *testing.T) {
 	var buf bytes.Buffer
-	cfg := config.LogConfig{Level: "debug", Format: "json"}
-	l := logger.NewWithOutput(cfg, &buf)
+	l := logger.NewWithOutput("debug", "json", &buf)
 
 	childLogger := l.WithRequestID("req-123")
 	childLogger.Info("test message")
@@ -138,8 +127,7 @@ func TestLogger_WithRequestID(t *testing.T) {
 
 func TestLogger_WithSessionID(t *testing.T) {
 	var buf bytes.Buffer
-	cfg := config.LogConfig{Level: "debug", Format: "json"}
-	l := logger.NewWithOutput(cfg, &buf)
+	l := logger.NewWithOutput("debug", "json", &buf)
 
 	childLogger := l.WithSessionID("sess-456")
 	childLogger.Info("test message")
@@ -153,8 +141,7 @@ func TestLogger_WithSessionID(t *testing.T) {
 
 func TestLogger_WithContext(t *testing.T) {
 	var buf bytes.Buffer
-	cfg := config.LogConfig{Level: "debug", Format: "json"}
-	l := logger.NewWithOutput(cfg, &buf)
+	l := logger.NewWithOutput("debug", "json", &buf)
 
 	ctx := context.WithValue(context.Background(), logger.RequestIDKey, "ctx-req-123")
 	ctx = context.WithValue(ctx, logger.SessionIDKey, "ctx-sess-456")
@@ -172,8 +159,7 @@ func TestLogger_WithContext(t *testing.T) {
 
 func TestLogger_WithError(t *testing.T) {
 	var buf bytes.Buffer
-	cfg := config.LogConfig{Level: "debug", Format: "json"}
-	l := logger.NewWithOutput(cfg, &buf)
+	l := logger.NewWithOutput("debug", "json", &buf)
 
 	l.WithError(assert.AnError).Error("operation failed")
 
@@ -186,8 +172,7 @@ func TestLogger_WithError(t *testing.T) {
 
 func TestLogger_WithInt(t *testing.T) {
 	var buf bytes.Buffer
-	cfg := config.LogConfig{Level: "debug", Format: "json"}
-	l := logger.NewWithOutput(cfg, &buf)
+	l := logger.NewWithOutput("debug", "json", &buf)
 
 	l.WithInt("count", 42).Info("test")
 
@@ -200,8 +185,7 @@ func TestLogger_WithInt(t *testing.T) {
 
 func TestLogger_FormattedMethods(t *testing.T) {
 	var buf bytes.Buffer
-	cfg := config.LogConfig{Level: "debug", Format: "json"}
-	l := logger.NewWithOutput(cfg, &buf)
+	l := logger.NewWithOutput("debug", "json", &buf)
 
 	l.Infof("test %s %d", "message", 123)
 
@@ -214,8 +198,7 @@ func TestLogger_FormattedMethods(t *testing.T) {
 
 func TestLogger_Sub(t *testing.T) {
 	var buf bytes.Buffer
-	cfg := config.LogConfig{Level: "debug", Format: "json"}
-	l := logger.NewWithOutput(cfg, &buf)
+	l := logger.NewWithOutput("debug", "json", &buf)
 
 	subLogger := l.Sub("whatsmeow")
 	subLogger.Infof("test message")
@@ -229,20 +212,17 @@ func TestLogger_Sub(t *testing.T) {
 }
 
 func TestLoggerDefaultConfig(t *testing.T) {
-	// Test that default log config values work correctly
-	cfg := config.LogConfig{
-		Level:  "info",
-		Format: "json",
-	}
+	// Test that default log level and format work correctly
+	level := "info"
+	format := "json"
 
-	assert.Equal(t, "info", cfg.Level)
-	assert.Equal(t, "json", cfg.Format)
+	assert.Equal(t, "info", level)
+	assert.Equal(t, "json", format)
 }
 
 func TestLogger_ChainedFields(t *testing.T) {
 	var buf bytes.Buffer
-	cfg := config.LogConfig{Level: "debug", Format: "json"}
-	l := logger.NewWithOutput(cfg, &buf)
+	l := logger.NewWithOutput("debug", "json", &buf)
 
 	childLogger := l.WithRequestID("req-1").WithSessionID("sess-1").WithStr("extra", "value")
 	childLogger.Info("test")
@@ -258,15 +238,13 @@ func TestLogger_ChainedFields(t *testing.T) {
 
 func TestLogger_DoesNotMutateParent(t *testing.T) {
 	var buf1, buf2 bytes.Buffer
-	cfg := config.LogConfig{Level: "debug", Format: "json"}
-	l := logger.NewWithOutput(cfg, &buf1)
+	l := logger.NewWithOutput("debug", "json", &buf1)
 
 	// Log from parent
 	l.Info("parent log")
 
 	// Log from child (need new buffer)
-	cfg2 := config.LogConfig{Level: "debug", Format: "json"}
-	l2 := logger.NewWithOutput(cfg2, &buf2)
+	l2 := logger.NewWithOutput("debug", "json", &buf2)
 	child2 := l2.WithStr("child", "true")
 	child2.Info("child log")
 
@@ -281,8 +259,7 @@ func TestLogger_DoesNotMutateParent(t *testing.T) {
 
 func TestLogger_WithFieldsMap(t *testing.T) {
 	var buf bytes.Buffer
-	cfg := config.LogConfig{Level: "debug", Format: "json"}
-	l := logger.NewWithOutput(cfg, &buf)
+	l := logger.NewWithOutput("debug", "json", &buf)
 
 	fields := map[string]any{
 		"str":   "value",

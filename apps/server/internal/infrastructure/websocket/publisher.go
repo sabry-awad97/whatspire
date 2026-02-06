@@ -3,12 +3,12 @@ package websocket
 import (
 	"context"
 	"encoding/json"
-	"log"
 	"sync"
 	"time"
 
 	"whatspire/internal/domain/entity"
 	"whatspire/internal/domain/errors"
+	"whatspire/internal/infrastructure/logger"
 
 	"github.com/gorilla/websocket"
 )
@@ -46,14 +46,16 @@ type GorillaEventPublisher struct {
 	connected     bool
 	authenticated bool
 	wg            sync.WaitGroup
+	logger        *logger.Logger
 }
 
 // NewGorillaEventPublisher creates a new WebSocket event publisher
-func NewGorillaEventPublisher(config PublisherConfig) *GorillaEventPublisher {
+func NewGorillaEventPublisher(config PublisherConfig, log *logger.Logger) *GorillaEventPublisher {
 	return &GorillaEventPublisher{
 		config: config,
 		queue:  make(chan *entity.Event, config.QueueSize),
 		done:   make(chan struct{}),
+		logger: log.Sub("websocket_publisher"),
 	}
 }
 
@@ -169,9 +171,10 @@ func (p *GorillaEventPublisher) Disconnect(ctx context.Context) error {
 	select {
 	case <-done:
 		// Workers finished gracefully
+		p.logger.Debug("WebSocket publisher workers stopped gracefully")
 	case <-ctx.Done():
 		// Timeout - force close
-		log.Println("⚠️  WebSocket publisher shutdown timeout - forcing close")
+		p.logger.Warn("WebSocket publisher shutdown timeout exceeded, forcing connection close")
 	}
 
 	// Close connection

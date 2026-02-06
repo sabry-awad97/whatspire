@@ -1,7 +1,8 @@
 package helpers
 
 import (
-	"whatspire/internal/infrastructure/config"
+	"whatspire/internal/application/usecase"
+	"whatspire/internal/domain/repository"
 	"whatspire/internal/infrastructure/logger"
 	httpHandler "whatspire/internal/presentation/http"
 
@@ -12,7 +13,31 @@ import (
 
 // CreateTestLogger creates a logger for testing with minimal output
 func CreateTestLogger() *logger.Logger {
-	return logger.New(config.LogConfig{Level: "error", Format: "json"})
+	return logger.New("error", "json")
+}
+
+// ==================== Test MessageUseCase Helper ====================
+
+// NewTestMessageUseCaseBuilder creates a MessageUseCaseBuilder with test logger and default config
+func NewTestMessageUseCaseBuilder() *usecase.MessageUseCaseBuilder {
+	config := usecase.DefaultMessageUseCaseConfig()
+	log := CreateTestLogger()
+	return usecase.NewMessageUseCaseBuilder(config, log)
+}
+
+// NewTestMessageUseCase creates a MessageUseCase with the provided dependencies for testing
+func NewTestMessageUseCase(
+	waClient repository.WhatsAppClient,
+	publisher repository.EventPublisher,
+	mediaUploader repository.MediaUploader,
+	auditLogger repository.AuditLogger,
+) *usecase.MessageUseCase {
+	return NewTestMessageUseCaseBuilder().
+		WithWhatsAppClient(waClient).
+		WithEventPublisher(publisher).
+		WithMediaUploader(mediaUploader).
+		WithAuditLogger(auditLogger).
+		Build()
 }
 
 // ==================== Test Handler Helpers ====================

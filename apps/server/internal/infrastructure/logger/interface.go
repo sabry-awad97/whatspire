@@ -6,10 +6,7 @@ import (
 	"os"
 	"time"
 
-	"whatspire/internal/infrastructure/config"
-
 	"github.com/rs/zerolog"
-	waLog "go.mau.fi/whatsmeow/util/log"
 )
 
 // Logger wraps zerolog.Logger with our application-specific methods
@@ -18,11 +15,11 @@ type Logger struct {
 }
 
 // New creates a new Logger instance
-func New(cfg config.LogConfig) *Logger {
+func New(level, format string) *Logger {
 	// Configure output format
 	var output io.Writer = os.Stdout
 
-	if cfg.Format == "text" {
+	if format == "text" {
 		output = zerolog.ConsoleWriter{
 			Out:        os.Stdout,
 			TimeFormat: time.RFC3339,
@@ -31,11 +28,11 @@ func New(cfg config.LogConfig) *Logger {
 	}
 
 	// Parse log level
-	level := parseZerologLevel(cfg.Level)
+	zerologLevel := parseZerologLevel(level)
 
 	// Create logger with timestamp
 	zlog := zerolog.New(output).
-		Level(level).
+		Level(zerologLevel).
 		With().
 		Timestamp().
 		Logger()
@@ -44,11 +41,11 @@ func New(cfg config.LogConfig) *Logger {
 }
 
 // NewWithOutput creates a logger with custom output (for testing)
-func NewWithOutput(cfg config.LogConfig, output io.Writer) *Logger {
-	level := parseZerologLevel(cfg.Level)
+func NewWithOutput(level, format string, output io.Writer) *Logger {
+	zerologLevel := parseZerologLevel(level)
 
 	zlog := zerolog.New(output).
-		Level(level).
+		Level(zerologLevel).
 		With().
 		Timestamp().
 		Logger()
@@ -154,8 +151,8 @@ func (l *Logger) WithSessionID(sessionID string) *Logger {
 	return &Logger{zlog: l.zlog.With().Str("session_id", sessionID).Logger()}
 }
 
-// Sub creates a sub-logger with a module name (for whatsmeow compatibility)
-func (l *Logger) Sub(module string) waLog.Logger {
+// Sub creates a sub-logger with a module name
+func (l *Logger) Sub(module string) *Logger {
 	return &Logger{zlog: l.zlog.With().Str("module", module).Logger()}
 }
 

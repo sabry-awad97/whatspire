@@ -100,7 +100,10 @@ var Module = fx.Module("infrastructure",
 
 // NewLogger creates a new logger instance
 func NewLogger(cfg *config.Config) *logger.Logger {
-	return logger.New(cfg.Log)
+	return logger.New(
+		cfg.Log.Level,
+		cfg.Log.Format,
+	)
 }
 
 // NewDB creates a new GORM database connection using the configured driver
@@ -111,7 +114,8 @@ func NewDB(lc fx.Lifecycle, cfg *config.Config, log *logger.Logger) (*gorm.DB, e
 		if err != nil {
 			return nil, err
 		}
-		log.Infof("✅ Database directory ensured: %s", dbDir)
+		log.WithFields(map[string]interface{}{"directory": dbDir}).
+			Info("Database directory ensured")
 	}
 
 	// Create database factory
@@ -125,7 +129,7 @@ func NewDB(lc fx.Lifecycle, cfg *config.Config, log *logger.Logger) (*gorm.DB, e
 
 	lc.Append(fx.Hook{
 		OnStop: func(ctx context.Context) error {
-			log.Info("🛑 Closing database connection...")
+			log.Info("Closing database connection")
 			sqlDB, err := db.DB()
 			if err != nil {
 				return err
@@ -179,7 +183,8 @@ func NewWhatsmeowClient(lc fx.Lifecycle, cfg *config.Config, log *logger.Logger)
 	if err != nil {
 		return nil, err
 	}
-	log.Infof("✅ WhatsApp database directory ensured: %s", dbDir)
+	log.WithFields(map[string]interface{}{"directory": dbDir}).
+		Info("WhatsApp database directory ensured")
 
 	clientConfig := whatsapp.ClientConfig{
 		DBPath:           cfg.WhatsApp.DBPath,
@@ -196,15 +201,15 @@ func NewWhatsmeowClient(lc fx.Lifecycle, cfg *config.Config, log *logger.Logger)
 
 	lc.Append(fx.Hook{
 		OnStop: func(ctx context.Context) error {
-			log.Info("🛑 Shutting down WhatsApp client...")
+			log.Info("Shutting down WhatsApp client")
 
 			// Close all WhatsApp connections gracefully
 			if err := client.Close(); err != nil {
-				log.Warnf("⚠️  WhatsApp client shutdown error: %v", err)
+				log.WithError(err).Warn("WhatsApp client shutdown encountered an error")
 				return err
 			}
 
-			log.Info("✅ WhatsApp client stopped gracefully")
+			log.Info("WhatsApp client stopped gracefully")
 			return nil
 		},
 	})
@@ -224,7 +229,7 @@ func NewGorillaEventPublisher(lc fx.Lifecycle, cfg *config.Config, log *logger.L
 		QueueSize:      cfg.WebSocket.QueueSize,
 	}
 
-	publisher := websocket.NewGorillaEventPublisher(publisherConfig)
+	publisher := websocket.NewGorillaEventPublisher(publisherConfig, log)
 
 	lc.Append(fx.Hook{
 		OnStart: func(ctx context.Context) error {
@@ -235,21 +240,22 @@ func NewGorillaEventPublisher(lc fx.Lifecycle, cfg *config.Config, log *logger.L
 			return nil
 		},
 		OnStop: func(ctx context.Context) error {
-			log.Info("🛑 Shutting down WebSocket publisher...")
+			log.Info("Shutting down WebSocket publisher")
 
 			// Log queue status before shutdown
 			queueSize := publisher.QueueSize()
 			if queueSize > 0 {
-				log.Infof("📤 Flushing %d queued events before shutdown...", queueSize)
+				log.WithInt("queued_events", queueSize).
+					Info("Flushing queued events before shutdown")
 			}
 
 			// Disconnect will flush the queue automatically
 			if err := publisher.Disconnect(ctx); err != nil {
-				log.Warnf("⚠️  WebSocket publisher shutdown error: %v", err)
+				log.WithError(err).Warn("WebSocket publisher shutdown encountered an error")
 				return err
 			}
 
-			log.Info("✅ WebSocket publisher stopped gracefully")
+			log.Info("WebSocket publisher stopped gracefully")
 			return nil
 		},
 	})
@@ -260,7 +266,10 @@ func NewGorillaEventPublisher(lc fx.Lifecycle, cfg *config.Config, log *logger.L
 // NewAuditLogger creates a new audit logger
 func NewAuditLogger(cfg *config.Config) (repository.AuditLogger, *logger.Logger) {
 	// Create zerolog logger
-	log := logger.New(cfg.Log)
+	log := logger.New(
+		cfg.Log.Level,
+		cfg.Log.Format,
+	)
 
 	// Create audit logger
 	auditLogger := logger.NewAuditLogger(log)
@@ -283,7 +292,10 @@ func NewWebhookPublisher(cfg *config.Config, auditLogger repository.AuditLogger,
 
 	publisher := webhook.NewWebhookPublisher(webhookConfig, log, auditLogger)
 
-	log.Infof("✅ Webhook publisher created (URL: %s, Events: %v)", cfg.Webhook.URL, cfg.Webhook.Events)
+	log.WithFields(map[string]interface{}{
+		"url":    cfg.Webhook.URL,
+		"events": cfg.Webhook.Events,
+	}).Info("Webhook publisher created successfully")
 
 	return publisher
 }
@@ -369,11 +381,17 @@ func WireEventHubToWhatsAppClient(
 			go func() {
 				ctx := context.Background()
 				if err := eventRepo.Create(ctx, event); err != nil {
-					log.Warnf("⚠️  Failed to persist event: %v", err)
+					log.WithError(err).
+						WithFields(map[string]interface{}{
+							"event_id":   event.ID,
+							"event_type": event.Type,
+							"session_id": event.SessionID,
+						}).
+						Warn("Failed to persist event to database")
 				}
 			}()
 		})
-		log.Info("✅ Event persistence enabled")
+		log.Info("Event persistence enabled for WhatsApp events")
 	}
 
 	// Register an event handler that updates session status based on connection events
@@ -385,24 +403,29 @@ func WireEventHubToWhatsAppClient(
 			switch event.Type {
 			case entity.EventTypeConnected:
 				status = entity.StatusConnected
-				log.Infof("📱 Session %s connected - updating status to 'connected'", event.SessionID)
+				log.WithFields(map[string]interface{}{"session_id": event.SessionID}).
+					Info("Session connected, updating status")
 			case entity.EventTypeDisconnected:
 				status = entity.StatusDisconnected
-				log.Infof("📱 Session %s disconnected - updating status to 'disconnected'", event.SessionID)
+				log.WithFields(map[string]interface{}{"session_id": event.SessionID}).
+					Info("Session disconnected, updating status")
 			case entity.EventTypeLoggedOut:
 				status = entity.StatusLoggedOut
-				log.Infof("📱 Session %s logged out - updating status to 'logged_out'", event.SessionID)
+				log.WithFields(map[string]interface{}{"session_id": event.SessionID}).
+					Info("Session logged out, updating status")
 			default:
 				return // Ignore other event types
 			}
 
 			// Update session status in database
 			if err := sessionRepo.UpdateStatus(ctx, event.SessionID, status); err != nil {
-				log.Warnf("⚠️  Failed to update session status for %s: %v", event.SessionID, err)
+				log.WithError(err).
+					WithFields(map[string]interface{}{"session_id": event.SessionID}).
+					Warn("Failed to update session status in database")
 			}
 		}()
 	})
-	log.Info("✅ Session status auto-update handler registered")
+	log.Info("Session status auto-update handler registered successfully")
 }
 
 // NewEventHub creates a new WebSocket event hub for broadcasting events to connected clients
@@ -423,18 +446,19 @@ func NewEventHub(lc fx.Lifecycle, cfg *config.Config, log *logger.Logger) *webso
 			return nil
 		},
 		OnStop: func(ctx context.Context) error {
-			log.Info("🛑 Shutting down WebSocket event hub...")
+			log.Info("Shutting down WebSocket event hub")
 
 			// Log connected clients
 			clientCount := hub.ClientCount()
 			if clientCount > 0 {
-				log.Infof("📡 Closing %d WebSocket client connections...", clientCount)
+				log.WithInt("client_count", clientCount).
+					Info("Closing WebSocket client connections")
 			}
 
 			// Stop the hub (will close all client connections)
 			hub.Stop()
 
-			log.Info("✅ WebSocket event hub stopped gracefully")
+			log.Info("WebSocket event hub stopped gracefully")
 			return nil
 		},
 	})
@@ -498,29 +522,29 @@ func WireMessageHandler(
 	// Wire presence repository to the client
 	waClient.SetPresenceRepository(presenceRepo)
 
-	log.Info("✅ Message handler and reaction handler wired to WhatsApp client")
+	log.Info("Message handler and reaction handler wired to WhatsApp client successfully")
 }
 
 // RunMigrations runs GORM auto-migration on startup with version tracking
 func RunMigrations(lc fx.Lifecycle, db *gorm.DB, log *logger.Logger) {
 	lc.Append(fx.Hook{
 		OnStart: func(ctx context.Context) error {
-			log.Info("🔄 Running database migrations...")
+			log.Info("Running database migrations")
 
 			// Create migration runner
-			runner := persistence.NewGORMMigrationRunner(db)
+			runner := persistence.NewGORMMigrationRunner(db, log)
 
 			// Get current version
 			currentVersion, err := runner.Version(ctx)
 			if err != nil {
-				log.Warnf("⚠️  Failed to get migration version: %v", err)
+				log.WithError(err).Warn("Failed to get current migration version")
 			} else {
-				log.Infof("📊 Current migration version: %d", currentVersion)
+				log.WithInt("version", currentVersion).Info("Current migration version retrieved")
 			}
 
 			// Run migrations
 			if err := runner.Up(ctx); err != nil {
-				log.Warnf("⚠️  Migration error: %v", err)
+				log.WithError(err).Warn("Migration encountered an error, continuing with existing schema")
 				// Don't fail startup - continue with existing schema
 				return nil
 			}
@@ -528,20 +552,20 @@ func RunMigrations(lc fx.Lifecycle, db *gorm.DB, log *logger.Logger) {
 			// Record migration if successful
 			newVersion := int(time.Now().Unix())
 			if err := runner.RecordMigration(ctx, newVersion, "auto_migration"); err != nil {
-				log.Warnf("⚠️  Failed to record migration: %v", err)
+				log.WithError(err).Warn("Failed to record migration version")
 			} else {
-				log.Infof("✅ Migration recorded: version %d", newVersion)
+				log.WithInt("version", newVersion).Info("Migration version recorded successfully")
 			}
 
-			log.Info("✅ Database migrations completed")
+			log.Info("Database migrations completed successfully")
 			return nil
 		},
 	})
 }
 
 // NewEventCleanupJob creates a new event cleanup job
-func NewEventCleanupJob(eventRepo repository.EventRepository, cfg *config.Config) *jobs.EventCleanupJob {
-	return jobs.NewEventCleanupJob(eventRepo, &cfg.Events)
+func NewEventCleanupJob(eventRepo repository.EventRepository, cfg *config.Config, log *logger.Logger) *jobs.EventCleanupJob {
+	return jobs.NewEventCleanupJob(eventRepo, &cfg.Events, log)
 }
 
 // StartEventCleanupJob starts the event cleanup job if event persistence is enabled
@@ -556,7 +580,7 @@ func StartEventCleanupJob(lc fx.Lifecycle, job *jobs.EventCleanupJob, cfg *confi
 			return job.Start(ctx)
 		},
 		OnStop: func(ctx context.Context) error {
-			log.Info("🛑 Stopping event cleanup job...")
+			log.Info("Stopping event cleanup job")
 			return job.Stop()
 		},
 	})
@@ -573,7 +597,7 @@ func StartAutoReconnect(
 		OnStart: func(ctx context.Context) error {
 			// Run auto-reconnect in background to not block startup
 			go func() {
-				log.Info("🔄 Auto-reconnecting stored WhatsApp sessions...")
+				log.Info("Auto-reconnecting stored WhatsApp sessions")
 				results := waClient.AutoReconnect(ctx, sessionRepo)
 
 				successCount := 0
@@ -583,12 +607,18 @@ func StartAutoReconnect(
 						successCount++
 					} else {
 						failCount++
-						log.Warnf("⚠️  Session %s failed to reconnect: %v", sessionID, err)
+						log.WithError(err).
+							WithFields(map[string]interface{}{"session_id": sessionID}).
+							Warn("Session failed to auto-reconnect")
 					}
 				}
 
 				if len(results) > 0 {
-					log.Infof("📊 Auto-reconnect summary: %d successful, %d failed", successCount, failCount)
+					log.WithFields(map[string]interface{}{
+						"successful": successCount,
+						"failed":     failCount,
+						"total":      len(results),
+					}).Info("Auto-reconnect process completed")
 				}
 			}()
 			return nil

@@ -6,7 +6,6 @@ import (
 	"time"
 
 	"whatspire/internal/domain/repository"
-	"whatspire/internal/infrastructure/config"
 	"whatspire/internal/infrastructure/logger"
 	"whatspire/internal/infrastructure/persistence"
 
@@ -27,7 +26,7 @@ func TestProperty26_AuditLogCompleteness(t *testing.T) {
 	t.Run("API Key Usage", func(t *testing.T) {
 		rapid.Check(t, func(t *rapid.T) {
 			// Create audit logger and repository
-			testLogger := logger.New(config.LogConfig{Level: "info", Format: "json"})
+			testLogger := logger.New("info", "json")
 			auditLogger := logger.NewAuditLogger(testLogger)
 			db := setupTestDBForRapid(t)
 			auditRepo := persistence.NewAuditLogRepository(db)
@@ -84,7 +83,7 @@ func TestProperty26_AuditLogCompleteness(t *testing.T) {
 	t.Run("Session Action", func(t *testing.T) {
 		rapid.Check(t, func(t *rapid.T) {
 			// Create audit logger and repository
-			testLogger := logger.New(config.LogConfig{Level: "info", Format: "json"})
+			testLogger := logger.New("info", "json")
 			auditLogger := logger.NewAuditLogger(testLogger)
 			db := setupTestDBForRapid(t)
 			auditRepo := persistence.NewAuditLogRepository(db)
@@ -139,7 +138,7 @@ func TestProperty26_AuditLogCompleteness(t *testing.T) {
 	t.Run("Message Sent", func(t *testing.T) {
 		rapid.Check(t, func(t *rapid.T) {
 			// Create audit logger and repository
-			testLogger := logger.New(config.LogConfig{Level: "info", Format: "json"})
+			testLogger := logger.New("info", "json")
 			auditLogger := logger.NewAuditLogger(testLogger)
 			db := setupTestDBForRapid(t)
 			auditRepo := persistence.NewAuditLogRepository(db)
@@ -194,7 +193,7 @@ func TestProperty26_AuditLogCompleteness(t *testing.T) {
 	t.Run("Auth Failure", func(t *testing.T) {
 		rapid.Check(t, func(t *rapid.T) {
 			// Create audit logger and repository
-			testLogger := logger.New(config.LogConfig{Level: "info", Format: "json"})
+			testLogger := logger.New("info", "json")
 			auditLogger := logger.NewAuditLogger(testLogger)
 			db := setupTestDBForRapid(t)
 			auditRepo := persistence.NewAuditLogRepository(db)
@@ -251,7 +250,7 @@ func TestProperty26_AuditLogCompleteness(t *testing.T) {
 	t.Run("Webhook Delivery", func(t *testing.T) {
 		rapid.Check(t, func(t *rapid.T) {
 			// Create audit logger and repository
-			testLogger := logger.New(config.LogConfig{Level: "info", Format: "json"})
+			testLogger := logger.New("info", "json")
 			auditLogger := logger.NewAuditLogger(testLogger)
 			db := setupTestDBForRapid(t)
 			auditRepo := persistence.NewAuditLogRepository(db)

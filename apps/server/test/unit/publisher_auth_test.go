@@ -12,6 +12,7 @@ import (
 
 	"whatspire/internal/domain/entity"
 	ws "whatspire/internal/infrastructure/websocket"
+	"whatspire/test/helpers"
 
 	"github.com/gorilla/websocket"
 	"github.com/stretchr/testify/assert"
@@ -151,7 +152,7 @@ func TestPublisher_SendsAuthMessageOnConnect(t *testing.T) {
 		QueueSize:      100,
 	}
 
-	publisher := ws.NewGorillaEventPublisher(config)
+	publisher := ws.NewGorillaEventPublisher(config, helpers.CreateTestLogger())
 
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
@@ -183,7 +184,7 @@ func TestPublisher_AuthFailsWithWrongKey(t *testing.T) {
 		QueueSize:      100,
 	}
 
-	publisher := ws.NewGorillaEventPublisher(config)
+	publisher := ws.NewGorillaEventPublisher(config, helpers.CreateTestLogger())
 
 	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
 	defer cancel()
@@ -208,7 +209,7 @@ func TestPublisher_AuthSucceedsWithEmptyExpectedKey(t *testing.T) {
 		QueueSize:      100,
 	}
 
-	publisher := ws.NewGorillaEventPublisher(config)
+	publisher := ws.NewGorillaEventPublisher(config, helpers.CreateTestLogger())
 
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
@@ -238,7 +239,7 @@ func TestPublisher_EventsOnlySentAfterAuth(t *testing.T) {
 		QueueSize:      100,
 	}
 
-	publisher := ws.NewGorillaEventPublisher(config)
+	publisher := ws.NewGorillaEventPublisher(config, helpers.CreateTestLogger())
 
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
@@ -332,7 +333,7 @@ func TestPublisher_ReauthenticatesOnReconnect(t *testing.T) {
 		QueueSize:      100,
 	}
 
-	publisher := ws.NewGorillaEventPublisher(config)
+	publisher := ws.NewGorillaEventPublisher(config, helpers.CreateTestLogger())
 
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()

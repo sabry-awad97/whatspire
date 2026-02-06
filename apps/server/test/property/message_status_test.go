@@ -5,8 +5,8 @@ import (
 	"sync"
 	"testing"
 
-	"whatspire/internal/application/usecase"
 	"whatspire/internal/domain/entity"
+	"whatspire/test/helpers"
 
 	"github.com/google/uuid"
 	"github.com/leanovate/gopter"
@@ -81,8 +81,7 @@ func TestMessageStatusEventEmission_Property9(t *testing.T) {
 	properties.Property("HandleMessageStatusUpdate emits correct event type for each status", prop.ForAll(
 		func(statusIndex int) bool {
 			publisher := newMockEventPublisher()
-			config := usecase.DefaultMessageUseCaseConfig()
-			uc := usecase.NewMessageUseCase(nil, publisher, nil, nil, config)
+			uc := helpers.NewTestMessageUseCase(nil, publisher, nil, nil)
 			defer uc.Close()
 
 			ctx := context.Background()
@@ -128,8 +127,7 @@ func TestMessageStatusEventEmission_Property9(t *testing.T) {
 	properties.Property("Event contains message metadata", prop.ForAll(
 		func(statusIndex int) bool {
 			publisher := newMockEventPublisher()
-			config := usecase.DefaultMessageUseCaseConfig()
-			uc := usecase.NewMessageUseCase(nil, publisher, nil, nil, config)
+			uc := helpers.NewTestMessageUseCase(nil, publisher, nil, nil)
 			defer uc.Close()
 
 			ctx := context.Background()
@@ -183,8 +181,7 @@ func TestMessageStatusEventEmission_Property9(t *testing.T) {
 	properties.Property("HandleIncomingMessage emits message.received event", prop.ForAll(
 		func(textLen int) bool {
 			publisher := newMockEventPublisher()
-			config := usecase.DefaultMessageUseCaseConfig()
-			uc := usecase.NewMessageUseCase(nil, publisher, nil, nil, config)
+			uc := helpers.NewTestMessageUseCase(nil, publisher, nil, nil)
 			defer uc.Close()
 
 			ctx := context.Background()
@@ -231,8 +228,7 @@ func TestMessageStatusEventEmission_Property9(t *testing.T) {
 			publisher := newMockEventPublisher()
 			_ = publisher.Disconnect(context.Background()) // Disconnect the publisher
 
-			config := usecase.DefaultMessageUseCaseConfig()
-			uc := usecase.NewMessageUseCase(nil, publisher, nil, nil, config)
+			uc := helpers.NewTestMessageUseCase(nil, publisher, nil, nil)
 			defer uc.Close()
 
 			ctx := context.Background()
@@ -263,8 +259,7 @@ func TestMessageStatusEventEmission_Property9(t *testing.T) {
 	properties.Property("Event timestamp is set", prop.ForAll(
 		func(statusIndex int) bool {
 			publisher := newMockEventPublisher()
-			config := usecase.DefaultMessageUseCaseConfig()
-			uc := usecase.NewMessageUseCase(nil, publisher, nil, nil, config)
+			uc := helpers.NewTestMessageUseCase(nil, publisher, nil, nil)
 			defer uc.Close()
 
 			ctx := context.Background()
@@ -300,8 +295,7 @@ func TestMessageStatusEventEmission_Property9(t *testing.T) {
 	properties.Property("Event ID is unique for each event", prop.ForAll(
 		func(count int) bool {
 			publisher := newMockEventPublisher()
-			config := usecase.DefaultMessageUseCaseConfig()
-			uc := usecase.NewMessageUseCase(nil, publisher, nil, nil, config)
+			uc := helpers.NewTestMessageUseCase(nil, publisher, nil, nil)
 			defer uc.Close()
 
 			ctx := context.Background()
@@ -337,8 +331,7 @@ func TestMessageStatusEventEmission_Property9(t *testing.T) {
 	properties.Property("Pending status does not emit event via HandleMessageStatusUpdate", prop.ForAll(
 		func(_ int) bool {
 			publisher := newMockEventPublisher()
-			config := usecase.DefaultMessageUseCaseConfig()
-			uc := usecase.NewMessageUseCase(nil, publisher, nil, nil, config)
+			uc := helpers.NewTestMessageUseCase(nil, publisher, nil, nil)
 			defer uc.Close()
 
 			ctx := context.Background()

@@ -7,6 +7,7 @@ import (
 
 	"whatspire/internal/domain/entity"
 	"whatspire/internal/infrastructure/persistence"
+	"whatspire/test/helpers"
 
 	"github.com/google/uuid"
 	"github.com/stretchr/testify/assert"
@@ -21,7 +22,7 @@ func setupTestDB(t *testing.T) *gorm.DB {
 	require.NoError(t, err)
 
 	// Run migrations
-	err = persistence.RunAutoMigration(db)
+	err = persistence.RunAutoMigration(db, helpers.CreateTestLogger())
 	require.NoError(t, err)
 
 	return db
