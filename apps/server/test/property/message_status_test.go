@@ -191,14 +191,12 @@ func TestMessageStatusEventEmission_Property9(t *testing.T) {
 
 			// Create a message
 			text := "test message"
-			msg := entity.NewMessage(
-				uuid.New().String(),
-				uuid.New().String(),
-				"+14155551234",
-				"+14155555678",
-				entity.NewTextContent(text),
-				entity.MessageTypeText,
-			)
+			msg := entity.NewMessageBuilder(uuid.New().String(), uuid.New().String()).
+				From("+14155551234").
+				To("+14155555678").
+				WithContent(entity.NewTextContent(text)).
+				WithType(entity.MessageTypeText).
+				Build()
 
 			err := uc.HandleIncomingMessage(ctx, msg)
 			if err != nil {

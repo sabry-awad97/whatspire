@@ -17,17 +17,50 @@ type Reaction struct {
 	Timestamp time.Time `json:"timestamp"`
 }
 
-// NewReaction creates a new Reaction
-func NewReaction(id, messageID, sessionID, from, to, emoji string) *Reaction {
-	return &Reaction{
-		ID:        id,
-		MessageID: messageID,
-		SessionID: sessionID,
-		From:      from,
-		To:        to,
-		Emoji:     emoji,
-		Timestamp: time.Now(),
+// ReactionBuilder provides a builder pattern for creating Reaction instances
+type ReactionBuilder struct {
+	reaction *Reaction
+}
+
+// NewReactionBuilder creates a new ReactionBuilder with required fields
+func NewReactionBuilder(id, messageID, sessionID string) *ReactionBuilder {
+	return &ReactionBuilder{
+		reaction: &Reaction{
+			ID:        id,
+			MessageID: messageID,
+			SessionID: sessionID,
+			Timestamp: time.Now(),
+		},
 	}
+}
+
+// From sets the sender
+func (b *ReactionBuilder) From(from string) *ReactionBuilder {
+	b.reaction.From = from
+	return b
+}
+
+// To sets the recipient
+func (b *ReactionBuilder) To(to string) *ReactionBuilder {
+	b.reaction.To = to
+	return b
+}
+
+// WithEmoji sets the emoji
+func (b *ReactionBuilder) WithEmoji(emoji string) *ReactionBuilder {
+	b.reaction.Emoji = emoji
+	return b
+}
+
+// WithTimestamp sets a custom timestamp (optional, defaults to now)
+func (b *ReactionBuilder) WithTimestamp(timestamp time.Time) *ReactionBuilder {
+	b.reaction.Timestamp = timestamp
+	return b
+}
+
+// Build returns the constructed Reaction
+func (b *ReactionBuilder) Build() *Reaction {
+	return b.reaction
 }
 
 // IsValid checks if the reaction is valid

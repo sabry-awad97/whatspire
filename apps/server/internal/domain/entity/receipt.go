@@ -38,17 +38,50 @@ type Receipt struct {
 	Timestamp time.Time   `json:"timestamp"`
 }
 
-// NewReceipt creates a new Receipt
-func NewReceipt(id, messageID, sessionID, from, to string, receiptType ReceiptType) *Receipt {
-	return &Receipt{
-		ID:        id,
-		MessageID: messageID,
-		SessionID: sessionID,
-		From:      from,
-		To:        to,
-		Type:      receiptType,
-		Timestamp: time.Now(),
+// ReceiptBuilder provides a builder pattern for creating Receipt instances
+type ReceiptBuilder struct {
+	receipt *Receipt
+}
+
+// NewReceiptBuilder creates a new ReceiptBuilder with required fields
+func NewReceiptBuilder(id, messageID, sessionID string) *ReceiptBuilder {
+	return &ReceiptBuilder{
+		receipt: &Receipt{
+			ID:        id,
+			MessageID: messageID,
+			SessionID: sessionID,
+			Timestamp: time.Now(),
+		},
 	}
+}
+
+// From sets the sender
+func (b *ReceiptBuilder) From(from string) *ReceiptBuilder {
+	b.receipt.From = from
+	return b
+}
+
+// To sets the recipient
+func (b *ReceiptBuilder) To(to string) *ReceiptBuilder {
+	b.receipt.To = to
+	return b
+}
+
+// WithType sets the receipt type
+func (b *ReceiptBuilder) WithType(receiptType ReceiptType) *ReceiptBuilder {
+	b.receipt.Type = receiptType
+	return b
+}
+
+// WithTimestamp sets a custom timestamp (optional, defaults to now)
+func (b *ReceiptBuilder) WithTimestamp(timestamp time.Time) *ReceiptBuilder {
+	b.receipt.Timestamp = timestamp
+	return b
+}
+
+// Build returns the constructed Receipt
+func (b *ReceiptBuilder) Build() *Receipt {
+	return b.receipt
 }
 
 // IsValid checks if the receipt is valid

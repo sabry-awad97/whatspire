@@ -91,14 +91,12 @@ func (uc *MessageUseCase) SendMessage(ctx context.Context, req dto.SendMessageRe
 	content := uc.buildMessageContent(req)
 	msgType := uc.getMessageType(req.Type)
 
-	msg := entity.NewMessage(
-		msgID,
-		req.SessionID,
-		"", // From will be set by the WhatsApp client
-		req.To,
-		content,
-		msgType,
-	)
+	msg := entity.NewMessageBuilder(msgID, req.SessionID).
+		From(""). // From will be set by the WhatsApp client
+		To(req.To).
+		WithContent(content).
+		WithType(msgType).
+		Build()
 
 	// Validate media if it's a media message
 	if err := uc.validateMediaMessage(msg); err != nil {
@@ -132,14 +130,12 @@ func (uc *MessageUseCase) SendMessageSync(ctx context.Context, req dto.SendMessa
 	content := uc.buildMessageContent(req)
 	msgType := uc.getMessageType(req.Type)
 
-	msg := entity.NewMessage(
-		msgID,
-		req.SessionID,
-		"",
-		req.To,
-		content,
-		msgType,
-	)
+	msg := entity.NewMessageBuilder(msgID, req.SessionID).
+		From("").
+		To(req.To).
+		WithContent(content).
+		WithType(msgType).
+		Build()
 
 	// Apply rate limiting
 	if err := uc.waitForRateLimit(ctx); err != nil {

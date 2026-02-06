@@ -48,14 +48,11 @@ func (h *ReactionHandler) HandleIncomingReaction(
 	}
 
 	// Create reaction entity
-	reaction := entity.NewReaction(
-		uuid.New().String(),
-		*parsedMsg.ReactionMessageID,
-		sessionID,
-		parsedMsg.SenderJID,
-		parsedMsg.ChatJID,
-		*parsedMsg.ReactionEmoji,
-	)
+	reaction := entity.NewReactionBuilder(uuid.New().String(), *parsedMsg.ReactionMessageID, sessionID).
+		From(parsedMsg.SenderJID).
+		To(parsedMsg.ChatJID).
+		WithEmoji(*parsedMsg.ReactionEmoji).
+		Build()
 
 	// Validate reaction
 	if !reaction.IsValid() {

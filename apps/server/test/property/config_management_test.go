@@ -323,9 +323,6 @@ func TestConfigurationValidationOnStartup_Property34(t *testing.T) {
 		gen.Const(0),
 	))
 
-	// Property 34.8: Removed - API key validation is now handled by database-backed authentication
-	// Legacy config-based API key validation has been removed
-
 	// Property 34.9: Invalid webhook event type should cause startup failure
 	properties.Property("invalid webhook event type causes startup failure", prop.ForAll(
 		func(eventType string) bool {
@@ -353,9 +350,6 @@ func TestConfigurationValidationOnStartup_Property34(t *testing.T) {
 		},
 		gen.OneConstOf("invalid.event", "message.deleted", "user.typing", ""),
 	))
-
-	// Property 34.10: Removed - API key role validation is now handled by database-backed authentication
-	// Legacy config-based API key role validation has been removed
 
 	properties.TestingRun(t)
 }

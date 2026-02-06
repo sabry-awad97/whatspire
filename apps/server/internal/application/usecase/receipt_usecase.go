@@ -64,14 +64,11 @@ func (uc *ReceiptUseCase) SendReadReceipt(ctx context.Context, req dto.SendRecei
 
 	// Save receipts to repository and publish events
 	for _, messageID := range req.MessageIDs {
-		receipt := entity.NewReceipt(
-			uuid.New().String(),
-			messageID,
-			req.SessionID,
-			fromJID,
-			req.ChatJID,
-			entity.ReceiptTypeRead,
-		)
+		receipt := entity.NewReceiptBuilder(uuid.New().String(), messageID, req.SessionID).
+			From(fromJID).
+			To(req.ChatJID).
+			WithType(entity.ReceiptTypeRead).
+			Build()
 
 		// Save receipt to repository
 		if uc.receiptRepo != nil {

@@ -40,14 +40,11 @@ func (uc *ReactionUseCase) SendReaction(ctx context.Context, req dto.SendReactio
 	}
 
 	// Create reaction entity for validation
-	reaction := entity.NewReaction(
-		uuid.New().String(),
-		req.MessageID,
-		req.SessionID,
-		"", // From will be set after sending
-		req.ChatJID,
-		req.Emoji,
-	)
+	reaction := entity.NewReactionBuilder(uuid.New().String(), req.MessageID, req.SessionID).
+		From(""). // From will be set after sending
+		To(req.ChatJID).
+		WithEmoji(req.Emoji).
+		Build()
 
 	// Validate emoji
 	if !reaction.IsValidEmoji() {

@@ -9,6 +9,7 @@ import (
 	"whatspire/internal/application/usecase"
 	"whatspire/internal/domain/entity"
 	"whatspire/internal/domain/errors"
+	"whatspire/test/mocks"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -17,9 +18,9 @@ import (
 // ==================== MessageUseCase Tests ====================
 
 func TestMessageUseCase_SendMessage_Text(t *testing.T) {
-	waClient := NewWhatsAppClientMock()
-	publisher := NewEventPublisherMock()
-	mediaUploader := NewMediaUploaderMock()
+	waClient := mocks.NewWhatsAppClientMock()
+	publisher := mocks.NewEventPublisherMock()
+	mediaUploader := mocks.NewMediaUploaderMock()
 
 	config := usecase.DefaultMessageUseCaseConfig()
 	uc := usecase.NewMessageUseCase(waClient, publisher, mediaUploader, nil, config)
@@ -66,8 +67,8 @@ func TestMessageUseCase_SendMessage_InvalidPhoneNumber(t *testing.T) {
 }
 
 func TestMessageUseCase_SendMessage_ImageWithoutUploader(t *testing.T) {
-	waClient := NewWhatsAppClientMock()
-	publisher := NewEventPublisherMock()
+	waClient := mocks.NewWhatsAppClientMock()
+	publisher := mocks.NewEventPublisherMock()
 
 	config := usecase.DefaultMessageUseCaseConfig()
 	// No media uploader
@@ -91,9 +92,9 @@ func TestMessageUseCase_SendMessage_ImageWithoutUploader(t *testing.T) {
 }
 
 func TestMessageUseCase_SendMessage_ImageWithUploader(t *testing.T) {
-	waClient := NewWhatsAppClientMock()
-	publisher := NewEventPublisherMock()
-	mediaUploader := NewMediaUploaderMock()
+	waClient := mocks.NewWhatsAppClientMock()
+	publisher := mocks.NewEventPublisherMock()
+	mediaUploader := mocks.NewMediaUploaderMock()
 
 	config := usecase.DefaultMessageUseCaseConfig()
 	uc := usecase.NewMessageUseCase(waClient, publisher, mediaUploader, nil, config)
@@ -117,9 +118,9 @@ func TestMessageUseCase_SendMessage_ImageWithUploader(t *testing.T) {
 }
 
 func TestMessageUseCase_SendMessage_DocumentWithoutURL(t *testing.T) {
-	waClient := NewWhatsAppClientMock()
-	publisher := NewEventPublisherMock()
-	mediaUploader := NewMediaUploaderMock()
+	waClient := mocks.NewWhatsAppClientMock()
+	publisher := mocks.NewEventPublisherMock()
+	mediaUploader := mocks.NewMediaUploaderMock()
 
 	config := usecase.DefaultMessageUseCaseConfig()
 	uc := usecase.NewMessageUseCase(waClient, publisher, mediaUploader, nil, config)
@@ -139,9 +140,9 @@ func TestMessageUseCase_SendMessage_DocumentWithoutURL(t *testing.T) {
 }
 
 func TestMessageUseCase_SendMessageSync(t *testing.T) {
-	waClient := NewWhatsAppClientMock()
-	publisher := NewEventPublisherMock()
-	mediaUploader := NewMediaUploaderMock()
+	waClient := mocks.NewWhatsAppClientMock()
+	publisher := mocks.NewEventPublisherMock()
+	mediaUploader := mocks.NewMediaUploaderMock()
 
 	config := usecase.DefaultMessageUseCaseConfig()
 	uc := usecase.NewMessageUseCase(waClient, publisher, mediaUploader, nil, config)
@@ -187,21 +188,19 @@ func TestMessageUseCase_SendMessageSync_InvalidPhoneNumber(t *testing.T) {
 }
 
 func TestMessageUseCase_HandleIncomingMessage(t *testing.T) {
-	publisher := NewEventPublisherMock()
+	publisher := mocks.NewEventPublisherMock()
 
 	config := usecase.DefaultMessageUseCaseConfig()
 	uc := usecase.NewMessageUseCase(nil, publisher, nil, nil, config)
 	defer uc.Close()
 
 	text := "Incoming message"
-	msg := entity.NewMessage(
-		"msg-1",
-		"session-1",
-		"+1234567890",
-		"+0987654321",
-		entity.MessageContent{Text: &text},
-		entity.MessageTypeText,
-	)
+	msg := entity.NewMessageBuilder("msg-1", "session-1").
+		From("+1234567890").
+		To("+0987654321").
+		WithContent(entity.MessageContent{Text: &text}).
+		WithType(entity.MessageTypeText).
+		Build()
 
 	err := uc.HandleIncomingMessage(context.Background(), msg)
 
@@ -221,7 +220,7 @@ func TestMessageUseCase_HandleIncomingMessage_NilMessage(t *testing.T) {
 }
 
 func TestMessageUseCase_HandleMessageStatusUpdate_Sent(t *testing.T) {
-	publisher := NewEventPublisherMock()
+	publisher := mocks.NewEventPublisherMock()
 
 	config := usecase.DefaultMessageUseCaseConfig()
 	uc := usecase.NewMessageUseCase(nil, publisher, nil, nil, config)
@@ -235,7 +234,7 @@ func TestMessageUseCase_HandleMessageStatusUpdate_Sent(t *testing.T) {
 }
 
 func TestMessageUseCase_HandleMessageStatusUpdate_Delivered(t *testing.T) {
-	publisher := NewEventPublisherMock()
+	publisher := mocks.NewEventPublisherMock()
 
 	config := usecase.DefaultMessageUseCaseConfig()
 	uc := usecase.NewMessageUseCase(nil, publisher, nil, nil, config)
@@ -248,7 +247,7 @@ func TestMessageUseCase_HandleMessageStatusUpdate_Delivered(t *testing.T) {
 }
 
 func TestMessageUseCase_HandleMessageStatusUpdate_Read(t *testing.T) {
-	publisher := NewEventPublisherMock()
+	publisher := mocks.NewEventPublisherMock()
 
 	config := usecase.DefaultMessageUseCaseConfig()
 	uc := usecase.NewMessageUseCase(nil, publisher, nil, nil, config)
@@ -261,7 +260,7 @@ func TestMessageUseCase_HandleMessageStatusUpdate_Read(t *testing.T) {
 }
 
 func TestMessageUseCase_HandleMessageStatusUpdate_Failed(t *testing.T) {
-	publisher := NewEventPublisherMock()
+	publisher := mocks.NewEventPublisherMock()
 
 	config := usecase.DefaultMessageUseCaseConfig()
 	uc := usecase.NewMessageUseCase(nil, publisher, nil, nil, config)
@@ -284,7 +283,7 @@ func TestMessageUseCase_QueueSize(t *testing.T) {
 
 func TestMessageUseCase_IsMediaUploadAvailable(t *testing.T) {
 	t.Run("with uploader", func(t *testing.T) {
-		mediaUploader := NewMediaUploaderMock()
+		mediaUploader := mocks.NewMediaUploaderMock()
 		config := usecase.DefaultMessageUseCaseConfig()
 		uc := usecase.NewMessageUseCase(nil, nil, mediaUploader, nil, config)
 		defer uc.Close()
@@ -303,7 +302,7 @@ func TestMessageUseCase_IsMediaUploadAvailable(t *testing.T) {
 
 func TestMessageUseCase_GetMediaConstraints(t *testing.T) {
 	t.Run("with uploader", func(t *testing.T) {
-		mediaUploader := NewMediaUploaderMock()
+		mediaUploader := mocks.NewMediaUploaderMock()
 		config := usecase.DefaultMessageUseCaseConfig()
 		uc := usecase.NewMessageUseCase(nil, nil, mediaUploader, nil, config)
 		defer uc.Close()
@@ -323,8 +322,8 @@ func TestMessageUseCase_GetMediaConstraints(t *testing.T) {
 }
 
 func TestMessageUseCase_SendMessage_TextWithoutContent(t *testing.T) {
-	waClient := NewWhatsAppClientMock()
-	publisher := NewEventPublisherMock()
+	waClient := mocks.NewWhatsAppClientMock()
+	publisher := mocks.NewEventPublisherMock()
 
 	config := usecase.DefaultMessageUseCaseConfig()
 	uc := usecase.NewMessageUseCase(waClient, publisher, nil, nil, config)
@@ -344,7 +343,7 @@ func TestMessageUseCase_SendMessage_TextWithoutContent(t *testing.T) {
 }
 
 func TestMessageUseCase_SendMessageSync_NoClient(t *testing.T) {
-	publisher := NewEventPublisherMock()
+	publisher := mocks.NewEventPublisherMock()
 
 	config := usecase.DefaultMessageUseCaseConfig()
 	config.MaxRetries = 1 // Reduce retries for faster test

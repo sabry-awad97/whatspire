@@ -7,6 +7,7 @@ import (
 	"whatspire/internal/application/usecase"
 	"whatspire/internal/domain/entity"
 	"whatspire/internal/domain/errors"
+	"whatspire/test/mocks"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -15,9 +16,9 @@ import (
 // ==================== SessionUseCase Tests ====================
 
 func TestSessionUseCase_CreateSessionWithID(t *testing.T) {
-	repo := NewSessionRepositoryMock()
-	waClient := NewWhatsAppClientMock()
-	publisher := NewEventPublisherMock()
+	repo := mocks.NewSessionRepositoryMock()
+	waClient := mocks.NewWhatsAppClientMock()
+	publisher := mocks.NewEventPublisherMock()
 
 	uc := usecase.NewSessionUseCase(repo, waClient, publisher, nil)
 
@@ -35,7 +36,7 @@ func TestSessionUseCase_CreateSessionWithID(t *testing.T) {
 }
 
 func TestSessionUseCase_CreateSessionWithID_RepositoryError(t *testing.T) {
-	repo := NewSessionRepositoryMock()
+	repo := mocks.NewSessionRepositoryMock()
 	repo.CreateFn = func(ctx context.Context, session *entity.Session) error {
 		return errors.ErrDatabaseError
 	}
@@ -49,9 +50,9 @@ func TestSessionUseCase_CreateSessionWithID_RepositoryError(t *testing.T) {
 }
 
 func TestSessionUseCase_DeleteSession(t *testing.T) {
-	repo := NewSessionRepositoryMock()
-	waClient := NewWhatsAppClientMock()
-	publisher := NewEventPublisherMock()
+	repo := mocks.NewSessionRepositoryMock()
+	waClient := mocks.NewWhatsAppClientMock()
+	publisher := mocks.NewEventPublisherMock()
 
 	existingSession := entity.NewSession("test-id", "Test Session")
 	repo.Sessions["test-id"] = existingSession
@@ -72,7 +73,7 @@ func TestSessionUseCase_DeleteSession(t *testing.T) {
 }
 
 func TestSessionUseCase_DeleteSession_NotFound(t *testing.T) {
-	repo := NewSessionRepositoryMock()
+	repo := mocks.NewSessionRepositoryMock()
 	uc := usecase.NewSessionUseCase(repo, nil, nil, nil)
 
 	err := uc.DeleteSession(context.Background(), "non-existent")
@@ -82,8 +83,8 @@ func TestSessionUseCase_DeleteSession_NotFound(t *testing.T) {
 }
 
 func TestSessionUseCase_StartQRAuth(t *testing.T) {
-	repo := NewSessionRepositoryMock()
-	waClient := NewWhatsAppClientMock()
+	repo := mocks.NewSessionRepositoryMock()
+	waClient := mocks.NewWhatsAppClientMock()
 
 	existingSession := entity.NewSession("test-id", "Test Session")
 	repo.Sessions["test-id"] = existingSession
@@ -101,8 +102,8 @@ func TestSessionUseCase_StartQRAuth(t *testing.T) {
 }
 
 func TestSessionUseCase_StartQRAuth_CreatesSessionIfNotExists(t *testing.T) {
-	repo := NewSessionRepositoryMock()
-	waClient := NewWhatsAppClientMock()
+	repo := mocks.NewSessionRepositoryMock()
+	waClient := mocks.NewWhatsAppClientMock()
 
 	uc := usecase.NewSessionUseCase(repo, waClient, nil, nil)
 
@@ -118,7 +119,7 @@ func TestSessionUseCase_StartQRAuth_CreatesSessionIfNotExists(t *testing.T) {
 }
 
 func TestSessionUseCase_StartQRAuth_NoClient(t *testing.T) {
-	repo := NewSessionRepositoryMock()
+	repo := mocks.NewSessionRepositoryMock()
 	existingSession := entity.NewSession("test-id", "Test Session")
 	repo.Sessions["test-id"] = existingSession
 
@@ -131,7 +132,7 @@ func TestSessionUseCase_StartQRAuth_NoClient(t *testing.T) {
 }
 
 func TestSessionUseCase_UpdateSessionStatus(t *testing.T) {
-	repo := NewSessionRepositoryMock()
+	repo := mocks.NewSessionRepositoryMock()
 	existingSession := entity.NewSession("test-id", "Test Session")
 	repo.Sessions["test-id"] = existingSession
 
@@ -146,7 +147,7 @@ func TestSessionUseCase_UpdateSessionStatus(t *testing.T) {
 }
 
 func TestSessionUseCase_UpdateSessionStatus_CreatesSessionIfNotExists(t *testing.T) {
-	repo := NewSessionRepositoryMock()
+	repo := mocks.NewSessionRepositoryMock()
 
 	uc := usecase.NewSessionUseCase(repo, nil, nil, nil)
 
@@ -161,8 +162,8 @@ func TestSessionUseCase_UpdateSessionStatus_CreatesSessionIfNotExists(t *testing
 }
 
 func TestSessionUseCase_UpdateSessionJID(t *testing.T) {
-	repo := NewSessionRepositoryMock()
-	publisher := NewEventPublisherMock()
+	repo := mocks.NewSessionRepositoryMock()
+	publisher := mocks.NewEventPublisherMock()
 
 	existingSession := entity.NewSession("test-id", "Test Session")
 	repo.Sessions["test-id"] = existingSession
@@ -179,8 +180,8 @@ func TestSessionUseCase_UpdateSessionJID(t *testing.T) {
 }
 
 func TestSessionUseCase_UpdateSessionJID_CreatesSessionIfNotExists(t *testing.T) {
-	repo := NewSessionRepositoryMock()
-	publisher := NewEventPublisherMock()
+	repo := mocks.NewSessionRepositoryMock()
+	publisher := mocks.NewEventPublisherMock()
 
 	uc := usecase.NewSessionUseCase(repo, nil, publisher, nil)
 
@@ -197,9 +198,9 @@ func TestSessionUseCase_UpdateSessionJID_CreatesSessionIfNotExists(t *testing.T)
 // ==================== ReconnectSession Tests ====================
 
 func TestSessionUseCase_ReconnectSession_Success(t *testing.T) {
-	repo := NewSessionRepositoryMock()
-	waClient := NewWhatsAppClientMock()
-	publisher := NewEventPublisherMock()
+	repo := mocks.NewSessionRepositoryMock()
+	waClient := mocks.NewWhatsAppClientMock()
+	publisher := mocks.NewEventPublisherMock()
 
 	existingSession := entity.NewSession("test-id", "Test Session")
 	existingSession.SetStatus(entity.StatusDisconnected)
@@ -221,9 +222,9 @@ func TestSessionUseCase_ReconnectSession_Success(t *testing.T) {
 }
 
 func TestSessionUseCase_ReconnectSession_AlreadyConnected(t *testing.T) {
-	repo := NewSessionRepositoryMock()
-	waClient := NewWhatsAppClientMock()
-	publisher := NewEventPublisherMock()
+	repo := mocks.NewSessionRepositoryMock()
+	waClient := mocks.NewWhatsAppClientMock()
+	publisher := mocks.NewEventPublisherMock()
 
 	existingSession := entity.NewSession("test-id", "Test Session")
 	existingSession.SetStatus(entity.StatusConnected)
@@ -242,7 +243,7 @@ func TestSessionUseCase_ReconnectSession_AlreadyConnected(t *testing.T) {
 }
 
 func TestSessionUseCase_ReconnectSession_NoClient(t *testing.T) {
-	repo := NewSessionRepositoryMock()
+	repo := mocks.NewSessionRepositoryMock()
 
 	existingSession := entity.NewSession("test-id", "Test Session")
 	existingSession.SetStatus(entity.StatusDisconnected)
@@ -260,9 +261,9 @@ func TestSessionUseCase_ReconnectSession_NoClient(t *testing.T) {
 }
 
 func TestSessionUseCase_ReconnectSession_ConnectionFailed(t *testing.T) {
-	repo := NewSessionRepositoryMock()
-	waClient := NewWhatsAppClientMock()
-	publisher := NewEventPublisherMock()
+	repo := mocks.NewSessionRepositoryMock()
+	waClient := mocks.NewWhatsAppClientMock()
+	publisher := mocks.NewEventPublisherMock()
 
 	existingSession := entity.NewSession("test-id", "Test Session")
 	existingSession.SetStatus(entity.StatusDisconnected)
@@ -285,9 +286,9 @@ func TestSessionUseCase_ReconnectSession_ConnectionFailed(t *testing.T) {
 }
 
 func TestSessionUseCase_ReconnectSession_UpdatesJID(t *testing.T) {
-	repo := NewSessionRepositoryMock()
-	waClient := NewWhatsAppClientMock()
-	publisher := NewEventPublisherMock()
+	repo := mocks.NewSessionRepositoryMock()
+	waClient := mocks.NewWhatsAppClientMock()
+	publisher := mocks.NewEventPublisherMock()
 
 	existingSession := entity.NewSession("test-id", "Test Session")
 	existingSession.SetStatus(entity.StatusDisconnected)
@@ -307,9 +308,9 @@ func TestSessionUseCase_ReconnectSession_UpdatesJID(t *testing.T) {
 // ==================== DisconnectSession Tests ====================
 
 func TestSessionUseCase_DisconnectSession_Success(t *testing.T) {
-	repo := NewSessionRepositoryMock()
-	waClient := NewWhatsAppClientMock()
-	publisher := NewEventPublisherMock()
+	repo := mocks.NewSessionRepositoryMock()
+	waClient := mocks.NewWhatsAppClientMock()
+	publisher := mocks.NewEventPublisherMock()
 
 	existingSession := entity.NewSession("test-id", "Test Session")
 	existingSession.SetStatus(entity.StatusConnected)
@@ -332,9 +333,9 @@ func TestSessionUseCase_DisconnectSession_Success(t *testing.T) {
 }
 
 func TestSessionUseCase_DisconnectSession_AlreadyDisconnected(t *testing.T) {
-	repo := NewSessionRepositoryMock()
-	waClient := NewWhatsAppClientMock()
-	publisher := NewEventPublisherMock()
+	repo := mocks.NewSessionRepositoryMock()
+	waClient := mocks.NewWhatsAppClientMock()
+	publisher := mocks.NewEventPublisherMock()
 
 	existingSession := entity.NewSession("test-id", "Test Session")
 	existingSession.SetStatus(entity.StatusDisconnected)
@@ -353,9 +354,9 @@ func TestSessionUseCase_DisconnectSession_AlreadyDisconnected(t *testing.T) {
 }
 
 func TestSessionUseCase_DisconnectSession_PreservesJID(t *testing.T) {
-	repo := NewSessionRepositoryMock()
-	waClient := NewWhatsAppClientMock()
-	publisher := NewEventPublisherMock()
+	repo := mocks.NewSessionRepositoryMock()
+	waClient := mocks.NewWhatsAppClientMock()
+	publisher := mocks.NewEventPublisherMock()
 
 	existingSession := entity.NewSession("test-id", "Test Session")
 	existingSession.SetStatus(entity.StatusConnected)
@@ -375,7 +376,7 @@ func TestSessionUseCase_DisconnectSession_PreservesJID(t *testing.T) {
 }
 
 func TestSessionUseCase_DisconnectSession_NoClient(t *testing.T) {
-	repo := NewSessionRepositoryMock()
+	repo := mocks.NewSessionRepositoryMock()
 
 	existingSession := entity.NewSession("test-id", "Test Session")
 	existingSession.SetStatus(entity.StatusConnected)
@@ -394,9 +395,9 @@ func TestSessionUseCase_DisconnectSession_NoClient(t *testing.T) {
 }
 
 func TestSessionUseCase_DisconnectSession_SessionNotInRepo(t *testing.T) {
-	repo := NewSessionRepositoryMock()
-	waClient := NewWhatsAppClientMock()
-	publisher := NewEventPublisherMock()
+	repo := mocks.NewSessionRepositoryMock()
+	waClient := mocks.NewWhatsAppClientMock()
+	publisher := mocks.NewEventPublisherMock()
 
 	// Session exists in client but not in repo
 	waClient.Connected["test-id"] = true

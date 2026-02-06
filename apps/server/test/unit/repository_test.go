@@ -38,8 +38,16 @@ func TestReactionRepository(t *testing.T) {
 		db.Exec("DELETE FROM reactions WHERE 1=1")
 
 		messageID := uuid.New().String()
-		reaction1 := entity.NewReaction(uuid.New().String(), messageID, "session1", "user1", "user2", "😀")
-		reaction2 := entity.NewReaction(uuid.New().String(), messageID, "session1", "user3", "user2", "👍")
+		reaction1 := entity.NewReactionBuilder(uuid.New().String(), messageID, "session1").
+			From("user1").
+			To("user2").
+			WithEmoji("😀").
+			Build()
+		reaction2 := entity.NewReactionBuilder(uuid.New().String(), messageID, "session1").
+			From("user3").
+			To("user2").
+			WithEmoji("👍").
+			Build()
 
 		err := repo.Save(ctx, reaction1)
 		require.NoError(t, err)
@@ -58,14 +66,11 @@ func TestReactionRepository(t *testing.T) {
 
 		sessionID := "session1"
 		for i := 0; i < 5; i++ {
-			reaction := entity.NewReaction(
-				uuid.New().String(),
-				uuid.New().String(),
-				sessionID,
-				"user1",
-				"user2",
-				"😀",
-			)
+			reaction := entity.NewReactionBuilder(uuid.New().String(), uuid.New().String(), sessionID).
+				From("user1").
+				To("user2").
+				WithEmoji("😀").
+				Build()
 			err := repo.Save(ctx, reaction)
 			require.NoError(t, err)
 		}
@@ -85,7 +90,11 @@ func TestReactionRepository(t *testing.T) {
 		// Clean database using GORM
 		db.Exec("DELETE FROM reactions WHERE 1=1")
 
-		reaction := entity.NewReaction(uuid.New().String(), uuid.New().String(), "session1", "user1", "user2", "😀")
+		reaction := entity.NewReactionBuilder(uuid.New().String(), uuid.New().String(), "session1").
+			From("user1").
+			To("user2").
+			WithEmoji("😀").
+			Build()
 		err := repo.Save(ctx, reaction)
 		require.NoError(t, err)
 
@@ -102,8 +111,16 @@ func TestReactionRepository(t *testing.T) {
 		db.Exec("DELETE FROM reactions WHERE 1=1")
 
 		messageID := uuid.New().String()
-		reaction1 := entity.NewReaction(uuid.New().String(), messageID, "session1", "user1", "user2", "😀")
-		reaction2 := entity.NewReaction(uuid.New().String(), messageID, "session1", "user3", "user2", "👍")
+		reaction1 := entity.NewReactionBuilder(uuid.New().String(), messageID, "session1").
+			From("user1").
+			To("user2").
+			WithEmoji("😀").
+			Build()
+		reaction2 := entity.NewReactionBuilder(uuid.New().String(), messageID, "session1").
+			From("user3").
+			To("user2").
+			WithEmoji("👍").
+			Build()
 
 		err := repo.Save(ctx, reaction1)
 		require.NoError(t, err)
@@ -132,8 +149,16 @@ func TestReceiptRepository(t *testing.T) {
 		db.Exec("DELETE FROM receipts WHERE 1=1")
 
 		messageID := uuid.New().String()
-		receipt1 := entity.NewReceipt(uuid.New().String(), messageID, "session1", "user1", "user2", entity.ReceiptTypeDelivered)
-		receipt2 := entity.NewReceipt(uuid.New().String(), messageID, "session1", "user1", "user2", entity.ReceiptTypeRead)
+		receipt1 := entity.NewReceiptBuilder(uuid.New().String(), messageID, "session1").
+			From("user1").
+			To("user2").
+			WithType(entity.ReceiptTypeDelivered).
+			Build()
+		receipt2 := entity.NewReceiptBuilder(uuid.New().String(), messageID, "session1").
+			From("user1").
+			To("user2").
+			WithType(entity.ReceiptTypeRead).
+			Build()
 
 		err := repo.Save(ctx, receipt1)
 		require.NoError(t, err)
@@ -152,14 +177,11 @@ func TestReceiptRepository(t *testing.T) {
 
 		sessionID := "session1"
 		for i := 0; i < 5; i++ {
-			receipt := entity.NewReceipt(
-				uuid.New().String(),
-				uuid.New().String(),
-				sessionID,
-				"user1",
-				"user2",
-				entity.ReceiptTypeDelivered,
-			)
+			receipt := entity.NewReceiptBuilder(uuid.New().String(), uuid.New().String(), sessionID).
+				From("user1").
+				To("user2").
+				WithType(entity.ReceiptTypeDelivered).
+				Build()
 			err := repo.Save(ctx, receipt)
 			require.NoError(t, err)
 		}
@@ -179,7 +201,11 @@ func TestReceiptRepository(t *testing.T) {
 		// Clean database using GORM
 		db.Exec("DELETE FROM receipts WHERE 1=1")
 
-		receipt := entity.NewReceipt(uuid.New().String(), uuid.New().String(), "session1", "user1", "user2", entity.ReceiptTypeDelivered)
+		receipt := entity.NewReceiptBuilder(uuid.New().String(), uuid.New().String(), "session1").
+			From("user1").
+			To("user2").
+			WithType(entity.ReceiptTypeDelivered).
+			Build()
 		err := repo.Save(ctx, receipt)
 		require.NoError(t, err)
 

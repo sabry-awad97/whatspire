@@ -122,18 +122,62 @@ type Message struct {
 	mu sync.RWMutex `json:"-"` // Protects Status field for concurrent access
 }
 
-// NewMessage creates a new Message
-func NewMessage(id, sessionID, from, to string, content MessageContent, msgType MessageType) *Message {
-	return &Message{
-		ID:        id,
-		SessionID: sessionID,
-		From:      from,
-		To:        to,
-		Content:   content,
-		Type:      msgType,
-		Status:    MessageStatusPending,
-		Timestamp: time.Now(),
+// MessageBuilder provides a builder pattern for creating Message instances
+type MessageBuilder struct {
+	message *Message
+}
+
+// NewMessageBuilder creates a new MessageBuilder with required fields
+func NewMessageBuilder(id, sessionID string) *MessageBuilder {
+	return &MessageBuilder{
+		message: &Message{
+			ID:        id,
+			SessionID: sessionID,
+			Status:    MessageStatusPending,
+			Timestamp: time.Now(),
+		},
 	}
+}
+
+// From sets the sender
+func (b *MessageBuilder) From(from string) *MessageBuilder {
+	b.message.From = from
+	return b
+}
+
+// To sets the recipient
+func (b *MessageBuilder) To(to string) *MessageBuilder {
+	b.message.To = to
+	return b
+}
+
+// WithContent sets the message content
+func (b *MessageBuilder) WithContent(content MessageContent) *MessageBuilder {
+	b.message.Content = content
+	return b
+}
+
+// WithType sets the message type
+func (b *MessageBuilder) WithType(msgType MessageType) *MessageBuilder {
+	b.message.Type = msgType
+	return b
+}
+
+// WithStatus sets the message status (optional, defaults to pending)
+func (b *MessageBuilder) WithStatus(status MessageStatus) *MessageBuilder {
+	b.message.Status = status
+	return b
+}
+
+// WithTimestamp sets a custom timestamp (optional, defaults to now)
+func (b *MessageBuilder) WithTimestamp(timestamp time.Time) *MessageBuilder {
+	b.message.Timestamp = timestamp
+	return b
+}
+
+// Build returns the constructed Message
+func (b *MessageBuilder) Build() *Message {
+	return b.message
 }
 
 // SetStatus updates the message status (thread-safe)

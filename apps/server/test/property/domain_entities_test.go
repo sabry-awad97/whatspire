@@ -16,14 +16,11 @@ import (
 func TestProperty7_ReactionRemovalViaEmptyEmoji(t *testing.T) {
 	rapid.Check(t, func(t *rapid.T) {
 		// Generate a reaction with empty emoji
-		reaction := entity.NewReaction(
-			uuid.New().String(),
-			uuid.New().String(),
-			uuid.New().String(),
-			rapid.String().Draw(t, "from"),
-			rapid.String().Draw(t, "to"),
-			"", // Empty emoji for removal
-		)
+		reaction := entity.NewReactionBuilder(uuid.New().String(), uuid.New().String(), uuid.New().String()).
+			From(rapid.String().Draw(t, "from")).
+			To(rapid.String().Draw(t, "to")).
+			WithEmoji(""). // Empty emoji for removal
+			Build()
 
 		// Property: Empty emoji should be valid and indicate removal
 		if !reaction.IsValidEmoji() {
@@ -49,14 +46,11 @@ func TestProperty8_InvalidEmojiRejection(t *testing.T) {
 			"😀😀😀😀😀",                    // Too many emoji (>4 runes)
 		}).Draw(t, "invalid_emoji")
 
-		reaction := entity.NewReaction(
-			uuid.New().String(),
-			uuid.New().String(),
-			uuid.New().String(),
-			rapid.String().Draw(t, "from"),
-			rapid.String().Draw(t, "to"),
-			invalidEmoji,
-		)
+		reaction := entity.NewReactionBuilder(uuid.New().String(), uuid.New().String(), uuid.New().String()).
+			From(rapid.String().Draw(t, "from")).
+			To(rapid.String().Draw(t, "to")).
+			WithEmoji(invalidEmoji).
+			Build()
 
 		// Property: Invalid emoji should be rejected
 		if reaction.IsValidEmoji() {
@@ -110,14 +104,11 @@ func TestValidEmojiAcceptance(t *testing.T) {
 		from := rapid.StringMatching("[a-zA-Z0-9]+").Draw(t, "from")
 		to := rapid.StringMatching("[a-zA-Z0-9]+").Draw(t, "to")
 
-		reaction := entity.NewReaction(
-			uuid.New().String(),
-			uuid.New().String(),
-			uuid.New().String(),
-			from,
-			to,
-			validEmoji,
-		)
+		reaction := entity.NewReactionBuilder(uuid.New().String(), uuid.New().String(), uuid.New().String()).
+			From(from).
+			To(to).
+			WithEmoji(validEmoji).
+			Build()
 
 		// Property: Valid emoji should be accepted
 		if !reaction.IsValidEmoji() {
@@ -136,7 +127,11 @@ func TestReactionValidation(t *testing.T) {
 		to := rapid.StringMatching("[a-zA-Z0-9]+").Draw(t, "to")
 		emoji := rapid.SampledFrom([]string{"😀", "👍", "❤️", ""}).Draw(t, "emoji")
 
-		reaction := entity.NewReaction(id, messageID, sessionID, from, to, emoji)
+		reaction := entity.NewReactionBuilder(id, messageID, sessionID).
+			From(from).
+			To(to).
+			WithEmoji(emoji).
+			Build()
 
 		// Property: Reaction with all required fields should be valid
 		if !reaction.IsValid() {
@@ -144,7 +139,11 @@ func TestReactionValidation(t *testing.T) {
 		}
 
 		// Property: Reaction without ID should be invalid
-		invalidReaction := entity.NewReaction("", messageID, sessionID, from, to, emoji)
+		invalidReaction := entity.NewReactionBuilder("", messageID, sessionID).
+			From(from).
+			To(to).
+			WithEmoji(emoji).
+			Build()
 		if invalidReaction.IsValid() {
 			t.Fatalf("Reaction without ID should be invalid")
 		}
@@ -164,7 +163,11 @@ func TestReceiptValidation(t *testing.T) {
 			entity.ReceiptTypeRead,
 		}).Draw(t, "receipt_type")
 
-		receipt := entity.NewReceipt(id, messageID, sessionID, from, to, receiptType)
+		receipt := entity.NewReceiptBuilder(id, messageID, sessionID).
+			From(from).
+			To(to).
+			WithType(receiptType).
+			Build()
 
 		// Property: Receipt with all required fields should be valid
 		if !receipt.IsValid() {
@@ -177,7 +180,11 @@ func TestReceiptValidation(t *testing.T) {
 		}
 
 		// Property: Receipt without ID should be invalid
-		invalidReceipt := entity.NewReceipt("", messageID, sessionID, from, to, receiptType)
+		invalidReceipt := entity.NewReceiptBuilder("", messageID, sessionID).
+			From(from).
+			To(to).
+			WithType(receiptType).
+			Build()
 		if invalidReceipt.IsValid() {
 			t.Fatalf("Receipt without ID should be invalid")
 		}

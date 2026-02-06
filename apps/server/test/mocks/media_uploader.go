@@ -1,27 +1,11 @@
-package unit
+package mocks
 
 import (
 	"context"
 
 	"whatspire/internal/domain/entity"
 	"whatspire/internal/domain/valueobject"
-	"whatspire/test/mocks"
 )
-
-// ==================== Re-export Shared Mocks ====================
-
-// Re-export shared mocks for backward compatibility
-type SessionRepositoryMock = mocks.SessionRepositoryMock
-type WhatsAppClientMock = mocks.WhatsAppClientMock
-type EventPublisherMock = mocks.EventPublisherMock
-
-var (
-	NewSessionRepositoryMock = mocks.NewSessionRepositoryMock
-	NewWhatsAppClientMock    = mocks.NewWhatsAppClientMock
-	NewEventPublisherMock    = mocks.NewEventPublisherMock
-)
-
-// ==================== Media Uploader Mock ====================
 
 // MediaUploaderMock is a mock implementation of MediaUploader
 type MediaUploaderMock struct {
@@ -33,12 +17,14 @@ type MediaUploaderMock struct {
 	Constraints      *valueobject.MediaConstraints
 }
 
+// NewMediaUploaderMock creates a new MediaUploaderMock
 func NewMediaUploaderMock() *MediaUploaderMock {
 	return &MediaUploaderMock{
 		Constraints: valueobject.DefaultMediaConstraints(),
 	}
 }
 
+// UploadImage mocks image upload
 func (m *MediaUploaderMock) UploadImage(ctx context.Context, sessionID string, url string) (*entity.MediaUploadResult, error) {
 	if m.UploadImageFn != nil {
 		return m.UploadImageFn(ctx, sessionID, url)
@@ -50,6 +36,7 @@ func (m *MediaUploaderMock) UploadImage(ctx context.Context, sessionID string, u
 	}, nil
 }
 
+// UploadDocument mocks document upload
 func (m *MediaUploaderMock) UploadDocument(ctx context.Context, sessionID string, url string, filename string) (*entity.MediaUploadResult, error) {
 	if m.UploadDocumentFn != nil {
 		return m.UploadDocumentFn(ctx, sessionID, url, filename)
@@ -61,6 +48,7 @@ func (m *MediaUploaderMock) UploadDocument(ctx context.Context, sessionID string
 	}, nil
 }
 
+// UploadAudio mocks audio upload
 func (m *MediaUploaderMock) UploadAudio(ctx context.Context, sessionID string, url string) (*entity.MediaUploadResult, error) {
 	if m.UploadAudioFn != nil {
 		return m.UploadAudioFn(ctx, sessionID, url)
@@ -72,6 +60,7 @@ func (m *MediaUploaderMock) UploadAudio(ctx context.Context, sessionID string, u
 	}, nil
 }
 
+// UploadVideo mocks video upload
 func (m *MediaUploaderMock) UploadVideo(ctx context.Context, sessionID string, url string) (*entity.MediaUploadResult, error) {
 	if m.UploadVideoFn != nil {
 		return m.UploadVideoFn(ctx, sessionID, url)
@@ -83,6 +72,7 @@ func (m *MediaUploaderMock) UploadVideo(ctx context.Context, sessionID string, u
 	}, nil
 }
 
+// Upload mocks generic upload
 func (m *MediaUploaderMock) Upload(ctx context.Context, sessionID string, info *entity.MediaDownloadInfo) (*entity.MediaUploadResult, error) {
 	if m.UploadFn != nil {
 		return m.UploadFn(ctx, sessionID, info)
@@ -94,6 +84,7 @@ func (m *MediaUploaderMock) Upload(ctx context.Context, sessionID string, info *
 	}, nil
 }
 
+// GetConstraints returns media constraints
 func (m *MediaUploaderMock) GetConstraints() *valueobject.MediaConstraints {
 	return m.Constraints
 }
