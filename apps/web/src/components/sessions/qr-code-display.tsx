@@ -1,12 +1,10 @@
 import { CheckCircle2, Loader2, QrCode, RefreshCw } from "lucide-react";
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { toast } from "sonner";
-
-import { useSessionStore } from "@/stores/session-store";
 
 import { Button } from "../ui/button";
 import { QRCode } from "../kibo-ui/qr-code";
-import { createQRWebSocket, type QRWebSocketEvent } from "@/lib/websocket";
+import { useQRWebSocket } from "@whatspire/hooks";
 
 // ============================================================================
 // Types
@@ -31,15 +29,10 @@ export function QRCodeDisplay({
 }: QRCodeDisplayProps) {
   const [status, setStatus] = useState<QRStatus>("loading");
   const [qrData, setQrData] = useState<string>("");
-  const { updateSession } = useSessionStore();
 
-  useEffect(() => {
-    // Initialize WebSocket connection
-    const ws = createQRWebSocket(sessionId);
-    ws.connect();
-
-    // Subscribe to events
-    const unsubscribe = ws.subscribe((event: QRWebSocketEvent) => {
+  // Use the WebSocket hook
+  const { connect } = useQRWebSocket(sessionId, {
+    onMessage: (event) => {
       switch (event.type) {
         case "qr":
           setQrData(event.data);
@@ -48,12 +41,6 @@ export function QRCodeDisplay({
 
         case "authenticated":
           setStatus("authenticated");
-          // Update session in store
-          updateSession(sessionId, {
-            status: "connected",
-            jid: event.data,
-            updated_at: new Date().toISOString(),
-          });
           toast.success("Session authenticated successfully!");
           onAuthenticated?.(event.data);
           break;
@@ -67,22 +54,20 @@ export function QRCodeDisplay({
           setStatus("expired");
           break;
       }
-    });
-
-    // Cleanup
-    return () => {
-      unsubscribe();
-      ws.disconnect();
-    };
-  }, [sessionId, updateSession, onAuthenticated, onError]);
+    },
+    onOpen: () => {
+      console.log("QR WebSocket connected");
+    },
+    onClose: () => {
+      console.log("QR WebSocket disconnected");
+    },
+  });
 
   const handleRefresh = () => {
-    // Re-mount component to trigger new connection/QR generation
     setStatus("loading");
-    // In a real app we might want to trigger a backend retry via API or WS
-    // For now, re-connecting WS should trigger a new QR from backend logic
-    const ws = createQRWebSocket(sessionId);
-    ws.connect();
+    setQrData("");
+    // Reconnect to get a new QR code
+    connect();
   };
 
   const renderContent = () => {

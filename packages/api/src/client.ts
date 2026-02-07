@@ -361,52 +361,40 @@ export class ApiClient {
   /**
    * Reconnect session
    */
-  async reconnectSession(sessionId: string): Promise<Session> {
-    return this.executeWithRetry(async () => {
-      const response = await this.client.post<ApiResponse<Session>>(
-        `/api/internal/sessions/${sessionId}/reconnect`,
-      );
+  async reconnectSession(sessionId: string): Promise<void> {
+    await this.executeWithRetry(async () => {
+      const response = await this.client.post<
+        ApiResponse<{ success: boolean; message: string }>
+      >(`/api/internal/sessions/${sessionId}/reconnect`);
 
-      const validatedResponse = apiResponseSchema(sessionSchema).parse(
-        response.data,
-      );
-
-      if (!validatedResponse.success || !validatedResponse.data) {
+      if (!response.data.success) {
         throw new ApiClientError(
-          validatedResponse.error?.message || "Failed to reconnect session",
-          validatedResponse.error?.code || "RECONNECT_SESSION_FAILED",
+          response.data.error?.message || "Failed to reconnect session",
+          response.data.error?.code || "RECONNECT_SESSION_FAILED",
           response.status,
-          validatedResponse.error?.details,
+          response.data.error?.details,
         );
       }
-
-      return validatedResponse.data;
     });
   }
 
   /**
    * Disconnect session
    */
-  async disconnectSession(sessionId: string): Promise<Session> {
-    return this.executeWithRetry(async () => {
-      const response = await this.client.post<ApiResponse<Session>>(
-        `/api/internal/sessions/${sessionId}/disconnect`,
-      );
+  async disconnectSession(sessionId: string): Promise<void> {
+    await this.executeWithRetry(async () => {
+      const response = await this.client.post<
+        ApiResponse<{ success: boolean; message: string }>
+      >(`/api/internal/sessions/${sessionId}/disconnect`);
 
-      const validatedResponse = apiResponseSchema(sessionSchema).parse(
-        response.data,
-      );
-
-      if (!validatedResponse.success || !validatedResponse.data) {
+      if (!response.data.success) {
         throw new ApiClientError(
-          validatedResponse.error?.message || "Failed to disconnect session",
-          validatedResponse.error?.code || "DISCONNECT_SESSION_FAILED",
+          response.data.error?.message || "Failed to disconnect session",
+          response.data.error?.code || "DISCONNECT_SESSION_FAILED",
           response.status,
-          validatedResponse.error?.details,
+          response.data.error?.details,
         );
       }
-
-      return validatedResponse.data;
     });
   }
 

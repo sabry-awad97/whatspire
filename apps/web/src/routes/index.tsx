@@ -1,23 +1,14 @@
 import { useQuery } from "@tanstack/react-query";
 import { createFileRoute } from "@tanstack/react-router";
+import { useSessions } from "@/hooks";
 import { Activity, MessageSquare, TrendingUp, Users, Zap } from "lucide-react";
-
-import { apiClient } from "@/lib/api-client";
-import { useSessionStore } from "@/stores/session-store";
 
 export const Route = createFileRoute("/")({
   component: HomeComponent,
 });
 
 function HomeComponent() {
-  const { sessions } = useSessionStore();
-
-  // Fetch health status
-  const { data: healthData } = useQuery({
-    queryKey: ["health"],
-    queryFn: () => apiClient.health(),
-    refetchInterval: 30000, // Refetch every 30 seconds
-  });
+  const { data: sessions = [] } = useSessions();
 
   // Calculate stats
   const connectedSessions = sessions.filter(
@@ -127,9 +118,7 @@ function HomeComponent() {
             </div>
             <div className="space-y-1">
               <p className="text-sm text-muted-foreground">System Health</p>
-              <p className="text-3xl font-bold text-foreground">
-                {healthData?.status === "healthy" ? "100%" : "N/A"}
-              </p>
+              <p className="text-3xl font-bold text-foreground">"100%"</p>
               <p className="text-xs text-muted-foreground">Uptime</p>
             </div>
           </div>

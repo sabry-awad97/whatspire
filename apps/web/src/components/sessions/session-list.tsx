@@ -1,8 +1,6 @@
-import { useEffect } from "react";
 import { Loader2 } from "lucide-react";
-
-import type { Session } from "@/lib/api-client";
-import { useSessionStore } from "@/stores/session-store";
+import type { Session } from "@whatspire/schema";
+import { useSessions } from "@/hooks";
 
 import { SessionCard } from "./session-card";
 
@@ -19,11 +17,7 @@ interface SessionListProps {
 // ============================================================================
 
 export function SessionList({ onSelectSession }: SessionListProps) {
-  const { sessions, isLoading, error, fetchSessions } = useSessionStore();
-
-  useEffect(() => {
-    fetchSessions();
-  }, [fetchSessions]);
+  const { data: sessions = [], isLoading, error, refetch } = useSessions();
 
   if (isLoading) {
     return (
@@ -41,9 +35,11 @@ export function SessionList({ onSelectSession }: SessionListProps) {
           <p className="text-destructive font-medium mb-2">
             Failed to load sessions
           </p>
-          <p className="text-sm text-muted-foreground mb-4">{error}</p>
+          <p className="text-sm text-muted-foreground mb-4">
+            {error instanceof Error ? error.message : "Unknown error"}
+          </p>
           <button
-            onClick={() => fetchSessions()}
+            onClick={() => refetch()}
             className="text-sm text-primary hover:underline"
           >
             Try again

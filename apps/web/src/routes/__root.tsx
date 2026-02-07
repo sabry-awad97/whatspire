@@ -73,7 +73,6 @@ function RootComponent() {
         </ErrorBoundary>
         <Toaster richColors />
       </ThemeProvider>
-      <TanStackRouterDevtools position="bottom-left" />
     </>
   );
 }

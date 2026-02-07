@@ -162,8 +162,8 @@ export function useDeleteSession(
  * @example
  * ```tsx
  * const reconnect = useReconnectSession(client, {
- *   onSuccess: (session) => {
- *     console.log("Reconnected:", session);
+ *   onSuccess: () => {
+ *     console.log("Reconnected successfully");
  *   },
  * });
  *
@@ -173,7 +173,7 @@ export function useDeleteSession(
 export function useReconnectSession(
   client: ApiClient,
   options?: {
-    onSuccess?: (data: Session) => void;
+    onSuccess?: () => void;
     onError?: (error: Error) => void;
     onSettled?: () => void;
   },
@@ -195,8 +195,8 @@ export function useReconnectSession(
  * @example
  * ```tsx
  * const disconnect = useDisconnectSession(client, {
- *   onSuccess: (session) => {
- *     console.log("Disconnected:", session);
+ *   onSuccess: () => {
+ *     console.log("Disconnected successfully");
  *   },
  * });
  *
@@ -206,7 +206,7 @@ export function useReconnectSession(
 export function useDisconnectSession(
   client: ApiClient,
   options?: {
-    onSuccess?: (data: Session) => void;
+    onSuccess?: () => void;
     onError?: (error: Error) => void;
     onSettled?: () => void;
   },

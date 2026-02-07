@@ -28,6 +28,7 @@ export * from "./hooks/use-messages";
 export * from "./hooks/use-groups";
 export * from "./hooks/use-events";
 export * from "./hooks/use-api-keys";
+export * from "./hooks/use-websocket";
 
 // Re-export commonly used types from dependencies
 export type {

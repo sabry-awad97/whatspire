@@ -1,6 +1,6 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { Plus } from "lucide-react";
-import { useApiClient, useSessions } from "@whatspire/hooks";
+import { useSessions } from "@/hooks";
 import type { Session } from "@whatspire/schema";
 
 import { Button } from "@/components/ui/button";
@@ -13,18 +13,9 @@ export const Route = createFileRoute("/sessions/")({
 
 function SessionsComponent() {
   const navigate = useNavigate();
-  const client = useApiClient();
 
-  // Use the hooks package instead of Zustand store
-  const {
-    data: sessions,
-    isLoading,
-    error,
-    refetch,
-  } = useSessions(client, {
-    refetchOnWindowFocus: true,
-    staleTime: 1000 * 60 * 2, // 2 minutes
-  });
+  // Use the reusable sessions hook
+  const { data: sessions, isLoading, error, refetch } = useSessions();
 
   const sessionCount = sessions?.length || 0;
 
@@ -32,7 +23,7 @@ function SessionsComponent() {
     <div className="min-h-screen network-bg">
       {/* Header Section */}
       <div className="glass-card border-b border-border/50 px-6 py-6">
-        <div className="max-w-7xl mx-auto">
+        <div className="mx-auto">
           <div className="flex items-center justify-between mb-4">
             <div className="space-y-1">
               <h1 className="text-3xl font-bold gradient-text">

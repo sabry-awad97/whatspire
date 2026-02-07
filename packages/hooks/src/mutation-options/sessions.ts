@@ -63,14 +63,56 @@ export const deleteSessionMutation = (
 export const reconnectSessionMutation = (
   client: ApiClient,
   queryClient: QueryClient,
-): MutationOptions<Session, ApiClientError, string> => ({
+): MutationOptions<
+  void,
+  ApiClientError,
+  string,
+  { previousSessions?: Session[] }
+> => ({
   mutationFn: (sessionId) => client.reconnectSession(sessionId),
-  onSuccess: (_, sessionId) => {
-    // Invalidate sessions list and detail to trigger refetch
-    queryClient.invalidateQueries({ queryKey: sessionKeys.lists() });
-    queryClient.invalidateQueries({ queryKey: sessionKeys.detail(sessionId) });
+  onMutate: async (sessionId) => {
+    // Cancel outgoing refetches
+    await queryClient.cancelQueries({ queryKey: sessionKeys.lists() });
+
+    // Snapshot previous value
+    const previousSessions = queryClient.getQueryData<Session[]>(
+      sessionKeys.lists(),
+    );
+
+    // Optimistically update to "connecting" status
+    if (previousSessions) {
+      queryClient.setQueryData<Session[]>(sessionKeys.lists(), (old) =>
+        old?.map((session) =>
+          session.id === sessionId
+            ? { ...session, status: "connecting" as const }
+            : session,
+        ),
+      );
+    }
+
+    return { previousSessions };
   },
-  onError: (error) => {
+  onSuccess: async (_, sessionId) => {
+    // Wait a bit for backend to process
+    await new Promise((resolve) => setTimeout(resolve, 1000));
+
+    // Invalidate and refetch sessions list and detail
+    await Promise.all([
+      queryClient.invalidateQueries({
+        queryKey: sessionKeys.lists(),
+        refetchType: "active",
+      }),
+      queryClient.invalidateQueries({
+        queryKey: sessionKeys.detail(sessionId),
+        refetchType: "active",
+      }),
+    ]);
+  },
+  onError: (error, _sessionId, context) => {
+    // Rollback on error
+    if (context?.previousSessions) {
+      queryClient.setQueryData(sessionKeys.lists(), context.previousSessions);
+    }
     console.error("Failed to reconnect session:", error);
   },
 });
@@ -84,14 +126,56 @@ export const reconnectSessionMutation = (
 export const disconnectSessionMutation = (
   client: ApiClient,
   queryClient: QueryClient,
-): MutationOptions<Session, ApiClientError, string> => ({
+): MutationOptions<
+  void,
+  ApiClientError,
+  string,
+  { previousSessions?: Session[] }
+> => ({
   mutationFn: (sessionId) => client.disconnectSession(sessionId),
-  onSuccess: (_, sessionId) => {
-    // Invalidate sessions list and detail to trigger refetch
-    queryClient.invalidateQueries({ queryKey: sessionKeys.lists() });
-    queryClient.invalidateQueries({ queryKey: sessionKeys.detail(sessionId) });
+  onMutate: async (sessionId) => {
+    // Cancel outgoing refetches
+    await queryClient.cancelQueries({ queryKey: sessionKeys.lists() });
+
+    // Snapshot previous value
+    const previousSessions = queryClient.getQueryData<Session[]>(
+      sessionKeys.lists(),
+    );
+
+    // Optimistically update to "disconnected" status
+    if (previousSessions) {
+      queryClient.setQueryData<Session[]>(sessionKeys.lists(), (old) =>
+        old?.map((session) =>
+          session.id === sessionId
+            ? { ...session, status: "disconnected" as const }
+            : session,
+        ),
+      );
+    }
+
+    return { previousSessions };
   },
-  onError: (error) => {
+  onSuccess: async (_, sessionId) => {
+    // Wait a bit for backend to process
+    await new Promise((resolve) => setTimeout(resolve, 1000));
+
+    // Invalidate and refetch sessions list and detail
+    await Promise.all([
+      queryClient.invalidateQueries({
+        queryKey: sessionKeys.lists(),
+        refetchType: "active",
+      }),
+      queryClient.invalidateQueries({
+        queryKey: sessionKeys.detail(sessionId),
+        refetchType: "active",
+      }),
+    ]);
+  },
+  onError: (error, _sessionId, context) => {
+    // Rollback on error
+    if (context?.previousSessions) {
+      queryClient.setQueryData(sessionKeys.lists(), context.previousSessions);
+    }
     console.error("Failed to disconnect session:", error);
   },
 });

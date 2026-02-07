@@ -16,13 +16,6 @@ function SessionDetailsPage() {
   // Use hooks package to fetch session
   const { data: session, isLoading, error } = useSession(client, sessionId);
 
-  // Delete session mutation
-  const deleteSession = useDeleteSession(client, {
-    onSuccess: () => {
-      navigate({ to: "/sessions" });
-    },
-  });
-
   if (isLoading) {
     return (
       <div className="min-h-screen network-bg flex items-center justify-center">

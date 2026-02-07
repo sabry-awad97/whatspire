@@ -12,12 +12,9 @@ import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as SettingsIndexRouteImport } from './routes/settings/index'
 import { Route as SessionsIndexRouteImport } from './routes/sessions/index'
-import { Route as MessagesIndexRouteImport } from './routes/messages/index'
-import { Route as GroupsIndexRouteImport } from './routes/groups/index'
 import { Route as ContactsIndexRouteImport } from './routes/contacts/index'
 import { Route as SessionsNewRouteImport } from './routes/sessions/new'
 import { Route as SessionsSessionIdRouteImport } from './routes/sessions/$sessionId'
-import { Route as GroupsGroupIdRouteImport } from './routes/groups/$groupId'
 import { Route as SessionsSessionIdWebhooksRouteImport } from './routes/sessions/$sessionId/webhooks'
 import { Route as SessionsSessionIdEditRouteImport } from './routes/sessions/$sessionId/edit'
 
@@ -36,16 +33,6 @@ const SessionsIndexRoute = SessionsIndexRouteImport.update({
   path: '/sessions/',
   getParentRoute: () => rootRouteImport,
 } as any)
-const MessagesIndexRoute = MessagesIndexRouteImport.update({
-  id: '/messages/',
-  path: '/messages/',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const GroupsIndexRoute = GroupsIndexRouteImport.update({
-  id: '/groups/',
-  path: '/groups/',
-  getParentRoute: () => rootRouteImport,
-} as any)
 const ContactsIndexRoute = ContactsIndexRouteImport.update({
   id: '/contacts/',
   path: '/contacts/',
@@ -59,11 +46,6 @@ const SessionsNewRoute = SessionsNewRouteImport.update({
 const SessionsSessionIdRoute = SessionsSessionIdRouteImport.update({
   id: '/sessions/$sessionId',
   path: '/sessions/$sessionId',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const GroupsGroupIdRoute = GroupsGroupIdRouteImport.update({
-  id: '/groups/$groupId',
-  path: '/groups/$groupId',
   getParentRoute: () => rootRouteImport,
 } as any)
 const SessionsSessionIdWebhooksRoute =
@@ -80,12 +62,9 @@ const SessionsSessionIdEditRoute = SessionsSessionIdEditRouteImport.update({
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
-  '/groups/$groupId': typeof GroupsGroupIdRoute
   '/sessions/$sessionId': typeof SessionsSessionIdRouteWithChildren
   '/sessions/new': typeof SessionsNewRoute
   '/contacts/': typeof ContactsIndexRoute
-  '/groups/': typeof GroupsIndexRoute
-  '/messages/': typeof MessagesIndexRoute
   '/sessions/': typeof SessionsIndexRoute
   '/settings/': typeof SettingsIndexRoute
   '/sessions/$sessionId/edit': typeof SessionsSessionIdEditRoute
@@ -93,12 +72,9 @@ export interface FileRoutesByFullPath {
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
-  '/groups/$groupId': typeof GroupsGroupIdRoute
   '/sessions/$sessionId': typeof SessionsSessionIdRouteWithChildren
   '/sessions/new': typeof SessionsNewRoute
   '/contacts': typeof ContactsIndexRoute
-  '/groups': typeof GroupsIndexRoute
-  '/messages': typeof MessagesIndexRoute
   '/sessions': typeof SessionsIndexRoute
   '/settings': typeof SettingsIndexRoute
   '/sessions/$sessionId/edit': typeof SessionsSessionIdEditRoute
@@ -107,12 +83,9 @@ export interface FileRoutesByTo {
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
-  '/groups/$groupId': typeof GroupsGroupIdRoute
   '/sessions/$sessionId': typeof SessionsSessionIdRouteWithChildren
   '/sessions/new': typeof SessionsNewRoute
   '/contacts/': typeof ContactsIndexRoute
-  '/groups/': typeof GroupsIndexRoute
-  '/messages/': typeof MessagesIndexRoute
   '/sessions/': typeof SessionsIndexRoute
   '/settings/': typeof SettingsIndexRoute
   '/sessions/$sessionId/edit': typeof SessionsSessionIdEditRoute
@@ -122,12 +95,9 @@ export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
   fullPaths:
     | '/'
-    | '/groups/$groupId'
     | '/sessions/$sessionId'
     | '/sessions/new'
     | '/contacts/'
-    | '/groups/'
-    | '/messages/'
     | '/sessions/'
     | '/settings/'
     | '/sessions/$sessionId/edit'
@@ -135,12 +105,9 @@ export interface FileRouteTypes {
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
-    | '/groups/$groupId'
     | '/sessions/$sessionId'
     | '/sessions/new'
     | '/contacts'
-    | '/groups'
-    | '/messages'
     | '/sessions'
     | '/settings'
     | '/sessions/$sessionId/edit'
@@ -148,12 +115,9 @@ export interface FileRouteTypes {
   id:
     | '__root__'
     | '/'
-    | '/groups/$groupId'
     | '/sessions/$sessionId'
     | '/sessions/new'
     | '/contacts/'
-    | '/groups/'
-    | '/messages/'
     | '/sessions/'
     | '/settings/'
     | '/sessions/$sessionId/edit'
@@ -162,12 +126,9 @@ export interface FileRouteTypes {
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
-  GroupsGroupIdRoute: typeof GroupsGroupIdRoute
   SessionsSessionIdRoute: typeof SessionsSessionIdRouteWithChildren
   SessionsNewRoute: typeof SessionsNewRoute
   ContactsIndexRoute: typeof ContactsIndexRoute
-  GroupsIndexRoute: typeof GroupsIndexRoute
-  MessagesIndexRoute: typeof MessagesIndexRoute
   SessionsIndexRoute: typeof SessionsIndexRoute
   SettingsIndexRoute: typeof SettingsIndexRoute
 }
@@ -195,20 +156,6 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof SessionsIndexRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/messages/': {
-      id: '/messages/'
-      path: '/messages'
-      fullPath: '/messages/'
-      preLoaderRoute: typeof MessagesIndexRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/groups/': {
-      id: '/groups/'
-      path: '/groups'
-      fullPath: '/groups/'
-      preLoaderRoute: typeof GroupsIndexRouteImport
-      parentRoute: typeof rootRouteImport
-    }
     '/contacts/': {
       id: '/contacts/'
       path: '/contacts'
@@ -228,13 +175,6 @@ declare module '@tanstack/react-router' {
       path: '/sessions/$sessionId'
       fullPath: '/sessions/$sessionId'
       preLoaderRoute: typeof SessionsSessionIdRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/groups/$groupId': {
-      id: '/groups/$groupId'
-      path: '/groups/$groupId'
-      fullPath: '/groups/$groupId'
-      preLoaderRoute: typeof GroupsGroupIdRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/sessions/$sessionId/webhooks': {
@@ -269,12 +209,9 @@ const SessionsSessionIdRouteWithChildren =
 
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
-  GroupsGroupIdRoute: GroupsGroupIdRoute,
   SessionsSessionIdRoute: SessionsSessionIdRouteWithChildren,
   SessionsNewRoute: SessionsNewRoute,
   ContactsIndexRoute: ContactsIndexRoute,
-  GroupsIndexRoute: GroupsIndexRoute,
-  MessagesIndexRoute: MessagesIndexRoute,
   SessionsIndexRoute: SessionsIndexRoute,
   SettingsIndexRoute: SettingsIndexRoute,
 }

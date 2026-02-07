@@ -10,8 +10,6 @@ import {
 
 import { cn } from "@/lib/utils";
 
-import { ModeToggle } from "./mode-toggle";
-
 // ============================================================================
 // Types
 // ============================================================================
@@ -29,9 +27,6 @@ interface NavItem {
 const navItems: NavItem[] = [
   { to: "/", label: "Dashboard", icon: Home },
   { to: "/sessions", label: "Sessions", icon: Zap },
-  { to: "/messages", label: "Messages", icon: MessageSquare },
-  { to: "/contacts", label: "Contacts", icon: Users },
-  { to: "/groups", label: "Groups", icon: UsersRound },
   { to: "/settings", label: "Settings", icon: Settings },
 ];
 
@@ -107,12 +102,6 @@ export function Sidebar() {
 
         {/* Bottom Section */}
         <div className="pt-4 border-t border-sidebar-border/50 space-y-3">
-          {/* Theme Toggle */}
-          <div className="flex items-center justify-between px-3 py-2 rounded-lg glass-card">
-            <span className="text-sm text-sidebar-foreground">Theme</span>
-            <ModeToggle />
-          </div>
-
           {/* Status Indicator */}
           <div className="flex items-center gap-2 px-3 py-2 rounded-lg glass-card glow-emerald">
             <div className="w-2 h-2 rounded-full bg-emerald pulse-live" />

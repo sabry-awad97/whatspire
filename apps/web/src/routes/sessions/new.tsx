@@ -75,7 +75,7 @@ function NewSessionPage() {
     <div className="min-h-screen network-bg">
       {/* Header */}
       <div className="glass-card border-b border-border/50 px-6 py-4">
-        <div className="max-w-4xl mx-auto flex items-center gap-4">
+        <div className="mx-auto flex items-center gap-4">
           <Button
             variant="ghost"
             size="icon"
@@ -94,7 +94,7 @@ function NewSessionPage() {
       </div>
 
       {/* Form */}
-      <div className="max-w-4xl mx-auto p-6">
+      <div className="mx-auto p-6">
         <form
           onSubmit={(e) => {
             e.preventDefault();
