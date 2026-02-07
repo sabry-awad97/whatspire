@@ -67,11 +67,21 @@ function EditSessionPage() {
       webhookUrl: "",
     },
     onSubmit: async ({ value }) => {
-      // Update session with new name
+      // Update session with name and configuration
       updateSession.mutate({
         sessionId,
         data: {
           name: value.sessionName,
+          config: {
+            account_protection: value.accountProtection,
+            message_logging: value.messageLogging,
+            read_messages: value.readMessages,
+            auto_reject_calls: value.autoRejectCalls,
+            always_online: value.alwaysOnline,
+            ignore_groups: value.ignoreGroups,
+            ignore_broadcasts: value.ignoreBroadcasts,
+            ignore_channels: value.ignoreChannels,
+          },
         },
       });
     },

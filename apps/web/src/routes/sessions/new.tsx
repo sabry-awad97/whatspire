@@ -67,6 +67,16 @@ function NewSessionPage() {
       // Create session via hooks - backend will auto-generate UUID
       createSession.mutate({
         name: value.sessionName,
+        config: {
+          account_protection: value.accountProtection,
+          message_logging: value.messageLogging,
+          read_messages: value.readMessages,
+          auto_reject_calls: value.autoRejectCalls,
+          always_online: value.alwaysOnline,
+          ignore_groups: value.ignoreGroups,
+          ignore_broadcasts: value.ignoreBroadcasts,
+          ignore_channels: value.ignoreChannels,
+        },
       });
     },
   });

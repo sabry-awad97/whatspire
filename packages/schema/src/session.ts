@@ -34,6 +34,18 @@ export type Session = z.infer<typeof sessionSchema>;
  */
 export const createSessionRequestSchema = z.object({
   name: z.string().min(1).max(100),
+  config: z
+    .object({
+      account_protection: z.boolean().optional(),
+      message_logging: z.boolean().optional(),
+      read_messages: z.boolean().optional(),
+      auto_reject_calls: z.boolean().optional(),
+      always_online: z.boolean().optional(),
+      ignore_groups: z.boolean().optional(),
+      ignore_broadcasts: z.boolean().optional(),
+      ignore_channels: z.boolean().optional(),
+    })
+    .optional(),
 });
 
 export type CreateSessionRequest = z.infer<typeof createSessionRequestSchema>;

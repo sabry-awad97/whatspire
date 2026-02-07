@@ -367,7 +367,19 @@ export class ApiClient {
    */
   async updateSession(
     sessionId: string,
-    data: { name?: string },
+    data: {
+      name?: string;
+      config?: {
+        account_protection?: boolean;
+        message_logging?: boolean;
+        read_messages?: boolean;
+        auto_reject_calls?: boolean;
+        always_online?: boolean;
+        ignore_groups?: boolean;
+        ignore_broadcasts?: boolean;
+        ignore_channels?: boolean;
+      };
+    },
   ): Promise<Session> {
     return this.executeWithRetry(async () => {
       const response = await this.client.patch<ApiResponse<Session>>(

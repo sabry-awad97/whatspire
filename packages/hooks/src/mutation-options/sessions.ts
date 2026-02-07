@@ -66,7 +66,22 @@ export const updateSessionMutation = (
 ): MutationOptions<
   Session,
   ApiClientError,
-  { sessionId: string; data: { name?: string } }
+  {
+    sessionId: string;
+    data: {
+      name?: string;
+      config?: {
+        account_protection?: boolean;
+        message_logging?: boolean;
+        read_messages?: boolean;
+        auto_reject_calls?: boolean;
+        always_online?: boolean;
+        ignore_groups?: boolean;
+        ignore_broadcasts?: boolean;
+        ignore_channels?: boolean;
+      };
+    };
+  }
 > => ({
   mutationFn: ({ sessionId, data }) => client.updateSession(sessionId, data),
   onSuccess: (session) => {
