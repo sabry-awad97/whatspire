@@ -1,0 +1,61 @@
+# Git files
+.git
+.gitignore
+.gitattributes
+
+# Documentation
+docs/
+*.md
+README.md
+
+# Test files
+test/
+*_test.go
+*.test
+coverage
+*.out
+
+# Build artifacts
+bin/
+*.exe
+*.dll
+*.so
+*.dylib
+main
+main.exe
+
+# Database files (will be mounted as volume)
+data/*.db
+data/*.db-shm
+data/*.db-wal
+data/media/*
+
+# Configuration (use config.example.* only)
+config.yaml
+config.json
+
+# Temporary files
+tmp/
+temp/
+*.tmp
+*.swp
+*.swo
+*~
+
+# IDE files
+.vscode/
+.idea/
+*.iml
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Go workspace
+go.work
+go.work.sum
+
+# Docker files (no need to copy into image)
+Dockerfile
+.dockerignore
+docker-compose.yml

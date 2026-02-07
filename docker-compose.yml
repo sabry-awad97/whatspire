@@ -18,6 +18,70 @@ services:
       interval: 10s
       timeout: 5s
       retries: 5
+    networks:
+      - whatspire-network
+
+  app:
+    build:
+      context: ./apps/server
+      dockerfile: Dockerfile
+      args:
+        - BUILDKIT_INLINE_CACHE=1
+    image: whatsapp-service:latest
+    container_name: whatspire-whatsapp-service
+    restart: unless-stopped
+
+    ports:
+      - "8080:8080"
+
+    environment:
+      - GIN_MODE=release
+      - TZ=Africa/Cairo
+
+    volumes:
+      - ./apps/server/data:/data
+      - ./apps/server/config.yaml:/app/config.yaml:ro
+
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "wget",
+          "--no-verbose",
+          "--tries=1",
+          "--spider",
+          "http://localhost:8080/health",
+        ]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
+    deploy:
+      resources:
+        limits:
+          cpus: "2"
+          memory: 1G
+        reservations:
+          cpus: "0.5"
+          memory: 256M
+
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+    networks:
+      - whatspire-network
+
+    depends_on:
+      postgres:
+        condition: service_healthy
 
 volumes:
   postgres_data:
+
+networks:
+  whatspire-network:
+    driver: bridge

@@ -228,51 +228,458 @@ tasks:
     desc: "Start Docker containers"
     cmds:
       - echo "🐳 Starting Docker containers..."
-      - docker-compose up -d
+      - docker compose up -d
       - echo "✅ Docker containers started"
+      - echo "📊 Container status:"
+      - docker compose ps
 
   docker:down:
     desc: "Stop Docker containers"
     cmds:
       - echo "🐳 Stopping Docker containers..."
-      - docker-compose down
+      - docker compose down
       - echo "✅ Docker containers stopped"
 
-  docker:logs:
-    desc: "View Docker container logs"
+  docker:restart:
+    desc: "Restart Docker containers"
     cmds:
-      - docker-compose logs -f
+      - echo "🔄 Restarting Docker containers..."
+      - docker compose restart
+      - echo "✅ Docker containers restarted"
+
+  docker:logs:
+    desc: "View Docker container logs (all services)"
+    cmds:
+      - docker compose logs -f
+
+  docker:logs:backend:
+    desc: "View WhatsApp service logs only"
+    cmds:
+      - docker compose logs -f whatsapp-service
+
+  docker:logs:postgres:
+    desc: "View PostgreSQL logs only"
+    cmds:
+      - docker compose logs -f postgres
 
   docker:build:
     desc: "Build Docker images"
     cmds:
       - echo "🐳 Building Docker images..."
-      - docker-compose build
+      - docker compose build --no-cache
       - echo "✅ Docker images built"
+
+  docker:build:backend:
+    desc: "Build only WhatsApp service Docker image"
+    dir: "{{.SERVER_DIR}}"
+    cmds:
+      - echo "🐳 Building WhatsApp service image..."
+      - |
+        {{if eq OS "windows"}}
+        powershell -ExecutionPolicy Bypass -File docker-build.ps1
+        {{else}}
+        chmod +x docker-build.sh
+        ./docker-build.sh
+        {{end}}
+      - echo "✅ WhatsApp service image built"
+
+  docker:rebuild:
+    desc: "Rebuild and restart Docker containers"
+    cmds:
+      - task: docker:down
+      - task: docker:build
+      - task: docker:up
+
+  docker:ps:
+    desc: "Show running Docker containers"
+    cmds:
+      - docker compose ps
+
+  docker:stats:
+    desc: "Show Docker container resource usage"
+    cmds:
+      - docker stats --no-stream
+
+  docker:exec:backend:
+    desc: "Execute shell in WhatsApp service container"
+    cmds:
+      - docker compose exec whatsapp-service sh
+
+  docker:exec:postgres:
+    desc: "Execute psql in PostgreSQL container"
+    cmds:
+      - docker compose exec postgres psql -U whatspire -d whatspire_test
+
+  docker:clean:
+    desc: "Clean up Docker resources (containers, images, volumes)"
+    cmds:
+      - echo "🧹 Cleaning Docker resources..."
+      - docker compose down -v
+      - docker system prune -f
+      - echo "✅ Docker cleanup complete"
+
+  docker:clean:all:
+    desc: "Deep clean all Docker resources (WARNING: removes all unused Docker data)"
+    cmds:
+      - echo "⚠️  WARNING - This will remove all unused Docker containers, images, and volumes"
+      - cmd: |
+          {{if eq OS "windows"}}
+          $confirm = Read-Host "Are you sure? (yes/no)"
+          if ($confirm -eq "yes") {
+            docker compose down -v
+            docker system prune -a -f --volumes
+            Write-Host "✅ Deep Docker cleanup complete"
+          } else {
+            Write-Host "❌ Cleanup cancelled"
+          }
+          {{else}}
+          read -p "Are you sure? (yes/no): " confirm
+          if [ "$confirm" = "yes" ]; then
+            docker compose down -v
+            docker system prune -a -f --volumes
+            echo "✅ Deep Docker cleanup complete"
+          else
+            echo "❌ Cleanup cancelled"
+          fi
+          {{end}}
+
+  docker:health:
+    desc: "Check health status of Docker containers"
+    cmds:
+      - echo "🏥 Checking container health..."
+      - docker compose ps
+      - echo ""
+      - echo "WhatsApp Service Health:"
+      - docker inspect --format='{{`{{.State.Health.Status}}`}}' whatspire-whatsapp-service || echo "No health check configured"
+      - echo ""
+      - echo "PostgreSQL Health:"
+      - docker inspect --format='{{`{{.State.Health.Status}}`}}' whatspire-postgres || echo "No health check configured"
+
+  docker:backup:
+    desc: "Backup Docker volumes and data"
+    cmds:
+      - echo "💾 Creating backup..."
+      - mkdir -p backups
+      - |
+        {{if eq OS "windows"}}
+        $timestamp = Get-Date -Format "yyyyMMdd_HHmmss"
+        Compress-Archive -Path apps/server/data -DestinationPath "backups/whatsapp-backup-$timestamp.zip"
+        Write-Host "✅ Backup created: backups/whatsapp-backup-$timestamp.zip"
+        {{else}}
+        timestamp=$(date +%Y%m%d_%H%M%S)
+        tar -czf backups/whatsapp-backup-$timestamp.tar.gz apps/server/data
+        echo "✅ Backup created: backups/whatsapp-backup-$timestamp.tar.gz"
+        {{end}}
 
   # ============================================================================
   # Production Tasks
   # ============================================================================
 
-  prod:start:
-    desc: "Start production servers"
+  prod:deploy:
+    desc: "Deploy to production (build and start all services)"
     cmds:
-      - echo "🚀 Starting production servers..."
-      - task: prod:backend &
-      - task: prod:frontend &
+      - echo "🚀 Deploying to production..."
+      - task: prod:check-env
+      - task: prod:build
+      - task: prod:up
+      - echo "✅ Production deployment complete!"
+      - task: prod:status
 
-  prod:backend:
-    desc: "Start production backend server"
+  prod:up:
+    desc: "Start production Docker containers"
     cmds:
-      - echo "🚀 Starting production backend..."
-      - ./bin/whatsapp-server
+      - echo "🐳 Starting production containers..."
+      - docker-compose -f docker-compose.production.yml --env-file .env.production up -d
+      - echo "✅ Production containers started"
+      - docker-compose -f docker-compose.production.yml ps
 
-  prod:frontend:
-    desc: "Serve production frontend"
-    dir: "{{.WEB_DIR}}"
+  prod:down:
+    desc: "Stop production Docker containers"
     cmds:
-      - echo "🚀 Starting production frontend..."
-      - npm run preview
+      - echo "🐳 Stopping production containers..."
+      - docker-compose -f docker-compose.production.yml down
+      - echo "✅ Production containers stopped"
+
+  prod:restart:
+    desc: "Restart production Docker containers"
+    cmds:
+      - echo "🔄 Restarting production containers..."
+      - docker-compose -f docker-compose.production.yml restart
+      - echo "✅ Production containers restarted"
+
+  prod:build:
+    desc: "Build production Docker images"
+    cmds:
+      - echo "🔨 Building production images..."
+      - docker-compose -f docker-compose.production.yml build --no-cache
+      - echo "✅ Production images built"
+
+  prod:rebuild:
+    desc: "Rebuild and restart production containers"
+    cmds:
+      - echo "🔄 Rebuilding production deployment..."
+      - task: prod:down
+      - task: prod:build
+      - task: prod:up
+      - echo "✅ Production rebuild complete"
+
+  prod:logs:
+    desc: "View production logs (all services)"
+    cmds:
+      - docker-compose -f docker-compose.production.yml logs -f
+
+  prod:logs:backend:
+    desc: "View production WhatsApp service logs"
+    cmds:
+      - docker-compose -f docker-compose.production.yml logs -f whatsapp-service
+
+  prod:logs:postgres:
+    desc: "View production PostgreSQL logs"
+    cmds:
+      - docker-compose -f docker-compose.production.yml logs -f postgres
+
+  prod:status:
+    desc: "Check production services status"
+    cmds:
+      - echo "📊 Production Services Status"
+      - echo "=============================="
+      - docker-compose -f docker-compose.production.yml ps
+      - echo ""
+      - echo "Health Checks:"
+      - |
+        {{if eq OS "windows"}}
+        docker inspect --format="{{`{{.State.Health.Status}}`}}" whatspire-whatsapp-prod 2>$null
+        if ($LASTEXITCODE -ne 0) { Write-Host "WhatsApp Service: Not running" }
+        docker inspect --format="{{`{{.State.Health.Status}}`}}" whatspire-postgres-prod 2>$null
+        if ($LASTEXITCODE -ne 0) { Write-Host "PostgreSQL: Not running" }
+        {{else}}
+        docker inspect --format='{{`{{.State.Health.Status}}`}}' whatspire-whatsapp-prod 2>/dev/null || echo "WhatsApp Service: Not running"
+        docker inspect --format='{{`{{.State.Health.Status}}`}}' whatspire-postgres-prod 2>/dev/null || echo "PostgreSQL: Not running"
+        {{end}}
+
+  prod:health:
+    desc: "Check production services health"
+    cmds:
+      - echo "🏥 Checking production health..."
+      - echo ""
+      - echo "Container Health Status:"
+      - docker-compose -f docker-compose.production.yml ps
+      - echo ""
+      - echo "Application Health Endpoint:"
+      - curl -f http://localhost:8080/health || echo "❌ Health check failed"
+      - echo ""
+      - echo "Database Connection:"
+      - docker exec whatspire-postgres-prod pg_isready -U whatspire || echo "❌ Database not ready"
+
+  prod:stats:
+    desc: "Show production resource usage"
+    cmds:
+      - echo "📊 Production Resource Usage"
+      - docker stats --no-stream whatspire-whatsapp-prod whatspire-postgres-prod
+
+  prod:exec:backend:
+    desc: "Execute shell in production WhatsApp service"
+    cmds:
+      - docker-compose -f docker-compose.production.yml exec whatsapp-service sh
+
+  prod:exec:postgres:
+    desc: "Execute psql in production PostgreSQL"
+    cmds:
+      - docker-compose -f docker-compose.production.yml exec postgres psql -U whatspire -d whatspire_prod
+
+  prod:backup:
+    desc: "Backup production data and database"
+    cmds:
+      - echo "💾 Creating production backup..."
+      - mkdir -p backups/production
+      - |
+        {{if eq OS "windows"}}
+        $timestamp = Get-Date -Format "yyyyMMdd_HHmmss"
+        Write-Host "Backing up PostgreSQL database..."
+        docker exec whatspire-postgres-prod pg_dump -U whatspire whatspire_prod | Out-File -Encoding UTF8 "backups/production/postgres_$timestamp.sql"
+        Write-Host "Backing up WhatsApp data..."
+        Compress-Archive -Path apps/server/data -DestinationPath "backups/production/whatsapp_$timestamp.zip" -Force
+        Write-Host "Backing up configuration..."
+        Copy-Item apps/server/config.yaml "backups/production/config_$timestamp.yaml"
+        Copy-Item .env.production "backups/production/env_$timestamp.txt"
+        Write-Host "✅ Production backup created: backups/production/*_$timestamp.*"
+        {{else}}
+        timestamp=$(date +%Y%m%d_%H%M%S)
+        echo "Backing up PostgreSQL database..."
+        docker exec whatspire-postgres-prod pg_dump -U whatspire whatspire_prod | gzip > backups/production/postgres_$timestamp.sql.gz
+        echo "Backing up WhatsApp data..."
+        tar -czf backups/production/whatsapp_$timestamp.tar.gz apps/server/data
+        echo "Backing up configuration..."
+        cp apps/server/config.yaml backups/production/config_$timestamp.yaml
+        cp .env.production backups/production/env_$timestamp.txt
+        echo "✅ Production backup created: backups/production/*_$timestamp.*"
+        {{end}}
+
+  prod:restore:
+    desc: "Restore production from backup (requires BACKUP_DATE variable)"
+    cmds:
+      - echo "⚠️  WARNING - This will restore production data from backup"
+      - |
+        {{if eq OS "windows"}}
+        if (-not $env:BACKUP_DATE) {
+          Write-Host "❌ Error: BACKUP_DATE environment variable required"
+          Write-Host "Usage: $env:BACKUP_DATE='20240207_120000'; task prod:restore"
+          exit 1
+        }
+        $confirm = Read-Host "Restore from backup $env:BACKUP_DATE? (yes/no)"
+        if ($confirm -eq "yes") {
+          Write-Host "Stopping services..."
+          docker-compose -f docker-compose.production.yml down
+          Write-Host "Restoring database..."
+          Get-Content "backups/production/postgres_$env:BACKUP_DATE.sql" | docker exec -i whatspire-postgres-prod psql -U whatspire whatspire_prod
+          Write-Host "Restoring WhatsApp data..."
+          Expand-Archive -Path "backups/production/whatsapp_$env:BACKUP_DATE.zip" -DestinationPath . -Force
+          Write-Host "Starting services..."
+          docker-compose -f docker-compose.production.yml up -d
+          Write-Host "✅ Production restore complete"
+        } else {
+          Write-Host "❌ Restore cancelled"
+        }
+        {{else}}
+        if [ -z "$BACKUP_DATE" ]; then
+          echo "❌ Error: BACKUP_DATE environment variable required"
+          echo "Usage: BACKUP_DATE=20240207_120000 task prod:restore"
+          exit 1
+        fi
+        read -p "Restore from backup $BACKUP_DATE? (yes/no): " confirm
+        if [ "$confirm" = "yes" ]; then
+          echo "Stopping services..."
+          docker-compose -f docker-compose.production.yml down
+          echo "Restoring database..."
+          gunzip < backups/production/postgres_$BACKUP_DATE.sql.gz | docker exec -i whatspire-postgres-prod psql -U whatspire whatspire_prod
+          echo "Restoring WhatsApp data..."
+          tar -xzf backups/production/whatsapp_$BACKUP_DATE.tar.gz
+          echo "Starting services..."
+          docker-compose -f docker-compose.production.yml up -d
+          echo "✅ Production restore complete"
+        else
+          echo "❌ Restore cancelled"
+        fi
+        {{end}}
+
+  prod:update:
+    desc: "Update production deployment (pull, rebuild, restart)"
+    cmds:
+      - echo "🔄 Updating production deployment..."
+      - echo "Pulling latest code..."
+      - git pull
+      - echo "Creating backup before update..."
+      - task: prod:backup
+      - echo "Rebuilding images..."
+      - task: prod:build
+      - echo "Restarting services..."
+      - task: prod:restart
+      - echo "✅ Production update complete"
+      - task: prod:status
+
+  prod:clean:
+    desc: "Clean production Docker resources"
+    cmds:
+      - echo "🧹 Cleaning production resources..."
+      - docker-compose -f docker-compose.production.yml down -v
+      - docker system prune -f
+      - echo "✅ Production cleanup complete"
+
+  prod:check-env:
+    desc: "Check if production environment is configured"
+    cmds:
+      - |
+        {{if eq OS "windows"}}
+        if (-not (Test-Path .env.production)) {
+          Write-Host "❌ Error: .env.production file not found"
+          Write-Host "Please create it from .env.production.example"
+          exit 1
+        }
+        Write-Host "✅ Production environment configured"
+        {{else}}
+        if [ ! -f .env.production ]; then
+          echo "❌ Error: .env.production file not found"
+          echo "Please create it from .env.production.example"
+          exit 1
+        fi
+        echo "✅ Production environment configured"
+        {{end}}
+
+  prod:setup:
+    desc: "Initial production setup (create env file and directories)"
+    cmds:
+      - echo "🔧 Setting up production environment..."
+      - |
+        {{if eq OS "windows"}}
+        if (-not (Test-Path .env.production)) {
+          Copy-Item .env.production.example .env.production
+          Write-Host "✅ Created .env.production - Please edit with your settings"
+        } else {
+          Write-Host "⚠️  .env.production already exists"
+        }
+        New-Item -ItemType Directory -Force -Path data/postgres, data/whatsapp, backups/production | Out-Null
+        Write-Host "✅ Created data directories"
+        Write-Host ""
+        Write-Host "Next steps:"
+        Write-Host "1. Edit .env.production with your settings"
+        Write-Host "2. Edit apps/server/config.yaml with production config"
+        Write-Host "3. Run: task prod:deploy"
+        {{else}}
+        if [ ! -f .env.production ]; then
+          cp .env.production.example .env.production
+          echo "✅ Created .env.production - Please edit with your settings"
+        else
+          echo "⚠️  .env.production already exists"
+        fi
+        mkdir -p data/postgres data/whatsapp backups/production
+        echo "✅ Created data directories"
+        echo ""
+        echo "Next steps:"
+        echo "1. Edit .env.production with your settings"
+        echo "2. Edit apps/server/config.yaml with production config"
+        echo "3. Run: task prod:deploy"
+        {{end}}
+
+  prod:db:migrate:
+    desc: "Run database migrations in production"
+    cmds:
+      - echo "🗄️  Running production database migrations..."
+      - docker-compose -f docker-compose.production.yml exec whatsapp-service /app/whatsapp-service migrate
+      - echo "✅ Migrations complete"
+
+  prod:db:backup:
+    desc: "Backup production database only"
+    cmds:
+      - echo "💾 Backing up production database..."
+      - mkdir -p backups/production
+      - |
+        {{if eq OS "windows"}}
+        $timestamp = Get-Date -Format "yyyyMMdd_HHmmss"
+        docker exec whatspire-postgres-prod pg_dump -U whatspire whatspire_prod | Out-File -Encoding UTF8 "backups/production/postgres_$timestamp.sql"
+        Write-Host "✅ Database backup created: backups/production/postgres_$timestamp.sql"
+        {{else}}
+        timestamp=$(date +%Y%m%d_%H%M%S)
+        docker exec whatspire-postgres-prod pg_dump -U whatspire whatspire_prod | gzip > backups/production/postgres_$timestamp.sql.gz
+        echo "✅ Database backup created: backups/production/postgres_$timestamp.sql.gz"
+        {{end}}
+
+  prod:db:vacuum:
+    desc: "Vacuum and analyze production database"
+    cmds:
+      - echo "🗄️  Running database maintenance..."
+      - docker exec whatspire-postgres-prod psql -U whatspire -d whatspire_prod -c "VACUUM ANALYZE;"
+      - echo "✅ Database maintenance complete"
+
+  prod:logs:tail:
+    desc: "Tail production logs (last 100 lines)"
+    cmds:
+      - docker-compose -f docker-compose.production.yml logs --tail=100
+
+  prod:monitor:
+    desc: "Monitor production services in real-time"
+    cmds:
+      - echo "📊 Monitoring production services (Ctrl+C to exit)..."
+      - docker stats whatspire-whatsapp-prod whatspire-postgres-prod
 
   # ============================================================================
   # Utility Tasks
@@ -326,14 +733,84 @@ tasks:
     cmds:
       - echo "📚 WhatsApp API Taskfile Help"
       - echo ""
-      - echo "Common Commands"
+      - echo "🚀 Development Commands"
       - echo "  task dev              - Start both backend and frontend in dev mode"
       - echo "  task dev:backend      - Start only backend server"
       - echo "  task dev:frontend     - Start only frontend server"
+      - echo ""
+      - echo "🔨 Build Commands"
       - echo "  task build            - Build both backend and frontend"
+      - echo "  task build:backend    - Build only backend"
+      - echo "  task build:frontend   - Build only frontend"
+      - echo ""
+      - echo "🧪 Testing Commands"
       - echo "  task test             - Run all tests"
+      - echo "  task test:backend     - Run backend tests"
+      - echo "  task test:backend:coverage - Run backend tests with coverage"
+      - echo "  task test:frontend    - Run frontend tests"
+      - echo ""
+      - echo "🔍 Linting Commands"
       - echo "  task lint             - Lint all code"
+      - echo "  task lint:backend     - Lint backend code"
+      - echo "  task lint:frontend    - Lint frontend code"
+      - echo ""
+      - echo "🐳 Docker Commands (Development)"
+      - echo "  task docker:up        - Start Docker containers"
+      - echo "  task docker:down      - Stop Docker containers"
+      - echo "  task docker:restart   - Restart Docker containers"
+      - echo "  task docker:build     - Build Docker images"
+      - echo "  task docker:build:backend - Build only backend image"
+      - echo "  task docker:rebuild   - Rebuild and restart containers"
+      - echo "  task docker:logs      - View all container logs"
+      - echo "  task docker:logs:backend - View backend logs only"
+      - echo "  task docker:logs:postgres - View PostgreSQL logs only"
+      - echo "  task docker:ps        - Show running containers"
+      - echo "  task docker:stats     - Show container resource usage"
+      - echo "  task docker:health    - Check container health status"
+      - echo "  task docker:exec:backend - Shell into backend container"
+      - echo "  task docker:exec:postgres - psql into PostgreSQL"
+      - echo "  task docker:backup    - Backup Docker volumes"
+      - echo "  task docker:clean     - Clean Docker resources"
+      - echo "  task docker:clean:all - Deep clean all Docker data"
+      - echo ""
+      - echo "🚀 Production Commands"
+      - echo "  task prod:setup       - Initial production setup"
+      - echo "  task prod:deploy      - Deploy to production"
+      - echo "  task prod:up          - Start production containers"
+      - echo "  task prod:down        - Stop production containers"
+      - echo "  task prod:restart     - Restart production containers"
+      - echo "  task prod:build       - Build production images"
+      - echo "  task prod:rebuild     - Rebuild production deployment"
+      - echo "  task prod:update      - Update production (pull, rebuild, restart)"
+      - echo "  task prod:status      - Check production status"
+      - echo "  task prod:health      - Check production health"
+      - echo "  task prod:stats       - Show production resource usage"
+      - echo "  task prod:monitor     - Monitor production in real-time"
+      - echo "  task prod:logs        - View production logs"
+      - echo "  task prod:logs:backend - View production backend logs"
+      - echo "  task prod:logs:postgres - View production database logs"
+      - echo "  task prod:logs:tail   - Tail last 100 lines of logs"
+      - echo "  task prod:backup      - Backup production data and database"
+      - echo "  task prod:restore     - Restore from backup (set BACKUP_DATE)"
+      - echo "  task prod:db:backup   - Backup database only"
+      - echo "  task prod:db:migrate  - Run database migrations"
+      - echo "  task prod:db:vacuum   - Vacuum and analyze database"
+      - echo "  task prod:exec:backend - Shell into production backend"
+      - echo "  task prod:exec:postgres - psql into production database"
+      - echo "  task prod:clean       - Clean production resources"
+      - echo ""
+      - echo "🗄️  Database Commands"
+      - echo "  task db:migrate       - Run database migrations"
+      - echo "  task db:reset         - Reset database (deletes all data)"
+      - echo ""
+      - echo "🧹 Cleanup Commands"
+      - echo "  task clean            - Clean all build artifacts"
+      - echo "  task clean:backend    - Clean backend artifacts"
+      - echo "  task clean:frontend   - Clean frontend artifacts"
+      - echo ""
+      - echo "🔧 Utility Commands"
       - echo "  task setup            - Initial project setup"
       - echo "  task check            - Run all checks (lint, test, build)"
+      - echo "  task status           - Check service status"
       - echo ""
-      - echo "For full list of tasks, run task --list"
+      - 'echo "For full list of tasks, run: task --list"'

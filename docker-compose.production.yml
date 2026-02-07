@@ -1,130 +1,314 @@
-name: whatspire-production
+name: whatspire
+
+# Production Docker Compose Configuration
+# This file is optimized for production deployments with:
+# - Security hardening
+# - Resource limits
+# - Health checks
+# - Logging configuration
+# - Restart policies
+# - Network isolation
+
+name: whatspire-prod
 
 services:
+  # PostgreSQL Database
   postgres:
     image: pgvector/pgvector:pg18-trixie
     container_name: whatspire-postgres-prod
+    restart: always
+
     environment:
-      TZ: Africa/Cairo
-      POSTGRES_USER: whatspire
-      POSTGRES_PASSWORD: ${DB_PASSWORD:-changeme}
-      POSTGRES_DB: whatspire
+      TZ: ${TZ:-UTC}
+      POSTGRES_USER: ${POSTGRES_USER:-whatspire}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?POSTGRES_PASSWORD is required}
+      POSTGRES_DB: ${POSTGRES_DB:-whatspire_prod}
+      # Performance tuning
+      POSTGRES_SHARED_BUFFERS: ${POSTGRES_SHARED_BUFFERS:-256MB}
+      POSTGRES_EFFECTIVE_CACHE_SIZE: ${POSTGRES_EFFECTIVE_CACHE_SIZE:-1GB}
+      POSTGRES_MAX_CONNECTIONS: ${POSTGRES_MAX_CONNECTIONS:-100}
+
     ports:
-      - "5432:5432"
+      # Bind to localhost only for security
+      - "127.0.0.1:5432:5432"
+
     volumes:
       - postgres_data:/var/lib/postgresql
+      # Optional: Custom PostgreSQL configuration
+      # - ./config/postgresql.conf:/etc/postgresql/postgresql.conf:ro
+
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U whatspire"]
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-whatspire}"]
       interval: 10s
       timeout: 5s
       retries: 5
-    restart: unless-stopped
-    networks:
-      - whatspire-network
+      start_period: 30s
 
-  whatsapp:
+    # Resource limits
+    deploy:
+      resources:
+        limits:
+          cpus: "2"
+          memory: 2G
+        reservations:
+          cpus: "0.5"
+          memory: 512M
+
+    # Logging configuration
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "5"
+        compress: "true"
+
+    networks:
+      - whatspire-backend
+
+    # Security options
+    security_opt:
+      - no-new-privileges:true
+
+    # Read-only root filesystem (except for data volume)
+    read_only: true
+    tmpfs:
+      - /tmp
+      - /var/run/postgresql
+
+  # WhatsApp Service
+  whatsapp-service:
     build:
       context: ./apps/server
       dockerfile: Dockerfile
-    container_name: whatspire-whatsapp
-    depends_on:
-      postgres:
-        condition: service_healthy
-    environment:
-      # Database Configuration
-      WHATSAPP_DATABASE_DRIVER: postgres
-      WHATSAPP_DATABASE_DSN: "host=postgres user=whatspire password=${DB_PASSWORD:-changeme} dbname=whatspire port=5432 sslmode=disable"
-      WHATSAPP_DATABASE_MAX_IDLE_CONNS: 10
-      WHATSAPP_DATABASE_MAX_OPEN_CONNS: 100
-      WHATSAPP_DATABASE_CONN_MAX_LIFETIME: 1h
-      WHATSAPP_DATABASE_LOG_LEVEL: warn
+      args:
+        - BUILDKIT_INLINE_CACHE=1
+    image: whatsapp-service:${VERSION:-latest}
+    container_name: whatspire-whatsapp-prod
+    restart: always
 
-      # Server Configuration
-      WHATSAPP_SERVER_HOST: 0.0.0.0
-      WHATSAPP_SERVER_PORT: 8080
-
-      # WhatsApp Configuration
-      WHATSAPP_DB_PATH: /data/whatsmeow.db
-      WHATSAPP_QR_TIMEOUT: 2m
-      WHATSAPP_RECONNECT_DELAY: 5s
-      WHATSAPP_MAX_RECONNECTS: 10
-      WHATSAPP_MESSAGE_RATE_LIMIT: 30
-
-      # WebSocket Configuration
-      WHATSAPP_WEBSOCKET_URL: ${WEBSOCKET_URL:-ws://api:3000/ws/whatsapp}
-      WHATSAPP_WEBSOCKET_API_KEY: ${WEBSOCKET_API_KEY}
-      WHATSAPP_WEBSOCKET_PING_INTERVAL: 30s
-      WHATSAPP_WEBSOCKET_PONG_TIMEOUT: 10s
-      WHATSAPP_WEBSOCKET_RECONNECT_DELAY: 5s
-      WHATSAPP_WEBSOCKET_MAX_RECONNECTS: 0
-      WHATSAPP_WEBSOCKET_QUEUE_SIZE: 1000
-
-      # Logging Configuration
-      WHATSAPP_LOG_LEVEL: info
-      WHATSAPP_LOG_FORMAT: json
-
-      # Rate Limiting
-      WHATSAPP_RATELIMIT_ENABLED: true
-      WHATSAPP_RATELIMIT_RPS: 10
-      WHATSAPP_RATELIMIT_BURST: 20
-      WHATSAPP_RATELIMIT_BY_IP: true
-      WHATSAPP_RATELIMIT_BY_API_KEY: false
-
-      # API Key Authentication
-      WHATSAPP_API_KEY_ENABLED: ${API_KEY_ENABLED:-false}
-      WHATSAPP_API_KEYS: ${API_KEYS}
-      WHATSAPP_API_KEY_HEADER: X-API-Key
-
-      # Metrics
-      WHATSAPP_METRICS_ENABLED: true
-      WHATSAPP_METRICS_PATH: /metrics
-      WHATSAPP_METRICS_NAMESPACE: whatsapp
-
-      # Circuit Breaker
-      WHATSAPP_CIRCUIT_BREAKER_ENABLED: true
-      WHATSAPP_CIRCUIT_BREAKER_MAX_REQUESTS: 3
-      WHATSAPP_CIRCUIT_BREAKER_INTERVAL: 60s
-      WHATSAPP_CIRCUIT_BREAKER_TIMEOUT: 30s
-      WHATSAPP_CIRCUIT_BREAKER_FAILURE_THRESHOLD: 5
-      WHATSAPP_CIRCUIT_BREAKER_SUCCESS_THRESHOLD: 2
-
-      # Media Storage
-      WHATSAPP_MEDIA_BASE_PATH: /data/media
-      WHATSAPP_MEDIA_BASE_URL: ${MEDIA_BASE_URL:-http://localhost:8080/media}
-      WHATSAPP_MEDIA_MAX_FILE_SIZE: 16777216
-
-      # Webhook Configuration
-      WHATSAPP_WEBHOOK_ENABLED: ${WEBHOOK_ENABLED:-false}
-      WHATSAPP_WEBHOOK_URL: ${WEBHOOK_URL}
-      WHATSAPP_WEBHOOK_SECRET: ${WEBHOOK_SECRET}
-      WHATSAPP_WEBHOOK_EVENTS: ${WEBHOOK_EVENTS}
-
-      # Event Storage
-      WHATSAPP_EVENTS_ENABLED: ${EVENTS_ENABLED:-false}
-      WHATSAPP_EVENTS_RETENTION_DAYS: 30
-      WHATSAPP_EVENTS_CLEANUP_TIME: "02:00"
-      WHATSAPP_EVENTS_CLEANUP_INTERVAL: 1h
-
+    # Bind to localhost only - use reverse proxy for external access
     ports:
-      - "8080:8080"
+      - "127.0.0.1:8080:8080"
+
+    environment:
+      # Application settings
+      GIN_MODE: release
+      TZ: ${TZ:-UTC}
+
+      # Database connection (if using PostgreSQL)
+      # DB_DRIVER: postgres
+      # DB_DSN: postgresql://${POSTGRES_USER:-whatspire}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB:-whatspire_prod}?sslmode=disable
+
+      # Optional: Override config via environment variables
+      # SERVER_HOST: 0.0.0.0
+      # SERVER_PORT: 8080
+      # LOG_LEVEL: info
+      # LOG_FORMAT: json
+
     volumes:
+      # Persistent data
       - whatsapp_data:/data
-    restart: unless-stopped
-    networks:
-      - whatspire-network
+      # Configuration (read-only)
+      - ./apps/server/config.yaml:/app/config.yaml:ro
+      # Optional: Custom CA certificates
+      # - /etc/ssl/certs:/etc/ssl/certs:ro
+
     healthcheck:
-      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:8080/health"]
+      test:
+        [
+          "CMD",
+          "wget",
+          "--no-verbose",
+          "--tries=1",
+          "--spider",
+          "http://localhost:8080/health",
+        ]
       interval: 30s
       timeout: 10s
       retries: 3
-      start_period: 40s
+      start_period: 60s
 
+    # Resource limits
+    deploy:
+      resources:
+        limits:
+          cpus: "2"
+          memory: 1G
+        reservations:
+          cpus: "0.5"
+          memory: 256M
+
+      # Restart policy
+      restart_policy:
+        condition: on-failure
+        delay: 5s
+        max_attempts: 3
+        window: 120s
+
+    # Logging configuration
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "5"
+        compress: "true"
+
+    networks:
+      - whatspire-backend
+      - whatspire-frontend
+
+    # Security options
+    security_opt:
+      - no-new-privileges:true
+
+    # Depends on PostgreSQL being healthy
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+    # User namespace remapping (already runs as non-root in Dockerfile)
+    user: "1000:1000"
+
+  # Optional: Nginx Reverse Proxy
+  # Uncomment to enable reverse proxy with SSL termination
+  # nginx:
+  #   image: nginx:alpine
+  #   container_name: whatspire-nginx-prod
+  #   restart: always
+  #
+  #   ports:
+  #     - "80:80"
+  #     - "443:443"
+  #
+  #   volumes:
+  #     - ./config/nginx/nginx.conf:/etc/nginx/nginx.conf:ro
+  #     - ./config/nginx/conf.d:/etc/nginx/conf.d:ro
+  #     - ./config/ssl:/etc/nginx/ssl:ro
+  #     - nginx_cache:/var/cache/nginx
+  #     - nginx_logs:/var/log/nginx
+  #
+  #   healthcheck:
+  #     test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost/health"]
+  #     interval: 30s
+  #     timeout: 10s
+  #     retries: 3
+  #
+  #   deploy:
+  #     resources:
+  #       limits:
+  #         cpus: '1'
+  #         memory: 512M
+  #       reservations:
+  #         cpus: '0.25'
+  #         memory: 128M
+  #
+  #   logging:
+  #     driver: "json-file"
+  #     options:
+  #       max-size: "10m"
+  #       max-file: "5"
+  #       compress: "true"
+  #
+  #   networks:
+  #     - whatspire-frontend
+  #
+  #   security_opt:
+  #     - no-new-privileges:true
+  #
+  #   depends_on:
+  #     - whatsapp-service
+
+  # Optional: Prometheus for monitoring
+  # prometheus:
+  #   image: prom/prometheus:latest
+  #   container_name: whatspire-prometheus-prod
+  #   restart: always
+  #
+  #   ports:
+  #     - "127.0.0.1:9090:9090"
+  #
+  #   volumes:
+  #     - ./config/prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+  #     - prometheus_data:/prometheus
+  #
+  #   command:
+  #     - '--config.file=/etc/prometheus/prometheus.yml'
+  #     - '--storage.tsdb.path=/prometheus'
+  #     - '--storage.tsdb.retention.time=30d'
+  #
+  #   networks:
+  #     - whatspire-backend
+  #
+  #   security_opt:
+  #     - no-new-privileges:true
+
+  # Optional: Grafana for visualization
+  # grafana:
+  #   image: grafana/grafana:latest
+  #   container_name: whatspire-grafana-prod
+  #   restart: always
+  #
+  #   ports:
+  #     - "127.0.0.1:3000:3000"
+  #
+  #   environment:
+  #     GF_SECURITY_ADMIN_PASSWORD: ${GRAFANA_ADMIN_PASSWORD:?GRAFANA_ADMIN_PASSWORD is required}
+  #     GF_INSTALL_PLUGINS: ""
+  #
+  #   volumes:
+  #     - grafana_data:/var/lib/grafana
+  #     - ./config/grafana/provisioning:/etc/grafana/provisioning:ro
+  #
+  #   networks:
+  #     - whatspire-backend
+  #
+  #   security_opt:
+  #     - no-new-privileges:true
+  #
+  #   depends_on:
+  #     - prometheus
+
+# Named volumes for data persistence
 volumes:
   postgres_data:
     driver: local
+    driver_opts:
+      type: none
+      o: bind
+      device: ${DATA_PATH:-./data}/postgres
+
   whatsapp_data:
     driver: local
+    driver_opts:
+      type: none
+      o: bind
+      device: ${DATA_PATH:-./data}/whatsapp
 
+  # nginx_cache:
+  #   driver: local
+  #
+  # nginx_logs:
+  #   driver: local
+  #
+  # prometheus_data:
+  #   driver: local
+  #
+  # grafana_data:
+  #   driver: local
+
+# Network configuration
 networks:
-  whatspire-network:
+  # Backend network (database and application)
+  whatspire-backend:
     driver: bridge
+    internal: true # No external access
+    ipam:
+      config:
+        - subnet: 172.20.0.0/24
+
+  # Frontend network (application and reverse proxy)
+  whatspire-frontend:
+    driver: bridge
+    ipam:
+      config:
+        - subnet: 172.21.0.0/24
