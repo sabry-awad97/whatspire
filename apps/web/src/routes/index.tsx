@@ -1,5 +1,4 @@
-import { useQuery } from "@tanstack/react-query";
-import { createFileRoute } from "@tanstack/react-router";
+import { createFileRoute, Link } from "@tanstack/react-router";
 import { useSessions, useSessionEvents } from "@/hooks";
 import { Activity, MessageSquare, TrendingUp, Users, Zap } from "lucide-react";
 
@@ -163,22 +162,20 @@ function HomeComponent() {
                     className="glass-card p-4 hover-lift ripple flex items-center gap-4"
                   >
                     <div
-                      className={`w-10 h-10 rounded-lg glass-card flex items-center justify-center ${
-                        session.status === "connected"
-                          ? "glow-emerald bg-emerald/10"
-                          : session.status === "pending"
-                            ? "glow-amber bg-amber/10"
-                            : "bg-muted/10"
-                      }`}
+                      className={`w-10 h-10 rounded-lg glass-card flex items-center justify-center ${session.status === "connected"
+                        ? "glow-emerald bg-emerald/10"
+                        : session.status === "pending"
+                          ? "glow-amber bg-amber/10"
+                          : "bg-muted/10"
+                        }`}
                     >
                       <Zap
-                        className={`w-5 h-5 ${
-                          session.status === "connected"
-                            ? "text-emerald"
-                            : session.status === "pending"
-                              ? "text-amber"
-                              : "text-muted-foreground"
-                        }`}
+                        className={`w-5 h-5 ${session.status === "connected"
+                          ? "text-emerald"
+                          : session.status === "pending"
+                            ? "text-amber"
+                            : "text-muted-foreground"
+                          }`}
                       />
                     </div>
                     <div className="flex-1 min-w-0">
@@ -207,8 +204,8 @@ function HomeComponent() {
           >
             <h2 className="text-xl font-semibold mb-6">Quick Actions</h2>
             <div className="space-y-3">
-              <a
-                href="/sessions"
+              <Link
+                to="/sessions"
                 className="block glass-card p-4 hover-lift hover-glow-teal ripple transition-all"
               >
                 <div className="flex items-center gap-3">
@@ -222,41 +219,41 @@ function HomeComponent() {
                     </p>
                   </div>
                 </div>
-              </a>
+              </Link>
 
-              <a
-                href="/messages"
-                className="block glass-card p-4 hover-lift hover-glow-amber ripple transition-all"
-              >
-                <div className="flex items-center gap-3">
-                  <div className="p-2 rounded-lg glass-card glow-amber bg-amber/10">
-                    <MessageSquare className="w-5 h-5 text-amber" />
-                  </div>
-                  <div>
-                    <p className="font-medium">View Messages</p>
-                    <p className="text-xs text-muted-foreground">
-                      Browse message history
-                    </p>
-                  </div>
-                </div>
-              </a>
-
-              <a
-                href="/contacts"
+              <Link
+                to="/sessions/new"
                 className="block glass-card p-4 hover-lift hover-glow-emerald ripple transition-all"
               >
                 <div className="flex items-center gap-3">
                   <div className="p-2 rounded-lg glass-card glow-emerald bg-emerald/10">
-                    <Users className="w-5 h-5 text-emerald" />
+                    <Zap className="w-5 h-5 text-emerald" />
                   </div>
                   <div>
-                    <p className="font-medium">Contacts</p>
+                    <p className="font-medium">New Session</p>
                     <p className="text-xs text-muted-foreground">
-                      Manage your contacts
+                      Create a new WhatsApp session
                     </p>
                   </div>
                 </div>
-              </a>
+              </Link>
+
+              <Link
+                to="/settings"
+                className="block glass-card p-4 hover-lift hover-glow-amber ripple transition-all"
+              >
+                <div className="flex items-center gap-3">
+                  <div className="p-2 rounded-lg glass-card glow-amber bg-amber/10">
+                    <Users className="w-5 h-5 text-amber" />
+                  </div>
+                  <div>
+                    <p className="font-medium">Settings</p>
+                    <p className="text-xs text-muted-foreground">
+                      Manage API keys and preferences
+                    </p>
+                  </div>
+                </div>
+              </Link>
             </div>
           </div>
         </div>
