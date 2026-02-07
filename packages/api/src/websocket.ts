@@ -64,12 +64,32 @@ export interface PresenceUpdateEvent {
 
 export interface SessionConnectedEvent {
   type: "session.connected";
+  session_id: string;
   payload: unknown;
 }
 
 export interface SessionDisconnectedEvent {
   type: "session.disconnected";
+  session_id: string;
   payload: unknown;
+}
+
+export interface ConnectionConnectedEvent {
+  type: "connection.connected";
+  session_id: string;
+  data?: unknown;
+}
+
+export interface ConnectionDisconnectedEvent {
+  type: "connection.disconnected";
+  session_id: string;
+  data?: unknown;
+}
+
+export interface AuthResponseEvent {
+  type: "auth_response";
+  success: boolean;
+  message?: string;
 }
 
 export type EventWebSocketEvent =
@@ -80,7 +100,10 @@ export type EventWebSocketEvent =
   | MessageReactionEvent
   | PresenceUpdateEvent
   | SessionConnectedEvent
-  | SessionDisconnectedEvent;
+  | SessionDisconnectedEvent
+  | ConnectionConnectedEvent
+  | ConnectionDisconnectedEvent
+  | AuthResponseEvent;
 
 // ============================================================================
 // WebSocket Manager Configuration

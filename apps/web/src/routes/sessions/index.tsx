@@ -1,6 +1,6 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { Plus } from "lucide-react";
-import { useSessions } from "@/hooks";
+import { useSessions, useSessionEvents } from "@/hooks";
 import type { Session } from "@whatspire/schema";
 
 import { Button } from "@/components/ui/button";
@@ -16,6 +16,9 @@ function SessionsComponent() {
 
   // Use the reusable sessions hook
   const { data: sessions, isLoading, error, refetch } = useSessions();
+
+  // Enable real-time session status updates
+  useSessionEvents();
 
   const sessionCount = sessions?.length || 0;
 

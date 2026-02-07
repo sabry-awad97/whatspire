@@ -1,6 +1,6 @@
 import { useQuery } from "@tanstack/react-query";
 import { createFileRoute } from "@tanstack/react-router";
-import { useSessions } from "@/hooks";
+import { useSessions, useSessionEvents } from "@/hooks";
 import { Activity, MessageSquare, TrendingUp, Users, Zap } from "lucide-react";
 
 export const Route = createFileRoute("/")({
@@ -9,6 +9,9 @@ export const Route = createFileRoute("/")({
 
 function HomeComponent() {
   const { data: sessions = [] } = useSessions();
+
+  // Enable real-time session status updates
+  useSessionEvents();
 
   // Calculate stats
   const connectedSessions = sessions.filter(

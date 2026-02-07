@@ -92,21 +92,9 @@ export const reconnectSessionMutation = (
 
     return { previousSessions };
   },
-  onSuccess: async (_, sessionId) => {
-    // Wait a bit for backend to process
-    await new Promise((resolve) => setTimeout(resolve, 1000));
-
-    // Invalidate and refetch sessions list and detail
-    await Promise.all([
-      queryClient.invalidateQueries({
-        queryKey: sessionKeys.lists(),
-        refetchType: "active",
-      }),
-      queryClient.invalidateQueries({
-        queryKey: sessionKeys.detail(sessionId),
-        refetchType: "active",
-      }),
-    ]);
+  onSuccess: async () => {
+    // Real-time WebSocket will update the status automatically
+    // No need to invalidate or wait
   },
   onError: (error, _sessionId, context) => {
     // Rollback on error
@@ -155,21 +143,9 @@ export const disconnectSessionMutation = (
 
     return { previousSessions };
   },
-  onSuccess: async (_, sessionId) => {
-    // Wait a bit for backend to process
-    await new Promise((resolve) => setTimeout(resolve, 1000));
-
-    // Invalidate and refetch sessions list and detail
-    await Promise.all([
-      queryClient.invalidateQueries({
-        queryKey: sessionKeys.lists(),
-        refetchType: "active",
-      }),
-      queryClient.invalidateQueries({
-        queryKey: sessionKeys.detail(sessionId),
-        refetchType: "active",
-      }),
-    ]);
+  onSuccess: async () => {
+    // Real-time WebSocket will update the status automatically
+    // No need to invalidate or wait
   },
   onError: (error, _sessionId, context) => {
     // Rollback on error

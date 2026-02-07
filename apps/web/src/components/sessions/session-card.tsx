@@ -10,7 +10,6 @@ import {
 } from "lucide-react";
 import { useState } from "react";
 import { useNavigate } from "@tanstack/react-router";
-import { useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import type { Session } from "@whatspire/schema";
 import {
@@ -58,15 +57,12 @@ export function SessionCard({ session, onSelect }: SessionCardProps) {
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
   const navigate = useNavigate();
   const client = useApiClient();
-  const queryClient = useQueryClient();
 
   // Use hooks for mutations
   const reconnectSession = useReconnectSession(client, {
-    onSuccess: async () => {
+    onSuccess: () => {
       toast.success("Session reconnected successfully");
-      // Wait a bit for backend to process, then force refetch
-      await new Promise((resolve) => setTimeout(resolve, 500));
-      queryClient.invalidateQueries({ queryKey: ["sessions"] });
+      // Real-time WebSocket will update the UI automatically
     },
     onError: (error) => {
       toast.error(error.message || "Failed to reconnect session");
@@ -74,11 +70,9 @@ export function SessionCard({ session, onSelect }: SessionCardProps) {
   });
 
   const disconnectSession = useDisconnectSession(client, {
-    onSuccess: async () => {
+    onSuccess: () => {
       toast.success("Session disconnected");
-      // Wait a bit for backend to process, then force refetch
-      await new Promise((resolve) => setTimeout(resolve, 500));
-      queryClient.invalidateQueries({ queryKey: ["sessions"] });
+      // Real-time WebSocket will update the UI automatically
     },
     onError: (error) => {
       toast.error(error.message || "Failed to disconnect session");

@@ -1,6 +1,6 @@
 import { Loader2 } from "lucide-react";
 import type { Session } from "@whatspire/schema";
-import { useSessions } from "@/hooks";
+import { useSessions, useSessionEvents } from "@/hooks";
 
 import { SessionCard } from "./session-card";
 
@@ -18,6 +18,9 @@ interface SessionListProps {
 
 export function SessionList({ onSelectSession }: SessionListProps) {
   const { data: sessions = [], isLoading, error, refetch } = useSessions();
+
+  // Enable real-time session status updates
+  useSessionEvents();
 
   if (isLoading) {
     return (
