@@ -34,7 +34,7 @@ func (r *ReceiptRepository) Save(ctx context.Context, receipt *entity.Receipt) e
 
 	result := r.db.WithContext(ctx).Create(model)
 	if result.Error != nil {
-		return domainErrors.ErrDatabaseError.WithCause(result.Error)
+		return domainErrors.ErrDatabase.WithCause(result.Error)
 	}
 
 	return nil
@@ -50,7 +50,7 @@ func (r *ReceiptRepository) FindByMessageID(ctx context.Context, messageID strin
 		Find(&modelReceipts)
 
 	if result.Error != nil {
-		return nil, domainErrors.ErrDatabaseError.WithCause(result.Error)
+		return nil, domainErrors.ErrDatabase.WithCause(result.Error)
 	}
 
 	// Convert models to domain entities
@@ -83,7 +83,7 @@ func (r *ReceiptRepository) FindBySessionID(ctx context.Context, sessionID strin
 		Find(&modelReceipts)
 
 	if result.Error != nil {
-		return nil, domainErrors.ErrDatabaseError.WithCause(result.Error)
+		return nil, domainErrors.ErrDatabase.WithCause(result.Error)
 	}
 
 	// Convert models to domain entities
@@ -109,7 +109,7 @@ func (r *ReceiptRepository) Delete(ctx context.Context, id string) error {
 	result := r.db.WithContext(ctx).Delete(&models.Receipt{}, "id = ?", id)
 
 	if result.Error != nil {
-		return domainErrors.ErrDatabaseError.WithCause(result.Error)
+		return domainErrors.ErrDatabase.WithCause(result.Error)
 	}
 
 	if result.RowsAffected == 0 {

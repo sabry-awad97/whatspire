@@ -155,3 +155,35 @@ func NewGroupListResponse(groups []*entity.Group) []GroupResponse {
 	}
 	return result
 }
+
+// WebhookConfigResponse represents a webhook configuration in API responses
+type WebhookConfigResponse struct {
+	ID               string   `json:"id"`
+	SessionID        string   `json:"session_id"`
+	Enabled          bool     `json:"enabled"`
+	URL              string   `json:"url"`
+	Secret           string   `json:"secret"`
+	Events           []string `json:"events"`
+	IgnoreGroups     bool     `json:"ignore_groups"`
+	IgnoreBroadcasts bool     `json:"ignore_broadcasts"`
+	IgnoreChannels   bool     `json:"ignore_channels"`
+	CreatedAt        string   `json:"created_at"`
+	UpdatedAt        string   `json:"updated_at"`
+}
+
+// NewWebhookConfigResponse creates a WebhookConfigResponse from a domain WebhookConfig entity
+func NewWebhookConfigResponse(config *entity.WebhookConfig) WebhookConfigResponse {
+	return WebhookConfigResponse{
+		ID:               config.ID,
+		SessionID:        config.SessionID,
+		Enabled:          config.Enabled,
+		URL:              config.URL,
+		Secret:           config.Secret,
+		Events:           config.Events,
+		IgnoreGroups:     config.IgnoreGroups,
+		IgnoreBroadcasts: config.IgnoreBroadcasts,
+		IgnoreChannels:   config.IgnoreChannels,
+		CreatedAt:        config.CreatedAt.Format(time.RFC3339),
+		UpdatedAt:        config.UpdatedAt.Format(time.RFC3339),
+	}
+}

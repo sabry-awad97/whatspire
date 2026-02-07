@@ -30,6 +30,8 @@ import {
   listAPIKeysRequestSchema,
   listAPIKeysResponseSchema,
   apiKeyDetailsResponseSchema,
+  webhookConfigSchema,
+  updateWebhookConfigRequestSchema,
   type ApiResponse,
   type Session,
   type CreateSessionRequest,
@@ -58,6 +60,8 @@ import {
   type ListAPIKeysRequest,
   type ListAPIKeysResponse,
   type APIKeyDetailsResponse,
+  type WebhookConfig,
+  type UpdateWebhookConfigRequest,
 } from "@whatspire/schema";
 
 // ============================================================================
@@ -359,6 +363,36 @@ export class ApiClient {
   }
 
   /**
+   * Update session settings
+   */
+  async updateSession(
+    sessionId: string,
+    data: { name?: string },
+  ): Promise<Session> {
+    return this.executeWithRetry(async () => {
+      const response = await this.client.patch<ApiResponse<Session>>(
+        `/api/sessions/${sessionId}`,
+        data,
+      );
+
+      const validatedResponse = apiResponseSchema(sessionSchema).parse(
+        response.data,
+      );
+
+      if (!validatedResponse.success || !validatedResponse.data) {
+        throw new ApiClientError(
+          validatedResponse.error?.message || "Failed to update session",
+          validatedResponse.error?.code || "UPDATE_SESSION_FAILED",
+          response.status,
+          validatedResponse.error?.details,
+        );
+      }
+
+      return validatedResponse.data;
+    });
+  }
+
+  /**
    * Reconnect session
    */
   async reconnectSession(sessionId: string): Promise<void> {
@@ -395,6 +429,104 @@ export class ApiClient {
           response.data.error?.details,
         );
       }
+    });
+  }
+
+  // ==========================================================================
+  // Webhook Configuration
+  // ==========================================================================
+
+  /**
+   * Get webhook configuration for a session
+   */
+  async getWebhookConfig(sessionId: string): Promise<WebhookConfig> {
+    return this.executeWithRetry(async () => {
+      const response = await this.client.get<ApiResponse<WebhookConfig>>(
+        `/api/sessions/${sessionId}/webhook`,
+      );
+
+      const validatedResponse = apiResponseSchema(webhookConfigSchema).parse(
+        response.data,
+      );
+
+      if (!validatedResponse.success || !validatedResponse.data) {
+        throw new ApiClientError(
+          validatedResponse.error?.message || "Failed to get webhook config",
+          validatedResponse.error?.code || "GET_WEBHOOK_CONFIG_FAILED",
+          response.status,
+          validatedResponse.error?.details,
+        );
+      }
+
+      return validatedResponse.data;
+    });
+  }
+
+  /**
+   * Update webhook configuration for a session
+   */
+  async updateWebhookConfig(
+    sessionId: string,
+    data: UpdateWebhookConfigRequest,
+  ): Promise<WebhookConfig> {
+    return this.executeWithRetry(async () => {
+      // Validate request
+      const validatedRequest = updateWebhookConfigRequestSchema.parse(data);
+
+      const response = await this.client.put<ApiResponse<WebhookConfig>>(
+        `/api/sessions/${sessionId}/webhook`,
+        validatedRequest,
+      );
+
+      const validatedResponse = apiResponseSchema(webhookConfigSchema).parse(
+        response.data,
+      );
+
+      if (!validatedResponse.success || !validatedResponse.data) {
+        throw new ApiClientError(
+          validatedResponse.error?.message || "Failed to update webhook config",
+          validatedResponse.error?.code || "UPDATE_WEBHOOK_CONFIG_FAILED",
+          response.status,
+          validatedResponse.error?.details,
+        );
+      }
+
+      return validatedResponse.data;
+    });
+  }
+
+  /**
+   * Rotate webhook secret for a session
+   */
+  async rotateWebhookSecret(sessionId: string): Promise<WebhookConfig> {
+    return this.executeWithRetry(async () => {
+      const response = await this.client.post<ApiResponse<WebhookConfig>>(
+        `/api/sessions/${sessionId}/webhook/rotate-secret`,
+      );
+
+      const validatedResponse = apiResponseSchema(webhookConfigSchema).parse(
+        response.data,
+      );
+
+      if (!validatedResponse.success || !validatedResponse.data) {
+        throw new ApiClientError(
+          validatedResponse.error?.message || "Failed to rotate webhook secret",
+          validatedResponse.error?.code || "ROTATE_WEBHOOK_SECRET_FAILED",
+          response.status,
+          validatedResponse.error?.details,
+        );
+      }
+
+      return validatedResponse.data;
+    });
+  }
+
+  /**
+   * Delete webhook configuration for a session
+   */
+  async deleteWebhookConfig(sessionId: string): Promise<void> {
+    await this.executeWithRetry(async () => {
+      await this.client.delete(`/api/sessions/${sessionId}/webhook`);
     });
   }
 

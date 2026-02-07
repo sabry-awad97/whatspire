@@ -42,7 +42,7 @@ func (r *APIKeyRepository) Save(ctx context.Context, apiKey *entity.APIKey) erro
 		if isUniqueConstraintError(result.Error) {
 			return domainErrors.ErrDuplicate.WithMessage("API key with this hash already exists")
 		}
-		return domainErrors.ErrDatabaseError.WithCause(result.Error)
+		return domainErrors.ErrDatabase.WithCause(result.Error)
 	}
 
 	return nil
@@ -57,7 +57,7 @@ func (r *APIKeyRepository) FindByKeyHash(ctx context.Context, keyHash string) (*
 		if errors.Is(result.Error, gorm.ErrRecordNotFound) {
 			return nil, domainErrors.ErrNotFound.WithMessage("API key not found")
 		}
-		return nil, domainErrors.ErrDatabaseError.WithCause(result.Error)
+		return nil, domainErrors.ErrDatabase.WithCause(result.Error)
 	}
 
 	// Convert model to domain entity
@@ -86,7 +86,7 @@ func (r *APIKeyRepository) FindByID(ctx context.Context, id string) (*entity.API
 		if errors.Is(result.Error, gorm.ErrRecordNotFound) {
 			return nil, domainErrors.ErrNotFound.WithMessage("API key not found")
 		}
-		return nil, domainErrors.ErrDatabaseError.WithCause(result.Error)
+		return nil, domainErrors.ErrDatabase.WithCause(result.Error)
 	}
 
 	// Convert model to domain entity
@@ -114,7 +114,7 @@ func (r *APIKeyRepository) UpdateLastUsed(ctx context.Context, keyHash string) e
 		Update("last_used_at", now)
 
 	if result.Error != nil {
-		return domainErrors.ErrDatabaseError.WithCause(result.Error)
+		return domainErrors.ErrDatabase.WithCause(result.Error)
 	}
 
 	if result.RowsAffected == 0 {
@@ -129,7 +129,7 @@ func (r *APIKeyRepository) Delete(ctx context.Context, id string) error {
 	result := r.db.WithContext(ctx).Delete(&models.APIKey{}, "id = ?", id)
 
 	if result.Error != nil {
-		return domainErrors.ErrDatabaseError.WithCause(result.Error)
+		return domainErrors.ErrDatabase.WithCause(result.Error)
 	}
 
 	if result.RowsAffected == 0 {
@@ -162,7 +162,7 @@ func (r *APIKeyRepository) List(ctx context.Context, limit, offset int, role *st
 		Find(&modelKeys)
 
 	if result.Error != nil {
-		return nil, domainErrors.ErrDatabaseError.WithCause(result.Error)
+		return nil, domainErrors.ErrDatabase.WithCause(result.Error)
 	}
 
 	// Convert models to domain entities
@@ -195,7 +195,7 @@ func (r *APIKeyRepository) Update(ctx context.Context, apiKey *entity.APIKey) er
 		if errors.Is(result.Error, gorm.ErrRecordNotFound) {
 			return domainErrors.ErrNotFound.WithMessage("API key not found")
 		}
-		return domainErrors.ErrDatabaseError.WithCause(result.Error)
+		return domainErrors.ErrDatabase.WithCause(result.Error)
 	}
 
 	// Update the existing record
@@ -214,7 +214,7 @@ func (r *APIKeyRepository) Update(ctx context.Context, apiKey *entity.APIKey) er
 
 	result = r.db.WithContext(ctx).Save(model)
 	if result.Error != nil {
-		return domainErrors.ErrDatabaseError.WithCause(result.Error)
+		return domainErrors.ErrDatabase.WithCause(result.Error)
 	}
 
 	return nil
@@ -238,7 +238,7 @@ func (r *APIKeyRepository) Count(ctx context.Context, role *string, isActive *bo
 	result := query.Count(&count)
 
 	if result.Error != nil {
-		return 0, domainErrors.ErrDatabaseError.WithCause(result.Error)
+		return 0, domainErrors.ErrDatabase.WithCause(result.Error)
 	}
 
 	return count, nil

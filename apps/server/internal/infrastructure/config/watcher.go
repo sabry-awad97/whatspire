@@ -229,14 +229,6 @@ func (w *ConfigWatcher) logConfigChanges(oldCfg, newCfg *Config) {
 			"new_retention_days": newCfg.Events.RetentionDays,
 		}).Info("Event retention policy changed")
 	}
-
-	// Webhook changes
-	if oldCfg.Webhook.Enabled != newCfg.Webhook.Enabled {
-		w.logger.WithFields(map[string]interface{}{
-			"old_enabled": oldCfg.Webhook.Enabled,
-			"new_enabled": newCfg.Webhook.Enabled,
-		}).Info("Webhook configuration changed")
-	}
 }
 
 // IsRunning returns whether the watcher is currently running

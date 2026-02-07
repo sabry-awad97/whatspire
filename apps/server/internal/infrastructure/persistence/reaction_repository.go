@@ -35,7 +35,7 @@ func (r *ReactionRepository) Save(ctx context.Context, reaction *entity.Reaction
 	// Use Create with OnConflict to handle upsert
 	result := r.db.WithContext(ctx).Create(model)
 	if result.Error != nil {
-		return domainErrors.ErrDatabaseError.WithCause(result.Error)
+		return domainErrors.ErrDatabase.WithCause(result.Error)
 	}
 
 	return nil
@@ -51,7 +51,7 @@ func (r *ReactionRepository) FindByMessageID(ctx context.Context, messageID stri
 		Find(&modelReactions)
 
 	if result.Error != nil {
-		return nil, domainErrors.ErrDatabaseError.WithCause(result.Error)
+		return nil, domainErrors.ErrDatabase.WithCause(result.Error)
 	}
 
 	// Convert models to domain entities
@@ -84,7 +84,7 @@ func (r *ReactionRepository) FindBySessionID(ctx context.Context, sessionID stri
 		Find(&modelReactions)
 
 	if result.Error != nil {
-		return nil, domainErrors.ErrDatabaseError.WithCause(result.Error)
+		return nil, domainErrors.ErrDatabase.WithCause(result.Error)
 	}
 
 	// Convert models to domain entities
@@ -110,7 +110,7 @@ func (r *ReactionRepository) Delete(ctx context.Context, id string) error {
 	result := r.db.WithContext(ctx).Delete(&models.Reaction{}, "id = ?", id)
 
 	if result.Error != nil {
-		return domainErrors.ErrDatabaseError.WithCause(result.Error)
+		return domainErrors.ErrDatabase.WithCause(result.Error)
 	}
 
 	if result.RowsAffected == 0 {
@@ -127,7 +127,7 @@ func (r *ReactionRepository) DeleteByMessageIDAndFrom(ctx context.Context, messa
 		Delete(&models.Reaction{})
 
 	if result.Error != nil {
-		return domainErrors.ErrDatabaseError.WithCause(result.Error)
+		return domainErrors.ErrDatabase.WithCause(result.Error)
 	}
 
 	return nil

@@ -15,11 +15,13 @@ export * from "./query-options/contacts";
 export * from "./query-options/groups";
 export * from "./query-options/events";
 export * from "./query-options/api-keys";
+export * from "./query-options/webhooks";
 
 // Mutation Options (for advanced usage)
 export * from "./mutation-options/sessions";
 export * from "./mutation-options/messages";
 export * from "./mutation-options/api-keys";
+export * from "./mutation-options/webhooks";
 
 // Hooks
 export * from "./hooks/use-sessions";
@@ -28,6 +30,7 @@ export * from "./hooks/use-messages";
 export * from "./hooks/use-groups";
 export * from "./hooks/use-events";
 export * from "./hooks/use-api-keys";
+export * from "./hooks/use-webhooks";
 export * from "./hooks/use-websocket";
 export * from "./hooks/use-session-events";
 

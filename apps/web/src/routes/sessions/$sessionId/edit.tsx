@@ -2,7 +2,7 @@ import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useForm } from "@tanstack/react-form";
 import { ArrowLeft, Save } from "lucide-react";
 import { toast } from "sonner";
-import { useApiClient, useSession } from "@whatspire/hooks";
+import { useApiClient, useSession, useUpdateSession } from "@whatspire/hooks";
 import { Loader2 } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
@@ -37,6 +37,20 @@ function EditSessionPage() {
   // Use hooks package to fetch session
   const { data: session, isLoading } = useSession(client, sessionId);
 
+  // Use update session mutation
+  const updateSession = useUpdateSession(client, {
+    onSuccess: (updatedSession) => {
+      toast.success("Session updated successfully");
+      navigate({
+        to: "/sessions/$sessionId",
+        params: { sessionId: updatedSession.id },
+      });
+    },
+    onError: (error) => {
+      toast.error(`Failed to update session: ${error.message}`);
+    },
+  });
+
   const form = useForm({
     defaultValues: {
       sessionName: session?.id || "",
@@ -53,18 +67,13 @@ function EditSessionPage() {
       webhookUrl: "",
     },
     onSubmit: async ({ value }) => {
-      try {
-        // TODO: Implement update session API endpoint
-        toast.success("Session updated successfully");
-
-        // Navigate back to session details
-        navigate({
-          to: "/sessions/$sessionId",
-          params: { sessionId: value.sessionName },
-        });
-      } catch (error) {
-        toast.error("Failed to update session");
-      }
+      // Update session with new name
+      updateSession.mutate({
+        sessionId,
+        data: {
+          name: value.sessionName,
+        },
+      });
     },
   });
 
@@ -521,11 +530,13 @@ function EditSessionPage() {
               </Button>
               <Button
                 type="submit"
-                disabled={form.state.isSubmitting}
+                disabled={form.state.isSubmitting || updateSession.isPending}
                 className="glass-card hover-glow-emerald"
               >
                 <Save className="mr-2 h-4 w-4" />
-                {form.state.isSubmitting ? "Saving..." : "Save Changes"}
+                {form.state.isSubmitting || updateSession.isPending
+                  ? "Saving..."
+                  : "Save Changes"}
               </Button>
             </div>
           </div>

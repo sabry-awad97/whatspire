@@ -138,9 +138,9 @@ var (
 	ErrConfigInvalid = NewDomainError("CONFIG_INVALID", "configuration is invalid")
 
 	// Repository errors
-	ErrDatabaseError = NewDomainError("DATABASE_ERROR", "database operation failed")
-	ErrNotFound      = NewDomainError("NOT_FOUND", "resource not found")
-	ErrDuplicate     = NewDomainError("DUPLICATE", "resource already exists")
+	ErrDatabase  = NewDomainError("DATABASE_ERROR", "database operation failed")
+	ErrNotFound  = NewDomainError("NOT_FOUND", "resource not found")
+	ErrDuplicate = NewDomainError("DUPLICATE", "resource already exists")
 
 	// Internal errors
 	ErrInternal = NewDomainError("INTERNAL_ERROR", "internal server error")
@@ -180,5 +180,5 @@ var (
 
 	// WhatsApp errors
 	ErrWhatsAppUnavailable = NewDomainError("WHATSAPP_UNAVAILABLE", "WhatsApp service is unavailable")
-	ErrWhatsAppError       = NewDomainError("WHATSAPP_ERROR", "WhatsApp operation failed")
+	ErrWhatsApp            = NewDomainError("WHATSAPP_ERROR", "WhatsApp operation failed")
 )

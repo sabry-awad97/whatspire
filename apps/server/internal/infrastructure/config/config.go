@@ -40,9 +40,6 @@ type Config struct {
 	// Media storage configuration
 	Media MediaConfig `mapstructure:"media"`
 
-	// Webhook configuration
-	Webhook WebhookConfig `mapstructure:"webhook"`
-
 	// Database configuration
 	Database DatabaseConfig `mapstructure:"database"`
 
@@ -65,14 +62,6 @@ type MediaConfig struct {
 	BasePath    string `mapstructure:"base_path"`     // Local directory for storing media files
 	BaseURL     string `mapstructure:"base_url"`      // Public URL prefix for accessing media
 	MaxFileSize int64  `mapstructure:"max_file_size"` // Maximum file size in bytes (default: 16MB)
-}
-
-// WebhookConfig holds webhook delivery configuration
-type WebhookConfig struct {
-	Enabled bool     `mapstructure:"enabled"` // Enable webhook delivery
-	URL     string   `mapstructure:"url"`     // Webhook endpoint URL
-	Secret  string   `mapstructure:"secret"`  // Secret for HMAC signing (optional)
-	Events  []string `mapstructure:"events"`  // Event types to deliver (empty = all events)
 }
 
 // DatabaseConfig holds database configuration
@@ -319,35 +308,6 @@ func (c *Config) Validate() error {
 		})
 	}
 
-	// Validate Webhook config
-	if c.Webhook.Enabled {
-		if c.Webhook.URL == "" {
-			errs = append(errs, ValidationError{
-				Field:   "webhook.url",
-				Message: "is required when webhooks are enabled",
-			})
-		}
-		// Validate event types if specified
-		validEvents := map[string]bool{
-			"message.received":     true,
-			"message.sent":         true,
-			"message.delivered":    true,
-			"message.read":         true,
-			"message.reaction":     true,
-			"presence.update":      true,
-			"session.connected":    true,
-			"session.disconnected": true,
-		}
-		for _, event := range c.Webhook.Events {
-			if !validEvents[event] {
-				errs = append(errs, ValidationError{
-					Field:   "webhook.events",
-					Message: fmt.Sprintf("invalid event type: %s", event),
-				})
-			}
-		}
-	}
-
 	// Validate API Key config
 	if c.APIKey.Enabled {
 		// API keys are now managed in the database
@@ -559,12 +519,6 @@ func setDefaults(v *viper.Viper) {
 	v.SetDefault("media.base_url", "http://localhost:8080/media")
 	v.SetDefault("media.max_file_size", 16*1024*1024) // 16MB
 
-	// Webhook defaults
-	v.SetDefault("webhook.enabled", false)
-	v.SetDefault("webhook.url", "")
-	v.SetDefault("webhook.secret", "")
-	v.SetDefault("webhook.events", []string{}) // Empty = all events
-
 	// Database defaults
 	v.SetDefault("database.driver", "sqlite")
 	v.SetDefault("database.dsn", "/data/application.db")
@@ -643,12 +597,6 @@ func bindEnvVars(v *viper.Viper) {
 	_ = v.BindEnv("media.base_path", "WHATSAPP_MEDIA_BASE_PATH")
 	_ = v.BindEnv("media.base_url", "WHATSAPP_MEDIA_BASE_URL")
 	_ = v.BindEnv("media.max_file_size", "WHATSAPP_MEDIA_MAX_FILE_SIZE")
-
-	// Webhook
-	_ = v.BindEnv("webhook.enabled", "WHATSAPP_WEBHOOK_ENABLED")
-	_ = v.BindEnv("webhook.url", "WHATSAPP_WEBHOOK_URL")
-	_ = v.BindEnv("webhook.secret", "WHATSAPP_WEBHOOK_SECRET")
-	_ = v.BindEnv("webhook.events", "WHATSAPP_WEBHOOK_EVENTS")
 
 	// Database
 	_ = v.BindEnv("database.driver", "WHATSAPP_DATABASE_DRIVER")

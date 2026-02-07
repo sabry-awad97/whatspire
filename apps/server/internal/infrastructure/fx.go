@@ -16,7 +16,6 @@ import (
 	"whatspire/internal/infrastructure/logger"
 	"whatspire/internal/infrastructure/persistence"
 	"whatspire/internal/infrastructure/storage"
-	"whatspire/internal/infrastructure/webhook"
 	"whatspire/internal/infrastructure/websocket"
 	"whatspire/internal/infrastructure/whatsapp"
 
@@ -58,10 +57,8 @@ var Module = fx.Module("infrastructure",
 		),
 		NewAuditLogger,
 		NewAuditLogRepository,
-		NewWebhookPublisher,
 		fx.Annotate(
-			NewCompositeEventPublisher,
-			fx.ParamTags(`name:"websocket"`),
+			NewGorillaEventPublisher,
 			fx.As(new(repository.EventPublisher)),
 		),
 		NewEventHub,
@@ -86,6 +83,10 @@ var Module = fx.Module("infrastructure",
 		fx.Annotate(
 			NewEventRepository,
 			fx.As(new(repository.EventRepository)),
+		),
+		fx.Annotate(
+			NewWebhookConfigRepository,
+			fx.As(new(repository.WebhookConfigRepository)),
 		),
 		NewLocalMediaStorage,
 		NewEventCleanupJob,
@@ -169,6 +170,11 @@ func NewAPIKeyRepository(db *gorm.DB) repository.APIKeyRepository {
 // NewEventRepository creates a new event repository
 func NewEventRepository(db *gorm.DB) repository.EventRepository {
 	return persistence.NewEventRepository(db)
+}
+
+// NewWebhookConfigRepository creates a new webhook config repository
+func NewWebhookConfigRepository(db *gorm.DB) repository.WebhookConfigRepository {
+	return persistence.NewWebhookConfigRepository(db)
 }
 
 // NewAuditLogRepository creates a new audit log repository
@@ -269,38 +275,6 @@ func NewAuditLogger(log *logger.Logger) repository.AuditLogger {
 	auditLogger := logger.NewAuditLogger(log)
 
 	return auditLogger
-}
-
-// NewWebhookPublisher creates a new webhook publisher (optional, based on config)
-func NewWebhookPublisher(cfg *config.Config, auditLogger repository.AuditLogger, log *logger.Logger) *webhook.WebhookPublisher {
-	// Return nil if webhooks are not enabled
-	if !cfg.Webhook.Enabled {
-		return nil
-	}
-
-	webhookConfig := webhook.WebhookConfig{
-		URL:    cfg.Webhook.URL,
-		Secret: cfg.Webhook.Secret,
-		Events: cfg.Webhook.Events,
-	}
-
-	publisher := webhook.NewWebhookPublisher(webhookConfig, log, auditLogger)
-
-	log.WithFields(map[string]interface{}{
-		"url":    cfg.Webhook.URL,
-		"events": cfg.Webhook.Events,
-	}).Info("Webhook publisher created successfully")
-
-	return publisher
-}
-
-// NewCompositeEventPublisher creates a composite event publisher that publishes to both WebSocket and Webhook
-func NewCompositeEventPublisher(
-	websocketPublisher repository.EventPublisher,
-	webhookPublisher *webhook.WebhookPublisher,
-	log *logger.Logger,
-) repository.EventPublisher {
-	return webhook.NewCompositeEventPublisher(websocketPublisher, webhookPublisher, log)
 }
 
 // HealthCheckers holds all health checker instances

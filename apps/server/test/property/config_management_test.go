@@ -152,22 +152,6 @@ func TestConfigurationDefaultValues_Property33(t *testing.T) {
 		gen.Const(0),
 	))
 
-	// Property 33.8: Missing webhook enabled should default to false
-	properties.Property("missing webhook enabled defaults to false", prop.ForAll(
-		func(_ int) bool {
-			v := createMinimalViperConfig()
-			// Omit webhook.enabled to test default
-
-			cfg, err := config.LoadWithViper(v)
-			if err != nil {
-				return false
-			}
-
-			return cfg.Webhook.Enabled == false
-		},
-		gen.Const(0),
-	))
-
 	// Property 33.9: Missing API key enabled should default to false
 	properties.Property("missing API key enabled defaults to false", prop.ForAll(
 		func(_ int) bool {
@@ -310,47 +294,6 @@ func TestConfigurationValidationOnStartup_Property34(t *testing.T) {
 		gen.OneConstOf(time.Duration(0), -time.Second, -time.Minute),
 	))
 
-	// Property 34.7: Webhook enabled without URL should cause startup failure
-	properties.Property("webhook enabled without URL causes startup failure", prop.ForAll(
-		func(_ int) bool {
-			v := createMinimalViperConfig()
-			v.Set("webhook.enabled", true)
-			v.Set("webhook.url", "")
-
-			_, err := config.LoadWithViper(v)
-			return err != nil
-		},
-		gen.Const(0),
-	))
-
-	// Property 34.9: Invalid webhook event type should cause startup failure
-	properties.Property("invalid webhook event type causes startup failure", prop.ForAll(
-		func(eventType string) bool {
-			validEvents := map[string]bool{
-				"message.received":     true,
-				"message.sent":         true,
-				"message.delivered":    true,
-				"message.read":         true,
-				"message.reaction":     true,
-				"presence.update":      true,
-				"session.connected":    true,
-				"session.disconnected": true,
-			}
-			if validEvents[eventType] {
-				return true // skip valid events
-			}
-
-			v := createMinimalViperConfig()
-			v.Set("webhook.enabled", true)
-			v.Set("webhook.url", "http://example.com/webhook")
-			v.Set("webhook.events", []string{eventType})
-
-			_, err := config.LoadWithViper(v)
-			return err != nil
-		},
-		gen.OneConstOf("invalid.event", "message.deleted", "user.typing", ""),
-	))
-
 	properties.TestingRun(t)
 }
 
@@ -454,60 +397,6 @@ func TestConfigurationHotReload_Property35(t *testing.T) {
 			return true
 		},
 		gen.OneConstOf("debug", "info", "warn", "error"),
-	))
-
-	// Property 35.3: Reloading with changed webhook URL should update config
-	properties.Property("reload with changed webhook URL updates config", prop.ForAll(
-		func(newURL string) bool {
-			if newURL == "" {
-				return true // skip empty URLs
-			}
-
-			// Set initial environment
-			os.Setenv("WHATSAPP_SERVER_PORT", "8080")
-			os.Setenv("WHATSAPP_WHATSAPP_DB_PATH", "/data/whatsmeow.db")
-			os.Setenv("WHATSAPP_WEBSOCKET_URL", "ws://localhost:3000/ws/whatsapp")
-			os.Setenv("WHATSAPP_LOG_LEVEL", "info")
-			os.Setenv("WHATSAPP_LOG_FORMAT", "json")
-			os.Setenv("WHATSAPP_MEDIA_BASE_PATH", "/data/media")
-			os.Setenv("WHATSAPP_MEDIA_BASE_URL", "http://localhost:8080/media")
-			os.Setenv("WHATSAPP_WEBHOOK_ENABLED", "true")
-			os.Setenv("WHATSAPP_WEBHOOK_URL", "http://example.com/webhook")
-			defer cleanupEnv()
-
-			cfg, err := config.Load()
-			if err != nil {
-				t.Logf("Initial load failed: %v", err)
-				return false
-			}
-
-			if cfg.Webhook.URL != "http://example.com/webhook" {
-				t.Logf("Initial webhook URL mismatch: got %s, want http://example.com/webhook", cfg.Webhook.URL)
-				return false
-			}
-
-			// Change environment variable
-			os.Setenv("WHATSAPP_WEBHOOK_URL", newURL)
-
-			// Reload configuration
-			err = cfg.Reload()
-			if err != nil {
-				t.Logf("Reload failed: %v", err)
-				return false
-			}
-
-			if cfg.Webhook.URL != newURL {
-				t.Logf("Webhook URL not updated after reload: got %s, want %s", cfg.Webhook.URL, newURL)
-				return false
-			}
-
-			return true
-		},
-		gen.OneConstOf(
-			"http://example.com/webhook2",
-			"https://api.example.com/hooks",
-			"http://localhost:9000/webhook",
-		),
 	))
 
 	// Property 35.4: Reloading with invalid config should fail and preserve old config
@@ -627,8 +516,6 @@ func cleanupEnv() {
 		"WHATSAPP_LOG_FORMAT",
 		"WHATSAPP_MEDIA_BASE_PATH",
 		"WHATSAPP_MEDIA_BASE_URL",
-		"WHATSAPP_WEBHOOK_ENABLED",
-		"WHATSAPP_WEBHOOK_URL",
 		"WHATSAPP_RATELIMIT_ENABLED",
 		"WHATSAPP_RATELIMIT_RPS",
 	}

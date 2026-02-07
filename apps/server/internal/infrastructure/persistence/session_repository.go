@@ -39,7 +39,7 @@ func (r *SessionRepository) Create(ctx context.Context, session *entity.Session)
 		if isUniqueConstraintError(result.Error) {
 			return domainErrors.ErrSessionExists
 		}
-		return domainErrors.ErrDatabaseError.WithCause(result.Error)
+		return domainErrors.ErrDatabase.WithCause(result.Error)
 	}
 
 	return nil
@@ -54,7 +54,7 @@ func (r *SessionRepository) GetByID(ctx context.Context, id string) (*entity.Ses
 		if errors.Is(result.Error, gorm.ErrRecordNotFound) {
 			return nil, domainErrors.ErrSessionNotFound
 		}
-		return nil, domainErrors.ErrDatabaseError.WithCause(result.Error)
+		return nil, domainErrors.ErrDatabase.WithCause(result.Error)
 	}
 
 	// Convert model to domain entity
@@ -76,7 +76,7 @@ func (r *SessionRepository) GetAll(ctx context.Context) ([]*entity.Session, erro
 
 	result := r.db.WithContext(ctx).Find(&models)
 	if result.Error != nil {
-		return nil, domainErrors.ErrDatabaseError.WithCause(result.Error)
+		return nil, domainErrors.ErrDatabase.WithCause(result.Error)
 	}
 
 	// Convert models to domain entities
@@ -110,7 +110,7 @@ func (r *SessionRepository) Update(ctx context.Context, session *entity.Session)
 		Updates(updates)
 
 	if result.Error != nil {
-		return domainErrors.ErrDatabaseError.WithCause(result.Error)
+		return domainErrors.ErrDatabase.WithCause(result.Error)
 	}
 
 	if result.RowsAffected == 0 {
@@ -125,7 +125,7 @@ func (r *SessionRepository) Delete(ctx context.Context, id string) error {
 	result := r.db.WithContext(ctx).Delete(&models.Session{}, "id = ?", id)
 
 	if result.Error != nil {
-		return domainErrors.ErrDatabaseError.WithCause(result.Error)
+		return domainErrors.ErrDatabase.WithCause(result.Error)
 	}
 
 	if result.RowsAffected == 0 {
@@ -147,7 +147,7 @@ func (r *SessionRepository) UpdateStatus(ctx context.Context, id string, status 
 		Updates(updates)
 
 	if result.Error != nil {
-		return domainErrors.ErrDatabaseError.WithCause(result.Error)
+		return domainErrors.ErrDatabase.WithCause(result.Error)
 	}
 
 	if result.RowsAffected == 0 {

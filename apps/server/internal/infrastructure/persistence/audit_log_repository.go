@@ -31,7 +31,7 @@ func (r *AuditLogRepository) SaveAPIKeyUsage(ctx context.Context, event reposito
 		"ip_address": event.IPAddress,
 	})
 	if err != nil {
-		return domainErrors.ErrDatabaseError.WithCause(err)
+		return domainErrors.ErrDatabase.WithCause(err)
 	}
 
 	model := &models.AuditLog{
@@ -46,7 +46,7 @@ func (r *AuditLogRepository) SaveAPIKeyUsage(ctx context.Context, event reposito
 
 	result := r.db.WithContext(ctx).Create(model)
 	if result.Error != nil {
-		return domainErrors.ErrDatabaseError.WithCause(result.Error)
+		return domainErrors.ErrDatabase.WithCause(result.Error)
 	}
 
 	return nil
@@ -60,7 +60,7 @@ func (r *AuditLogRepository) SaveSessionAction(ctx context.Context, event reposi
 		"api_key_id": event.APIKeyID,
 	})
 	if err != nil {
-		return domainErrors.ErrDatabaseError.WithCause(err)
+		return domainErrors.ErrDatabase.WithCause(err)
 	}
 
 	model := &models.AuditLog{
@@ -75,7 +75,7 @@ func (r *AuditLogRepository) SaveSessionAction(ctx context.Context, event reposi
 
 	result := r.db.WithContext(ctx).Create(model)
 	if result.Error != nil {
-		return domainErrors.ErrDatabaseError.WithCause(result.Error)
+		return domainErrors.ErrDatabase.WithCause(result.Error)
 	}
 
 	return nil
@@ -89,7 +89,7 @@ func (r *AuditLogRepository) SaveMessageSent(ctx context.Context, event reposito
 		"message_type": event.MessageType,
 	})
 	if err != nil {
-		return domainErrors.ErrDatabaseError.WithCause(err)
+		return domainErrors.ErrDatabase.WithCause(err)
 	}
 
 	model := &models.AuditLog{
@@ -102,7 +102,7 @@ func (r *AuditLogRepository) SaveMessageSent(ctx context.Context, event reposito
 
 	result := r.db.WithContext(ctx).Create(model)
 	if result.Error != nil {
-		return domainErrors.ErrDatabaseError.WithCause(result.Error)
+		return domainErrors.ErrDatabase.WithCause(result.Error)
 	}
 
 	return nil
@@ -117,7 +117,7 @@ func (r *AuditLogRepository) SaveAuthFailure(ctx context.Context, event reposito
 		"ip_address": event.IPAddress,
 	})
 	if err != nil {
-		return domainErrors.ErrDatabaseError.WithCause(err)
+		return domainErrors.ErrDatabase.WithCause(err)
 	}
 
 	model := &models.AuditLog{
@@ -131,7 +131,7 @@ func (r *AuditLogRepository) SaveAuthFailure(ctx context.Context, event reposito
 
 	result := r.db.WithContext(ctx).Create(model)
 	if result.Error != nil {
-		return domainErrors.ErrDatabaseError.WithCause(result.Error)
+		return domainErrors.ErrDatabase.WithCause(result.Error)
 	}
 
 	return nil
@@ -151,7 +151,7 @@ func (r *AuditLogRepository) SaveWebhookDelivery(ctx context.Context, event repo
 
 	details, err := json.Marshal(detailsMap)
 	if err != nil {
-		return domainErrors.ErrDatabaseError.WithCause(err)
+		return domainErrors.ErrDatabase.WithCause(err)
 	}
 
 	model := &models.AuditLog{
@@ -163,7 +163,7 @@ func (r *AuditLogRepository) SaveWebhookDelivery(ctx context.Context, event repo
 
 	result := r.db.WithContext(ctx).Create(model)
 	if result.Error != nil {
-		return domainErrors.ErrDatabaseError.WithCause(result.Error)
+		return domainErrors.ErrDatabase.WithCause(result.Error)
 	}
 
 	return nil
@@ -181,7 +181,7 @@ func (r *AuditLogRepository) FindByEventType(ctx context.Context, eventType stri
 		Find(&modelLogs)
 
 	if result.Error != nil {
-		return nil, domainErrors.ErrDatabaseError.WithCause(result.Error)
+		return nil, domainErrors.ErrDatabase.WithCause(result.Error)
 	}
 
 	return modelLogs, nil
@@ -197,7 +197,7 @@ func (r *AuditLogRepository) CountAPIKeyUsage(ctx context.Context, apiKeyID stri
 		Count(&count)
 
 	if result.Error != nil {
-		return 0, domainErrors.ErrDatabaseError.WithCause(result.Error)
+		return 0, domainErrors.ErrDatabase.WithCause(result.Error)
 	}
 
 	return count, nil
@@ -213,7 +213,7 @@ func (r *AuditLogRepository) CountAPIKeyUsageSince(ctx context.Context, apiKeyID
 		Count(&count)
 
 	if result.Error != nil {
-		return 0, domainErrors.ErrDatabaseError.WithCause(result.Error)
+		return 0, domainErrors.ErrDatabase.WithCause(result.Error)
 	}
 
 	return count, nil

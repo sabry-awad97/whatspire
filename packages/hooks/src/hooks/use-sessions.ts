@@ -12,6 +12,7 @@ import {
 import {
   createSessionMutation,
   deleteSessionMutation,
+  updateSessionMutation,
   reconnectSessionMutation,
   disconnectSessionMutation,
 } from "../mutation-options/sessions";
@@ -149,6 +150,39 @@ export function useDeleteSession(
 
   return useMutation({
     ...deleteSessionMutation(client, queryClient),
+    ...options,
+  });
+}
+
+/**
+ * Hook to update a session
+ * @param client - API client instance
+ * @param options - Mutation callbacks (onSuccess, onError, etc.)
+ * @returns Mutation result for updating session
+ *
+ * @example
+ * ```tsx
+ * const updateSession = useUpdateSession(client, {
+ *   onSuccess: (session) => {
+ *     console.log("Updated:", session);
+ *   },
+ * });
+ *
+ * updateSession.mutate({ sessionId: "id", data: { name: "New Name" } });
+ * ```
+ */
+export function useUpdateSession(
+  client: ApiClient,
+  options?: {
+    onSuccess?: (data: Session) => void;
+    onError?: (error: Error) => void;
+    onSettled?: () => void;
+  },
+) {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    ...updateSessionMutation(client, queryClient),
     ...options,
   });
 }

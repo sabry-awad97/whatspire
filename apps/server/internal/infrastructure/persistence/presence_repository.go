@@ -34,7 +34,7 @@ func (r *PresenceRepository) Save(ctx context.Context, presence *entity.Presence
 
 	result := r.db.WithContext(ctx).Create(model)
 	if result.Error != nil {
-		return domainErrors.ErrDatabaseError.WithCause(result.Error)
+		return domainErrors.ErrDatabase.WithCause(result.Error)
 	}
 
 	return nil
@@ -52,7 +52,7 @@ func (r *PresenceRepository) FindBySessionID(ctx context.Context, sessionID stri
 		Find(&modelPresences)
 
 	if result.Error != nil {
-		return nil, domainErrors.ErrDatabaseError.WithCause(result.Error)
+		return nil, domainErrors.ErrDatabase.WithCause(result.Error)
 	}
 
 	// Convert models to domain entities
@@ -84,7 +84,7 @@ func (r *PresenceRepository) FindByUserJID(ctx context.Context, userJID string, 
 		Find(&modelPresences)
 
 	if result.Error != nil {
-		return nil, domainErrors.ErrDatabaseError.WithCause(result.Error)
+		return nil, domainErrors.ErrDatabase.WithCause(result.Error)
 	}
 
 	// Convert models to domain entities
@@ -117,7 +117,7 @@ func (r *PresenceRepository) GetLatestByUserJID(ctx context.Context, userJID str
 		if errors.Is(result.Error, gorm.ErrRecordNotFound) {
 			return nil, domainErrors.ErrNotFound
 		}
-		return nil, domainErrors.ErrDatabaseError.WithCause(result.Error)
+		return nil, domainErrors.ErrDatabase.WithCause(result.Error)
 	}
 
 	// Convert model to domain entity
@@ -138,7 +138,7 @@ func (r *PresenceRepository) Delete(ctx context.Context, id string) error {
 	result := r.db.WithContext(ctx).Delete(&models.Presence{}, "id = ?", id)
 
 	if result.Error != nil {
-		return domainErrors.ErrDatabaseError.WithCause(result.Error)
+		return domainErrors.ErrDatabase.WithCause(result.Error)
 	}
 
 	if result.RowsAffected == 0 {

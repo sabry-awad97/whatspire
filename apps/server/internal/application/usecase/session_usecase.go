@@ -42,7 +42,7 @@ func (uc *SessionUseCase) CreateSessionWithID(ctx context.Context, id, name stri
 	session := entity.NewSession(id, name)
 
 	if err := uc.repo.Create(ctx, session); err != nil {
-		return nil, errors.ErrDatabaseError.WithCause(err)
+		return nil, errors.ErrDatabase.WithCause(err)
 	}
 
 	// Log session creation
@@ -71,7 +71,7 @@ func (uc *SessionUseCase) DeleteSession(ctx context.Context, id string) error {
 		if errors.IsNotFound(err) {
 			return nil // Idempotent - already deleted
 		}
-		return errors.ErrDatabaseError.WithCause(err)
+		return errors.ErrDatabase.WithCause(err)
 	}
 
 	// Log session deletion
@@ -87,25 +87,60 @@ func (uc *SessionUseCase) DeleteSession(ctx context.Context, id string) error {
 	return nil
 }
 
+// UpdateSession updates session settings (name, etc.)
+func (uc *SessionUseCase) UpdateSession(ctx context.Context, id string, name *string) (*entity.Session, error) {
+	// Get existing session
+	session, err := uc.repo.GetByID(ctx, id)
+	if err != nil {
+		if errors.IsNotFound(err) {
+			return nil, errors.ErrNotFound.WithMessage("session not found")
+		}
+		return nil, errors.ErrDatabase.WithCause(err)
+	}
+
+	// Update fields if provided
+	if name != nil && *name != "" {
+		session.Name = *name
+		session.UpdatedAt = time.Now()
+	}
+
+	// Save to repository
+	if err := uc.repo.Update(ctx, session); err != nil {
+		return nil, errors.ErrDatabase.WithCause(err)
+	}
+
+	// Log session update
+	if uc.auditLogger != nil {
+		uc.auditLogger.LogSessionAction(ctx, repository.SessionActionEvent{
+			SessionID: id,
+			Action:    "updated",
+			APIKeyID:  "", // API key ID would be extracted from context in production
+			Timestamp: time.Now(),
+		})
+	}
+
+	return session, nil
+}
+
 // StartQRAuth initiates QR code authentication for a session
 func (uc *SessionUseCase) StartQRAuth(ctx context.Context, sessionID string) (<-chan repository.QREvent, error) {
 	// Check if session exists locally
 	session, err := uc.repo.GetByID(ctx, sessionID)
 	if err != nil && !errors.IsNotFound(err) {
-		return nil, errors.ErrDatabaseError.WithCause(err)
+		return nil, errors.ErrDatabase.WithCause(err)
 	}
 
 	// Create local session if it doesn't exist (lazy registration)
 	if session == nil {
 		session = entity.NewSession(sessionID, "")
 		if err := uc.repo.Create(ctx, session); err != nil {
-			return nil, errors.ErrDatabaseError.WithCause(err)
+			return nil, errors.ErrDatabase.WithCause(err)
 		}
 	}
 
 	// Update session status to connecting
 	if err := uc.repo.UpdateStatus(ctx, sessionID, entity.StatusConnecting); err != nil {
-		return nil, errors.ErrDatabaseError.WithCause(err)
+		return nil, errors.ErrDatabase.WithCause(err)
 	}
 
 	// Get QR channel from WhatsApp client
@@ -131,7 +166,7 @@ func (uc *SessionUseCase) UpdateSessionStatus(ctx context.Context, sessionID str
 			session.SetStatus(status)
 			return uc.repo.Create(ctx, session)
 		}
-		return errors.ErrDatabaseError.WithCause(err)
+		return errors.ErrDatabase.WithCause(err)
 	}
 	return nil
 }
@@ -251,14 +286,14 @@ func (uc *SessionUseCase) UpdateSessionJID(ctx context.Context, sessionID, jid s
 			newSession.SetStatus(entity.StatusConnected)
 			return uc.repo.Create(ctx, newSession)
 		}
-		return errors.ErrDatabaseError.WithCause(err)
+		return errors.ErrDatabase.WithCause(err)
 	}
 
 	session.SetJID(jid)
 	session.SetStatus(entity.StatusConnected)
 
 	if err := uc.repo.Update(ctx, session); err != nil {
-		return errors.ErrDatabaseError.WithCause(err)
+		return errors.ErrDatabase.WithCause(err)
 	}
 
 	// Publish authenticated event
@@ -288,14 +323,14 @@ func (uc *SessionUseCase) ConfigureHistorySync(ctx context.Context, sessionID st
 			session.SetHistorySyncConfig(enabled, fullSync, since)
 			return uc.repo.Create(ctx, session)
 		}
-		return errors.ErrDatabaseError.WithCause(err)
+		return errors.ErrDatabase.WithCause(err)
 	}
 
 	// Update history sync configuration
 	session.SetHistorySyncConfig(enabled, fullSync, since)
 
 	if err := uc.repo.Update(ctx, session); err != nil {
-		return errors.ErrDatabaseError.WithCause(err)
+		return errors.ErrDatabase.WithCause(err)
 	}
 
 	// If WhatsApp client is available, update its configuration
@@ -310,7 +345,7 @@ func (uc *SessionUseCase) ConfigureHistorySync(ctx context.Context, sessionID st
 func (uc *SessionUseCase) ListSessions(ctx context.Context) ([]*entity.Session, error) {
 	sessions, err := uc.repo.GetAll(ctx)
 	if err != nil {
-		return nil, errors.ErrDatabaseError.WithCause(err)
+		return nil, errors.ErrDatabase.WithCause(err)
 	}
 	return sessions, nil
 }

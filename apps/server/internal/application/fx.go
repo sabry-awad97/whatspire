@@ -26,6 +26,7 @@ var Module = fx.Module("application",
 		NewContactUseCase,
 		NewEventUseCase,
 		NewAPIKeyUseCase,
+		NewWebhookUseCase,
 	),
 )
 
@@ -137,4 +138,13 @@ func NewAPIKeyUseCase(
 	auditLogRepo *persistence.AuditLogRepository,
 ) *usecase.APIKeyUseCase {
 	return usecase.NewAPIKeyUseCase(repo, auditLogger, auditLogRepo)
+}
+
+// NewWebhookUseCase creates a new webhook use case
+func NewWebhookUseCase(
+	repo repository.WebhookConfigRepository,
+	sessionRepo repository.SessionRepository,
+	auditLogger repository.AuditLogger,
+) *usecase.WebhookUseCase {
+	return usecase.NewWebhookUseCase(repo, sessionRepo, auditLogger)
 }

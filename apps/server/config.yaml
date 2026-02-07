@@ -94,13 +94,6 @@ media:
   base_url: "http://localhost:8080/media"
   max_file_size: 16777216 # 16MB in bytes
 
-# Webhook configuration
-webhook:
-  enabled: false
-  url: ""
-  secret: ""
-  events: [] # Empty = all events
-
 # Database configuration
 database:
   driver: "sqlite" # sqlite or postgres

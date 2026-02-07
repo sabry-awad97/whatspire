@@ -1,18 +1,14 @@
 import { Key, Server, Shield } from "lucide-react";
 import { useTheme } from "next-themes";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { toast } from "sonner";
 
 import { Button } from "../ui/button";
-import {
-  Field,
-  FieldDescription,
-  FieldGroup,
-  FieldLabel
-} from "../ui/field";
+import { Field, FieldDescription, FieldGroup, FieldLabel } from "../ui/field";
 import { Input } from "../ui/input";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "../ui/tabs";
 import { APIKeySettings } from "./api-key-settings";
+import { loadSettings, saveSettings, testConnection } from "../../lib/settings";
 
 // ============================================================================
 // Component
@@ -20,9 +16,11 @@ import { APIKeySettings } from "./api-key-settings";
 
 export function Settings() {
   const { theme, setTheme } = useTheme();
-  const [apiEndpoint, setApiEndpoint] = useState("https://api.whatspire.com");
+  const [apiEndpoint, setApiEndpoint] = useState("");
   const [apiKey, setApiKey] = useState("");
   const [showApiKey, setShowApiKey] = useState(false);
+  const [isTestingConnection, setIsTestingConnection] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
 
   // Notification preferences
   const [notifications, setNotifications] = useState({
@@ -33,8 +31,27 @@ export function Settings() {
     desktopNotifications: true,
   });
 
+  // Load settings on mount
+  useEffect(() => {
+    const settings = loadSettings();
+    setApiEndpoint(settings.apiEndpoint);
+    setApiKey(settings.apiKey || "");
+  }, []);
+
   const handleSaveApiSettings = () => {
-    toast.success("API settings saved successfully");
+    try {
+      setIsSaving(true);
+      saveSettings({
+        apiEndpoint,
+        apiKey: apiKey || undefined,
+      });
+      toast.success("API settings saved successfully");
+    } catch (error) {
+      toast.error("Failed to save API settings");
+      console.error("[Settings] Save error:", error);
+    } finally {
+      setIsSaving(false);
+    }
   };
 
   const handleSaveNotifications = () => {
@@ -42,10 +59,28 @@ export function Settings() {
   };
 
   const handleTestConnection = async () => {
+    if (!apiEndpoint) {
+      toast.error("Please enter an API endpoint");
+      return;
+    }
+
+    setIsTestingConnection(true);
     toast.info("Testing connection...");
-    // Simulate API call
-    await new Promise((resolve) => setTimeout(resolve, 1500));
-    toast.success("Connection successful!");
+
+    try {
+      const result = await testConnection(apiEndpoint, apiKey || undefined);
+
+      if (result.success) {
+        toast.success(result.message);
+      } else {
+        toast.error(result.message);
+      }
+    } catch (error) {
+      toast.error("Connection test failed");
+      console.error("[Settings] Connection test error:", error);
+    } finally {
+      setIsTestingConnection(false);
+    }
   };
 
   return (
@@ -128,15 +163,17 @@ export function Settings() {
                 onClick={handleTestConnection}
                 variant="outline"
                 className="glass-card hover-glow-emerald"
+                disabled={isTestingConnection || !apiEndpoint}
               >
-                Test Connection
+                {isTestingConnection ? "Testing..." : "Test Connection"}
               </Button>
               <Button
                 onClick={handleSaveApiSettings}
                 className="glass-card hover-glow-teal"
+                disabled={isSaving || !apiEndpoint}
               >
                 <Key className="mr-2 h-4 w-4" />
-                Save API Settings
+                {isSaving ? "Saving..." : "Save API Settings"}
               </Button>
             </div>
           </FieldGroup>
@@ -165,7 +202,7 @@ export function Settings() {
       {/* API Keys Tab */}
       <TabsContent value="api-keys">
         <APIKeySettings />
-      </TabsContent>      
+      </TabsContent>
     </Tabs>
   );
 }

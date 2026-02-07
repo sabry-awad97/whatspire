@@ -189,3 +189,21 @@ type EventFilter struct {
 	Limit     int               // Maximum number of results (0 = no limit)
 	Offset    int               // Number of results to skip
 }
+
+// WebhookConfigRepository defines webhook configuration persistence operations
+type WebhookConfigRepository interface {
+	// Create creates a new webhook configuration
+	Create(ctx context.Context, config *entity.WebhookConfig) error
+
+	// GetBySessionID retrieves webhook configuration for a session
+	GetBySessionID(ctx context.Context, sessionID string) (*entity.WebhookConfig, error)
+
+	// Update updates an existing webhook configuration
+	Update(ctx context.Context, config *entity.WebhookConfig) error
+
+	// Delete removes a webhook configuration by session ID
+	Delete(ctx context.Context, sessionID string) error
+
+	// Exists checks if a webhook configuration exists for a session
+	Exists(ctx context.Context, sessionID string) (bool, error)
+}

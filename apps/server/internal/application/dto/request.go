@@ -34,6 +34,21 @@ type DeleteSessionRequest struct {
 	ID string `json:"id" validate:"required,uuid"`
 }
 
+// UpdateSessionRequest represents a request to update session settings
+type UpdateSessionRequest struct {
+	Name *string `json:"name,omitempty" validate:"omitempty,min=1,max=100"`
+}
+
+// UpdateWebhookConfigRequest represents a request to update webhook configuration
+type UpdateWebhookConfigRequest struct {
+	Enabled          bool     `json:"enabled"`
+	URL              string   `json:"url" validate:"required_if=Enabled true,omitempty,url"`
+	Events           []string `json:"events"`
+	IgnoreGroups     bool     `json:"ignore_groups"`
+	IgnoreBroadcasts bool     `json:"ignore_broadcasts"`
+	IgnoreChannels   bool     `json:"ignore_channels"`
+}
+
 // StartQRAuthRequest represents a request to start QR authentication
 type StartQRAuthRequest struct {
 	SessionID string `json:"session_id" validate:"required,uuid"`

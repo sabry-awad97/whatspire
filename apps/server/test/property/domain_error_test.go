@@ -197,7 +197,7 @@ func TestDomainErrorTypePreservation_Property14(t *testing.T) {
 				"CONNECTION_FAILED":   errors.ErrConnectionFailed,
 				"VALIDATION_FAILED":   errors.ErrValidationFailed,
 				"CONFIG_MISSING":      errors.ErrConfigMissing,
-				"DATABASE_ERROR":      errors.ErrDatabaseError,
+				"DATABASE_ERROR":      errors.ErrDatabase,
 				"INTERNAL_ERROR":      errors.ErrInternal,
 			}
 

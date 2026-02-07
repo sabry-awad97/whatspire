@@ -55,6 +55,33 @@ export const deleteSessionMutation = (
 });
 
 /**
+ * Mutation options for updating a session
+ * @param client - API client instance
+ * @param queryClient - Query client for cache updates
+ * @returns Mutation options for useMutation
+ */
+export const updateSessionMutation = (
+  client: ApiClient,
+  queryClient: QueryClient,
+): MutationOptions<
+  Session,
+  ApiClientError,
+  { sessionId: string; data: { name?: string } }
+> => ({
+  mutationFn: ({ sessionId, data }) => client.updateSession(sessionId, data),
+  onSuccess: (session) => {
+    // Update session detail cache
+    queryClient.setQueryData(sessionKeys.detail(session.id), session);
+
+    // Invalidate sessions list to trigger refetch
+    queryClient.invalidateQueries({ queryKey: sessionKeys.lists() });
+  },
+  onError: (error) => {
+    console.error("Failed to update session:", error);
+  },
+});
+
+/**
  * Mutation options for reconnecting a session
  * @param client - API client instance
  * @param queryClient - Query client for cache updates

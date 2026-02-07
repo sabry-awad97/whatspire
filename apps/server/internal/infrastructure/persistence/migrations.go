@@ -15,7 +15,7 @@ func RunAutoMigration(db *gorm.DB, log *logger.Logger) error {
 	log.Info("Starting GORM auto-migration for database schema")
 
 	// List of all models to migrate
-	modelsToMigrate := []interface{}{
+	modelsToMigrate := []any{
 		&models.Session{},
 		&models.Reaction{},
 		&models.Receipt{},
@@ -23,6 +23,7 @@ func RunAutoMigration(db *gorm.DB, log *logger.Logger) error {
 		&models.APIKey{},
 		&models.AuditLog{},
 		&models.Event{},
+		&models.WebhookConfig{},
 	}
 
 	// Run auto-migration
@@ -47,6 +48,7 @@ func VerifySchema(db *gorm.DB, log *logger.Logger) error {
 		"api_keys",
 		"audit_logs",
 		"events",
+		"webhook_configs",
 	}
 
 	for _, table := range tables {

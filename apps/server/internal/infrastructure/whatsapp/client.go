@@ -88,7 +88,7 @@ func NewWhatsmeowClient(ctx context.Context, config ClientConfig, log *logger.Lo
 	dsn := config.DBPath + "?_pragma=foreign_keys(1)&_pragma=journal_mode(WAL)&_pragma=busy_timeout(5000)"
 	container, err := sqlstore.New(ctx, "sqlite", dsn, nil)
 	if err != nil {
-		return nil, errors.ErrDatabaseError.WithCause(err).WithMessage("failed to create whatsmeow store")
+		return nil, errors.ErrDatabase.WithCause(err).WithMessage("failed to create whatsmeow store")
 	}
 
 	client := &WhatsmeowClient{
@@ -181,7 +181,7 @@ func (c *WhatsmeowClient) Close() error {
 func (c *WhatsmeowClient) GetStoredSessions(ctx context.Context) ([]string, error) {
 	devices, err := c.container.GetAllDevices(ctx)
 	if err != nil {
-		return nil, errors.ErrDatabaseError.WithCause(err)
+		return nil, errors.ErrDatabase.WithCause(err)
 	}
 
 	sessionIDs := make([]string, 0, len(devices))
@@ -244,7 +244,7 @@ func (c *WhatsmeowClient) getOrCreateDevice(ctx context.Context, sessionID strin
 	// Try to get existing device
 	devices, err := c.container.GetAllDevices(ctx)
 	if err != nil {
-		return nil, errors.ErrDatabaseError.WithCause(err)
+		return nil, errors.ErrDatabase.WithCause(err)
 	}
 
 	// Check if we have a JID mapping for this session

@@ -339,7 +339,7 @@ func TestAPIKeyUseCase_CreateAPIKey_NilDescription(t *testing.T) {
 func TestAPIKeyUseCase_CreateAPIKey_RepositoryError(t *testing.T) {
 	repo := NewAPIKeyRepositoryMock()
 	repo.SaveFn = func(ctx context.Context, apiKey *entity.APIKey) error {
-		return errors.ErrDatabaseError
+		return errors.ErrDatabase
 	}
 	auditLogger := NewAuditLoggerMock()
 	auditLogRepo := NewAuditLogRepositoryMock()
@@ -349,7 +349,7 @@ func TestAPIKeyUseCase_CreateAPIKey_RepositoryError(t *testing.T) {
 
 	assert.Nil(t, apiKey)
 	assert.Empty(t, plainKey)
-	assert.ErrorIs(t, err, errors.ErrDatabaseError)
+	assert.ErrorIs(t, err, errors.ErrDatabase)
 }
 
 func TestAPIKeyUseCase_CreateAPIKey_UniqueKeys(t *testing.T) {
@@ -464,13 +464,13 @@ func TestAPIKeyUseCase_RevokeAPIKey_RepositoryError(t *testing.T) {
 
 	// Make Update fail
 	repo.UpdateFn = func(ctx context.Context, apiKey *entity.APIKey) error {
-		return errors.ErrDatabaseError
+		return errors.ErrDatabase
 	}
 
 	revokedKey, err := uc.RevokeAPIKey(context.Background(), apiKey.ID, "admin@example.com", nil)
 
 	assert.Nil(t, revokedKey)
-	assert.ErrorIs(t, err, errors.ErrDatabaseError)
+	assert.ErrorIs(t, err, errors.ErrDatabase)
 }
 
 // ==================== ListAPIKeys Tests ====================
@@ -769,7 +769,7 @@ func TestAPIKeyUseCase_GetAPIKeyDetails_AuditLogRepoError(t *testing.T) {
 
 	// Set up audit log repo to return error
 	auditLogRepo.CountAPIKeyUsageFn = func(ctx context.Context, apiKeyID string) (int64, error) {
-		return 0, errors.ErrDatabaseError
+		return 0, errors.ErrDatabase
 	}
 
 	// Get details - should not fail even if audit log query fails

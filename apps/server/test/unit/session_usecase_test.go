@@ -38,7 +38,7 @@ func TestSessionUseCase_CreateSessionWithID(t *testing.T) {
 func TestSessionUseCase_CreateSessionWithID_RepositoryError(t *testing.T) {
 	repo := mocks.NewSessionRepositoryMock()
 	repo.CreateFn = func(ctx context.Context, session *entity.Session) error {
-		return errors.ErrDatabaseError
+		return errors.ErrDatabase
 	}
 
 	uc := usecase.NewSessionUseCase(repo, nil, nil, nil)
@@ -46,7 +46,7 @@ func TestSessionUseCase_CreateSessionWithID_RepositoryError(t *testing.T) {
 	session, err := uc.CreateSessionWithID(context.Background(), "test-id", "Test Session")
 
 	assert.Nil(t, session)
-	assert.ErrorIs(t, err, errors.ErrDatabaseError)
+	assert.ErrorIs(t, err, errors.ErrDatabase)
 }
 
 func TestSessionUseCase_DeleteSession(t *testing.T) {

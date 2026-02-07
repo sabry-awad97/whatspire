@@ -17,6 +17,7 @@ type Handler struct {
 	contactUC  *usecase.ContactUseCase
 	eventUC    *usecase.EventUseCase
 	apikeyUC   *usecase.APIKeyUseCase
+	webhookUC  *usecase.WebhookUseCase
 	logger     *logger.Logger
 }
 
@@ -91,6 +92,12 @@ func (b *HandlerBuilder) WithEventUseCase(uc *usecase.EventUseCase) *HandlerBuil
 // WithAPIKeyUseCase sets the API key use case
 func (b *HandlerBuilder) WithAPIKeyUseCase(uc *usecase.APIKeyUseCase) *HandlerBuilder {
 	b.handler.apikeyUC = uc
+	return b
+}
+
+// WithWebhookUseCase sets the webhook use case
+func (b *HandlerBuilder) WithWebhookUseCase(uc *usecase.WebhookUseCase) *HandlerBuilder {
+	b.handler.webhookUC = uc
 	return b
 }
 

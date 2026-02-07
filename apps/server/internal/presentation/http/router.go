@@ -133,18 +133,30 @@ func registerRoutes(router *gin.Engine, handler *Handler, routerConfig RouterCon
 		sessions.POST("", handler.CreateSession) // Public endpoint - no auth required in development
 		sessions.GET("", RoleAuthorizationMiddleware(config.RoleRead, routerConfig.APIKeyConfig), handler.ListSessions)
 		sessions.GET("/:id", RoleAuthorizationMiddleware(config.RoleRead, routerConfig.APIKeyConfig), handler.GetSession)
+		sessions.PATCH("/:id", RoleAuthorizationMiddleware(config.RoleWrite, routerConfig.APIKeyConfig), handler.UpdateSession)
 		sessions.DELETE("/:id", RoleAuthorizationMiddleware(config.RoleWrite, routerConfig.APIKeyConfig), handler.DeleteSession)
 		sessions.POST("/:id/groups/sync", RoleAuthorizationMiddleware(config.RoleWrite, routerConfig.APIKeyConfig), handler.SyncGroups)
 		sessions.GET("/:id/contacts", RoleAuthorizationMiddleware(config.RoleRead, routerConfig.APIKeyConfig), handler.ListContacts)
 		sessions.GET("/:id/chats", RoleAuthorizationMiddleware(config.RoleRead, routerConfig.APIKeyConfig), handler.ListChats)
+		// Webhook routes - require write role
+		sessions.GET("/:id/webhook", RoleAuthorizationMiddleware(config.RoleRead, routerConfig.APIKeyConfig), handler.GetWebhookConfig)
+		sessions.PUT("/:id/webhook", RoleAuthorizationMiddleware(config.RoleWrite, routerConfig.APIKeyConfig), handler.UpdateWebhookConfig)
+		sessions.POST("/:id/webhook/rotate-secret", RoleAuthorizationMiddleware(config.RoleWrite, routerConfig.APIKeyConfig), handler.RotateWebhookSecret)
+		sessions.DELETE("/:id/webhook", RoleAuthorizationMiddleware(config.RoleWrite, routerConfig.APIKeyConfig), handler.DeleteWebhookConfig)
 	} else {
 		sessions.POST("", handler.CreateSession) // Public endpoint - no auth required in development
 		sessions.GET("", handler.ListSessions)
 		sessions.GET("/:id", handler.GetSession)
+		sessions.PATCH("/:id", handler.UpdateSession)
 		sessions.DELETE("/:id", handler.DeleteSession)
 		sessions.POST("/:id/groups/sync", handler.SyncGroups)
 		sessions.GET("/:id/contacts", handler.ListContacts)
 		sessions.GET("/:id/chats", handler.ListChats)
+		// Webhook routes
+		sessions.GET("/:id/webhook", handler.GetWebhookConfig)
+		sessions.PUT("/:id/webhook", handler.UpdateWebhookConfig)
+		sessions.POST("/:id/webhook/rotate-secret", handler.RotateWebhookSecret)
+		sessions.DELETE("/:id/webhook", handler.DeleteWebhookConfig)
 	}
 
 	// Contact routes - require read role

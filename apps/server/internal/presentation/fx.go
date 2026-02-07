@@ -38,6 +38,7 @@ func NewHTTPHandler(
 	contactUC *usecase.ContactUseCase,
 	eventUC *usecase.EventUseCase,
 	apikeyUC *usecase.APIKeyUseCase,
+	webhookUC *usecase.WebhookUseCase,
 	log *logger.Logger,
 ) *http.Handler {
 	return http.NewHandlerBuilder(log).
@@ -51,6 +52,7 @@ func NewHTTPHandler(
 		WithContactUseCase(contactUC).
 		WithEventUseCase(eventUC).
 		WithAPIKeyUseCase(apikeyUC).
+		WithWebhookUseCase(webhookUC).
 		Build()
 }
 

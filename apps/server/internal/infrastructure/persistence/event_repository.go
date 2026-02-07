@@ -37,7 +37,7 @@ func (r *EventRepository) Create(ctx context.Context, event *entity.Event) error
 
 	result := r.db.WithContext(ctx).Create(model)
 	if result.Error != nil {
-		return domainErrors.ErrDatabaseError.WithCause(result.Error)
+		return domainErrors.ErrDatabase.WithCause(result.Error)
 	}
 
 	return nil
@@ -52,7 +52,7 @@ func (r *EventRepository) GetByID(ctx context.Context, id string) (*entity.Event
 		if result.Error == gorm.ErrRecordNotFound {
 			return nil, domainErrors.ErrNotFound.WithMessage("event not found")
 		}
-		return nil, domainErrors.ErrDatabaseError.WithCause(result.Error)
+		return nil, domainErrors.ErrDatabase.WithCause(result.Error)
 	}
 
 	// Convert model to domain entity
@@ -111,7 +111,7 @@ func (r *EventRepository) List(ctx context.Context, filter repository.EventFilte
 	var modelEvents []models.Event
 	result := query.Find(&modelEvents)
 	if result.Error != nil {
-		return nil, domainErrors.ErrDatabaseError.WithCause(result.Error)
+		return nil, domainErrors.ErrDatabase.WithCause(result.Error)
 	}
 
 	// Convert models to domain entities
@@ -139,7 +139,7 @@ func (r *EventRepository) DeleteOlderThan(ctx context.Context, timestamp string)
 
 	result := r.db.WithContext(ctx).Where("timestamp < ?", deleteTime).Delete(&models.Event{})
 	if result.Error != nil {
-		return 0, domainErrors.ErrDatabaseError.WithCause(result.Error)
+		return 0, domainErrors.ErrDatabase.WithCause(result.Error)
 	}
 
 	return result.RowsAffected, nil
@@ -178,7 +178,7 @@ func (r *EventRepository) Count(ctx context.Context, filter repository.EventFilt
 	var count int64
 	result := query.Count(&count)
 	if result.Error != nil {
-		return 0, domainErrors.ErrDatabaseError.WithCause(result.Error)
+		return 0, domainErrors.ErrDatabase.WithCause(result.Error)
 	}
 
 	return count, nil
@@ -203,7 +203,7 @@ func (r *EventRepository) GetStats(ctx context.Context) (*EventStats, error) {
 
 	// Get total count
 	if err := r.db.WithContext(ctx).Model(&models.Event{}).Count(&stats.TotalEvents).Error; err != nil {
-		return nil, domainErrors.ErrDatabaseError.WithCause(err)
+		return nil, domainErrors.ErrDatabase.WithCause(err)
 	}
 
 	// Get events by type
@@ -215,7 +215,7 @@ func (r *EventRepository) GetStats(ctx context.Context) (*EventStats, error) {
 		Select("type, COUNT(*) as count").
 		Group("type").
 		Scan(&typeStats).Error; err != nil {
-		return nil, domainErrors.ErrDatabaseError.WithCause(err)
+		return nil, domainErrors.ErrDatabase.WithCause(err)
 	}
 	for _, ts := range typeStats {
 		stats.EventsByType[ts.Type] = ts.Count
@@ -230,7 +230,7 @@ func (r *EventRepository) GetStats(ctx context.Context) (*EventStats, error) {
 		Select("session_id, COUNT(*) as count").
 		Group("session_id").
 		Scan(&sessionStats).Error; err != nil {
-		return nil, domainErrors.ErrDatabaseError.WithCause(err)
+		return nil, domainErrors.ErrDatabase.WithCause(err)
 	}
 	for _, ss := range sessionStats {
 		stats.EventsBySession[ss.SessionID] = ss.Count
@@ -241,7 +241,7 @@ func (r *EventRepository) GetStats(ctx context.Context) (*EventStats, error) {
 	if err := r.db.WithContext(ctx).Model(&models.Event{}).
 		Select("MIN(timestamp) as oldest, MAX(timestamp) as newest").
 		Row().Scan(&oldest, &newest); err != nil {
-		return nil, domainErrors.ErrDatabaseError.WithCause(err)
+		return nil, domainErrors.ErrDatabase.WithCause(err)
 	}
 	if !oldest.IsZero() {
 		stats.OldestEvent = &oldest

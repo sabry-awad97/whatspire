@@ -272,6 +272,38 @@ func (h *Handler) DeleteSession(c *gin.Context) {
 	respondWithSuccess(c, http.StatusOK, map[string]string{"message": "Session deleted successfully"})
 }
 
+// UpdateSession handles PATCH /api/sessions/:id
+// Public endpoint for updating session settings
+func (h *Handler) UpdateSession(c *gin.Context) {
+	id := c.Param("id")
+	if id == "" {
+		respondWithError(c, http.StatusBadRequest, "INVALID_ID", "Session ID is required", nil)
+		return
+	}
+
+	var req dto.UpdateSessionRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		respondWithError(c, http.StatusBadRequest, "INVALID_JSON", "Invalid request body", nil)
+		return
+	}
+
+	// Validate request
+	if err := validator.Validate(req); err != nil {
+		details := validator.ValidationErrors(err)
+		respondWithError(c, http.StatusBadRequest, "VALIDATION_FAILED", "Validation failed", details)
+		return
+	}
+
+	// Update session
+	session, err := h.sessionUC.UpdateSession(c.Request.Context(), id, req.Name)
+	if err != nil {
+		handleDomainError(c, err, h.logger)
+		return
+	}
+
+	respondWithSuccess(c, http.StatusOK, dto.NewSessionResponse(session))
+}
+
 // isValidSessionID validates that a session ID contains only alphanumeric characters, hyphens, and underscores
 func isValidSessionID(sessionID string) bool {
 	if sessionID == "" {

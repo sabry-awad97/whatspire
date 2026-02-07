@@ -1,8 +1,14 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { ArrowLeft, Eye, EyeOff, Save, X } from "lucide-react";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { toast } from "sonner";
-import { useApiClient, useSession } from "@whatspire/hooks";
+import {
+  useApiClient,
+  useSession,
+  useWebhookConfig,
+  useUpdateWebhookConfig,
+  useRotateWebhookSecret,
+} from "@whatspire/hooks";
 import { Loader2 } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
@@ -66,16 +72,23 @@ function WebhookConfigurationPage() {
   const navigate = useNavigate();
   const client = useApiClient();
 
-  // Use hooks package to fetch session
-  const { data: session, isLoading } = useSession(client, sessionId);
+  // Use hooks package to fetch session and webhook config
+  const { data: session, isLoading: sessionLoading } = useSession(
+    client,
+    sessionId,
+  );
+  const {
+    data: webhookConfig,
+    isLoading: webhookLoading,
+    error: webhookError,
+  } = useWebhookConfig(client, sessionId, {
+    enabled: !!sessionId,
+  });
 
+  // Local state for form
   const [endpointEnabled, setEndpointEnabled] = useState(false);
-  const [webhookUrl, setWebhookUrl] = useState(
-    "https://api.your-domain.com/webhook",
-  );
-  const [webhookSecret, setWebhookSecret] = useState(
-    "••••••••••••••••••••••••••••••",
-  );
+  const [webhookUrl, setWebhookUrl] = useState("");
+  const [webhookSecret, setWebhookSecret] = useState("");
   const [showSecret, setShowSecret] = useState(false);
   const [selectedEvents, setSelectedEvents] = useState<Set<string>>(new Set());
   const [messageFilteringExpanded, setMessageFilteringExpanded] =
@@ -83,6 +96,41 @@ function WebhookConfigurationPage() {
   const [ignoreGroups, setIgnoreGroups] = useState(false);
   const [ignoreBroadcasts, setIgnoreBroadcasts] = useState(false);
   const [ignoreChannels, setIgnoreChannels] = useState(false);
+
+  // Mutations
+  const updateWebhook = useUpdateWebhookConfig(client, {
+    onSuccess: () => {
+      toast.success("Webhook configuration saved successfully");
+    },
+    onError: (error) => {
+      toast.error(`Failed to save webhook configuration: ${error.message}`);
+    },
+  });
+
+  const rotateSecret = useRotateWebhookSecret(client, {
+    onSuccess: (config) => {
+      setWebhookSecret(config.secret);
+      toast.success("Webhook secret rotated successfully");
+    },
+    onError: (error) => {
+      toast.error(`Failed to rotate webhook secret: ${error.message}`);
+    },
+  });
+
+  // Load webhook config into form state
+  useEffect(() => {
+    if (webhookConfig) {
+      setEndpointEnabled(webhookConfig.enabled);
+      setWebhookUrl(webhookConfig.url || "");
+      setWebhookSecret(webhookConfig.secret || "");
+      setSelectedEvents(new Set(webhookConfig.events || []));
+      setIgnoreGroups(webhookConfig.ignore_groups);
+      setIgnoreBroadcasts(webhookConfig.ignore_broadcasts);
+      setIgnoreChannels(webhookConfig.ignore_channels);
+    }
+  }, [webhookConfig]);
+
+  const isLoading = sessionLoading || webhookLoading;
 
   if (isLoading) {
     return (
@@ -125,7 +173,23 @@ function WebhookConfigurationPage() {
   };
 
   const handleSave = () => {
-    toast.success("Webhook configuration saved");
+    // Validate URL if enabled
+    if (endpointEnabled && !webhookUrl) {
+      toast.error("Webhook URL is required when endpoint is enabled");
+      return;
+    }
+
+    updateWebhook.mutate({
+      sessionId,
+      data: {
+        enabled: endpointEnabled,
+        url: webhookUrl,
+        events: Array.from(selectedEvents),
+        ignore_groups: ignoreGroups,
+        ignore_broadcasts: ignoreBroadcasts,
+        ignore_channels: ignoreChannels,
+      },
+    });
   };
 
   const handleCancel = () => {
@@ -133,7 +197,15 @@ function WebhookConfigurationPage() {
   };
 
   const handleRotateSecret = () => {
-    toast.success("Webhook secret rotated");
+    if (
+      !confirm(
+        "Are you sure you want to rotate the webhook secret? This will invalidate the current secret.",
+      )
+    ) {
+      return;
+    }
+
+    rotateSecret.mutate(sessionId);
   };
 
   return (
@@ -163,13 +235,27 @@ function WebhookConfigurationPage() {
               variant="outline"
               onClick={handleCancel}
               className="glass-card"
+              disabled={updateWebhook.isPending}
             >
               <X className="mr-2 h-4 w-4" />
               Cancel
             </Button>
-            <Button onClick={handleSave} className="glass-card hover-glow-teal">
-              <Save className="mr-2 h-4 w-4" />
-              Save Changes
+            <Button
+              onClick={handleSave}
+              className="glass-card hover-glow-teal"
+              disabled={updateWebhook.isPending}
+            >
+              {updateWebhook.isPending ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  Saving...
+                </>
+              ) : (
+                <>
+                  <Save className="mr-2 h-4 w-4" />
+                  Save Changes
+                </>
+              )}
             </Button>
           </div>
         </div>
@@ -235,10 +321,10 @@ function WebhookConfigurationPage() {
                       variant="link"
                       size="sm"
                       onClick={handleRotateSecret}
-                      disabled={!endpointEnabled}
+                      disabled={!endpointEnabled || rotateSecret.isPending}
                       className="text-xs h-auto p-0 text-teal hover:text-teal/80"
                     >
-                      Rotate
+                      {rotateSecret.isPending ? "Rotating..." : "Rotate"}
                     </Button>
                   </div>
                   <div className="relative">
