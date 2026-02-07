@@ -31,6 +31,16 @@ func (h *Handler) CreateSession(c *gin.Context) {
 	// Generate UUID for session ID
 	sessionID := uuid.New().String()
 
+	// TODO: Implement session config options (req.Config)
+	// - account_protection: Control message sending frequency
+	// - message_logging: Store full message content vs delivery status only
+	// - read_messages: Auto-mark messages as read
+	// - auto_reject_calls: Automatically reject incoming calls
+	// - always_online: Always appear online
+	// - ignore_groups: Skip group messages
+	// - ignore_broadcasts: Skip broadcast messages
+	// - ignore_channels: Skip channel messages
+
 	// Create session in local repository for WhatsApp client tracking
 	session, err := h.sessionUC.CreateSessionWithID(c.Request.Context(), sessionID, req.Name)
 	if err != nil {
@@ -293,6 +303,16 @@ func (h *Handler) UpdateSession(c *gin.Context) {
 		respondWithError(c, http.StatusBadRequest, "VALIDATION_FAILED", "Validation failed", details)
 		return
 	}
+
+	// TODO: Implement session config options (req.Config)
+	// - account_protection: Control message sending frequency
+	// - message_logging: Store full message content vs delivery status only
+	// - read_messages: Auto-mark messages as read
+	// - auto_reject_calls: Automatically reject incoming calls
+	// - always_online: Always appear online
+	// - ignore_groups: Skip group messages
+	// - ignore_broadcasts: Skip broadcast messages
+	// - ignore_channels: Skip channel messages
 
 	// Update session
 	session, err := h.sessionUC.UpdateSession(c.Request.Context(), id, req.Name)

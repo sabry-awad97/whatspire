@@ -1,8 +1,21 @@
 package dto
 
+// SessionConfig represents session configuration options
+type SessionConfig struct {
+	AccountProtection *bool `json:"account_protection,omitempty"`
+	MessageLogging    *bool `json:"message_logging,omitempty"`
+	ReadMessages      *bool `json:"read_messages,omitempty"`
+	AutoRejectCalls   *bool `json:"auto_reject_calls,omitempty"`
+	AlwaysOnline      *bool `json:"always_online,omitempty"`
+	IgnoreGroups      *bool `json:"ignore_groups,omitempty"`
+	IgnoreBroadcasts  *bool `json:"ignore_broadcasts,omitempty"`
+	IgnoreChannels    *bool `json:"ignore_channels,omitempty"`
+}
+
 // CreateSessionRequest represents a request to create a new WhatsApp session
 type CreateSessionRequest struct {
-	Name string `json:"name" validate:"required,min=1,max=100"`
+	Name   string         `json:"name" validate:"required,min=1,max=100"`
+	Config *SessionConfig `json:"config,omitempty"`
 }
 
 // SendMessageRequest represents a request to send a WhatsApp message
@@ -36,7 +49,8 @@ type DeleteSessionRequest struct {
 
 // UpdateSessionRequest represents a request to update session settings
 type UpdateSessionRequest struct {
-	Name *string `json:"name,omitempty" validate:"omitempty,min=1,max=100"`
+	Name   *string        `json:"name,omitempty" validate:"omitempty,min=1,max=100"`
+	Config *SessionConfig `json:"config,omitempty"`
 }
 
 // UpdateWebhookConfigRequest represents a request to update webhook configuration
