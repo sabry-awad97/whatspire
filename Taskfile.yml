@@ -8,7 +8,7 @@ vars:
   SERVER_DIR: apps/server
   WEB_DIR: apps/web
   SERVER_PORT: 8080
-  WEB_PORT: 5173
+  WEB_PORT: 3001
 
 tasks:
   # ============================================================================
@@ -225,12 +225,21 @@ tasks:
   # ============================================================================
 
   docker:up:
-    desc: "Start Docker containers"
+    desc: "Start Docker containers (builds images first)"
+    cmds:
+      - echo "🐳 Starting Docker containers..."
+      - docker compose build
+      - docker compose up -d
+      - echo "✅ Docker containers started"
+      - echo "📊 Container status:"
+      - docker compose ps
+
+  docker:start:
+    desc: "Start existing Docker containers (no build)"
     cmds:
       - echo "🐳 Starting Docker containers..."
       - docker compose up -d
       - echo "✅ Docker containers started"
-      - echo "📊 Container status:"
       - docker compose ps
 
   docker:down:
@@ -271,16 +280,9 @@ tasks:
 
   docker:build:backend:
     desc: "Build only WhatsApp service Docker image"
-    dir: "{{.SERVER_DIR}}"
     cmds:
       - echo "🐳 Building WhatsApp service image..."
-      - |
-        {{if eq OS "windows"}}
-        powershell -ExecutionPolicy Bypass -File docker-build.ps1
-        {{else}}
-        chmod +x docker-build.sh
-        ./docker-build.sh
-        {{end}}
+      - docker compose build app
       - echo "✅ WhatsApp service image built"
 
   docker:rebuild:
@@ -380,8 +382,10 @@ tasks:
     cmds:
       - echo "🚀 Deploying to production..."
       - task: prod:check-env
-      - task: prod:build
-      - task: prod:up
+      - echo "Building images..."
+      - docker-compose -f docker-compose.production.yml --env-file .env.production build
+      - echo "Starting services..."
+      - docker-compose -f docker-compose.production.yml --env-file .env.production up -d
       - echo "✅ Production deployment complete!"
       - task: prod:status
 

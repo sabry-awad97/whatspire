@@ -53,6 +53,7 @@ if (!rootElement.innerHTML) {
       <WhatspireProvider
         config={{
           baseURL: import.meta.env.VITE_SERVER_URL || "http://localhost:8080",
+          apiKey: import.meta.env.VITE_API_KEY,
         }}
       >
         <RouterProvider router={router} />

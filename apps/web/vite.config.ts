@@ -12,6 +12,7 @@ export default defineConfig({
     },
   },
   server: {
-    port: 5173,
+    host: "127.0.0.1", // Use IPv4 to avoid Windows permission issues
+    port: 3001, // Changed from 5173 to avoid permission issues
   },
 });

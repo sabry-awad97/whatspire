@@ -33,25 +33,18 @@ var Module = fx.Module("config",
 )
 
 // ProvideConfig provides the configuration instance
-func ProvideConfig(log *logger.Logger) (*Config, error) {
+func ProvideConfig() (*Config, error) {
 	// Load config from file (if specified) or auto-discover
 	cfg, err := LoadWithConfigFile(configFileFlag)
 	if err != nil {
 		return nil, err
 	}
 
-	if configFileFlag != "" {
-		log.WithFields(map[string]interface{}{"config_file": configFileFlag}).
-			Info("Configuration loaded from file successfully")
-	} else {
-		log.Info("Configuration loaded from environment variables and defaults")
-	}
-
 	return cfg, nil
 }
 
 // ProvideConfigWatcher provides the configuration watcher for hot reload
-func ProvideConfigWatcher(log *logger.Logger) (*ConfigWatcher, error) {
+func ProvideConfigWatcher(cfg *Config, log *logger.Logger) (*ConfigWatcher, error) {
 	// Create watcher
 	watcher, err := NewConfigWatcher(configFileFlag, log)
 	if err != nil {

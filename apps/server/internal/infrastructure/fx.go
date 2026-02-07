@@ -264,17 +264,11 @@ func NewGorillaEventPublisher(lc fx.Lifecycle, cfg *config.Config, log *logger.L
 }
 
 // NewAuditLogger creates a new audit logger
-func NewAuditLogger(cfg *config.Config) (repository.AuditLogger, *logger.Logger) {
-	// Create zerolog logger
-	log := logger.New(
-		cfg.Log.Level,
-		cfg.Log.Format,
-	)
-
-	// Create audit logger
+func NewAuditLogger(log *logger.Logger) repository.AuditLogger {
+	// Create audit logger from existing logger
 	auditLogger := logger.NewAuditLogger(log)
 
-	return auditLogger, log
+	return auditLogger
 }
 
 // NewWebhookPublisher creates a new webhook publisher (optional, based on config)
